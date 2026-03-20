@@ -43,6 +43,8 @@ export class GameRenderer {
     positions: { x: number; y: number; action?: string }[]
     currentIndex: number
     bucketIndex: number
+    /** Multiplier on path-index advance per tick (turbo > 1). */
+    speedMultiplier: number
   }[] = []
 
   public paths: PathData = {}
@@ -159,7 +161,7 @@ export class GameRenderer {
     }
   }
 
-  public async createBall(bucketIndex: number): Promise<void> {
+  public async createBall(bucketIndex: number, speedMultiplier = 1): Promise<void> {
     // Ensure paths are loaded before creating ball
     if (!this.pathsLoaded) {
       await this.loadPaths()
@@ -173,7 +175,7 @@ export class GameRenderer {
     
     const compressedPath = paths[Math.floor(Math.random() * paths.length)]
     const path = this.decompressPath(compressedPath)
-    this.animateBallAlongPath(bucketIndex, path)
+    this.animateBallAlongPath(bucketIndex, path, Math.max(1, speedMultiplier))
   }
 
   private decompressPath(compressed: string): { x: number; y: number; action?: string }[] {
@@ -184,7 +186,8 @@ export class GameRenderer {
 
   private animateBallAlongPath(
     bucketIndex: number,
-    positions: { x: number; y: number; action?: string }[]
+    positions: { x: number; y: number; action?: string }[],
+    speedMultiplier: number
   ): void {
     const graphics = new Graphics().circle(0, 0, ballR(this.rows)).fill(ballColors[this.risk])
 
@@ -195,6 +198,7 @@ export class GameRenderer {
       positions,
       currentIndex: 0,
       bucketIndex,
+      speedMultiplier,
     })
   }
 
@@ -212,6 +216,8 @@ export class GameRenderer {
         // ~60 FPS: advance one path sample per tick
         framesToAdvance = 1
       }
+
+      framesToAdvance *= ball.speedMultiplier
 
       const previousIndex = ball.currentIndex
       ball.currentIndex += framesToAdvance

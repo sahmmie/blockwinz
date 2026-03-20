@@ -14,6 +14,9 @@ export const getPB = (rows: number): number => (rows >= 14 ? 9 : 12) * SCL
 export const MAX_O = 168
 export const MAX_A = 50
 
+/** Path-index advance multiplier vs normal when profile/in-game turbo is on (still shows full fall). */
+export const PLINKO_TURBO_ANIM_SPEED_MULTIPLIER = 1.50
+
 export const NO_COL_FILTER = { category: 0x0000, mask: 0x0000 }
 export const NO_COL_FILTER_GR = { category: 0x0000, mask: 0x0000, group: -1 }
 

@@ -6,6 +6,7 @@ import { useGameState } from '@/hooks/useGameState'
 import { plinkoMuls } from '@/casinoGames/plinko/plinkoMuls'
 import { colors } from '../clrs'
 import { GameRenderer } from '../components/Renderer/GameRenderer'
+import { PLINKO_TURBO_ANIM_SPEED_MULTIPLIER } from '../components/Renderer/utils'
 import { PlinkoGameState, PlinkoBetRequest, PlinkoBetResponse, BucketData } from '../types'
 import { useSettingsStore } from '@/hooks/useSettings'
 import useWalletState from '@/hooks/useWalletState'
@@ -62,15 +63,14 @@ export const useGameControls = () => {
     },
     onBetResult: async (currState: EP, res: PlinkoBetResponse) => {
       const goalBucket = res.results.reduce((acc, cur) => acc + cur, 0)
-      const isTurboSkip =
+      const isTurbo =
         settingsRef.current.isTurbo || currState.speedType === SpeedTypes.TURBO
       actions.updateState({ results: res.results })
-      if (isTurboSkip) {
-        finalizePlinkoRoundRef.current(goalBucket, false)
-      } else {
-        await gameRendererRef.current?.createBall(goalBucket)
-        bumpRunningBall()
-      }
+      await gameRendererRef.current?.createBall(
+        goalBucket,
+        isTurbo ? PLINKO_TURBO_ANIM_SPEED_MULTIPLIER : 1
+      )
+      bumpRunningBall()
     },
     onAnimFinish: () => {
       // No-op: round completion is in finalizePlinkoRound
