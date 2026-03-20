@@ -17,9 +17,7 @@ const WheelSlider: React.FC<WheelSliderProps> = ({ value, onChange, isDisabled,t
       <Box>
         <Slider.Root
           disabled={isDisabled}
-          onChange={e =>
-            onChange(parseInt((e.target as unknown as { value: string }).value))
-          }
+          onValueChange={details => onChange(details.value[0])}
           value={[value]}
           min={10}
           step={10}

@@ -120,11 +120,7 @@ const GameBoard: FunctionComponent<GameBoardProps> = () => {
               defaultValue={[50]}
               isRollOver={isRollOver}
               readOnly={isLoading}
-              onChange={e =>
-                handleSliderChange(
-                  (e.target as unknown as { value: number }).value,
-                )
-              }
+              onValueChange={details => handleSliderChange(details.value[0])}
             />
           </Box>
         </Box>

@@ -31,9 +31,7 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
       <Box>
         <Slider.Root
           disabled={isDisabled}
-          onChange={e =>
-            onChange(parseInt((e.target as unknown as { value: string }).value))
-          }
+          onValueChange={details => onChange(details.value[0])}
           value={[value]}
           min={min}
           max={max}
