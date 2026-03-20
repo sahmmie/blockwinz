@@ -6,7 +6,7 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { BetHistoryRepository } from '../repositories/betHistory.repository';
+import { BetHistoryService } from '../betHistory.service';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -26,7 +26,7 @@ import { CustomCacheInterceptor } from 'src/shared/interceptors/cache.intercepto
 @ApiBearerAuth('JWT-auth')
 @UseInterceptors(CustomCacheInterceptor)
 export class BetHistoryController {
-  constructor(private betHistoryRepository: BetHistoryRepository) {}
+  constructor(private readonly betHistoryService: BetHistoryService) {}
 
   @Public()
   @ApiResponse({
@@ -41,7 +41,7 @@ export class BetHistoryController {
     @Query('limit') limit: string,
     @Query('sortyBy') sortyBy: 'latest' | 'totalWinAmount',
   ): Promise<PaginatedDataI<BetHistoryDto>> {
-    return this.betHistoryRepository.getBetHistories(
+    return this.betHistoryService.getBetHistories(
       parseInt(limit),
       1,
       sortyBy,
@@ -56,7 +56,7 @@ export class BetHistoryController {
   @Get(':betId')
   @HttpCode(200)
   getBetHistoryById(@Param('betId') betId: string): Promise<BetHistoryDto> {
-    return this.betHistoryRepository.getBetHistoryById(betId);
+    return this.betHistoryService.getBetHistoryById(betId);
   }
 
   @ApiResponse({
@@ -71,7 +71,7 @@ export class BetHistoryController {
     @Query('limit') limit: string,
     @Query('page') page: string,
   ): Promise<PaginatedDataI<BetHistoryDto>> {
-    return this.betHistoryRepository.getUserBetHistory(
+    return this.betHistoryService.getUserBetHistory(
       user.id,
       parseInt(limit),
       parseInt(page),

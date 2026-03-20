@@ -3,36 +3,23 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import { ReferralStatus } from './dtos/referral-tracking.dto';
 import { ReferralStatsResponseDto } from './dtos/referral-tracking.dto';
-import { DRIZZLE } from 'src/database/constants';
-import type { DrizzleDb } from 'src/database/database.module';
-import { referrals } from 'src/database/schema/referrals';
-import { referralSettings } from 'src/database/schema/referral-settings';
-import { profiles } from 'src/database/schema/profiles';
-import { eq, and, lt, inArray } from 'drizzle-orm';
 import type { ProfileSelect } from 'src/database/schema/profiles';
-import type {
-  ReferralSelect,
-  ReferralInsert,
-} from 'src/database/schema/referrals';
+import type { ReferralInsert } from 'src/database/schema/referrals';
+import { ReferralRepository } from './repositories/referral.repository';
 
 @Injectable()
 export class ReferralService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDb) {}
+  constructor(private readonly referralRepository: ReferralRepository) {}
 
   async generateReferralCode(userId: string): Promise<string> {
-    const [settings] = await this.db.select().from(referralSettings).limit(1);
+    const settings = await this.referralRepository.findFirstReferralSettings();
     if (!settings) {
       throw new NotFoundException('Referral settings not found');
     }
 
-    const [profile] = await this.db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1);
+    const profile = await this.referralRepository.findProfileByUserId(userId);
     if (!profile) {
       throw new NotFoundException('Profile not found');
     }
@@ -41,23 +28,22 @@ export class ReferralService {
       return profile.referralCode;
     }
 
-    const code = this.generateUniqueCode(
+    const code = await this.generateUniqueCode(
       settings.referralCodePrefix,
       settings.referralCodeLength,
     );
 
-    await this.db
-      .update(profiles)
-      .set({
-        referralCode: code,
-        updatedAt: new Date(),
-      } as Partial<ProfileSelect>)
-      .where(eq(profiles.id, profile.id));
+    await this.referralRepository.updateProfileById(profile.id, {
+      referralCode: code,
+    } as Partial<ProfileSelect>);
 
     return code;
   }
 
-  private generateUniqueCode(prefix: string, length: number): string {
+  private async generateUniqueCode(
+    prefix: string,
+    length: number,
+  ): Promise<string> {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code: string;
     do {
@@ -66,35 +52,26 @@ export class ReferralService {
         Array.from({ length }, () =>
           chars.charAt(Math.floor(Math.random() * chars.length)),
         ).join('');
-    } while (this.isCodeExists(code));
+    } while (await this.isCodeExists(code));
     return code;
   }
 
   private async isCodeExists(code: string): Promise<boolean> {
-    const [profile] = await this.db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.referralCode, code))
-      .limit(1);
+    const profile =
+      await this.referralRepository.findProfileByReferralCode(code);
     return !!profile;
   }
 
   async processReferral(referrerId: string, referredId: string): Promise<void> {
-    const [settings] = await this.db.select().from(referralSettings).limit(1);
+    const settings = await this.referralRepository.findFirstReferralSettings();
     if (!settings) {
       throw new NotFoundException('Referral settings not found');
     }
 
-    const [referrerProfile] = await this.db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, referrerId))
-      .limit(1);
-    const [referredProfile] = await this.db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, referredId))
-      .limit(1);
+    const referrerProfile =
+      await this.referralRepository.findProfileByUserId(referrerId);
+    const referredProfile =
+      await this.referralRepository.findProfileByUserId(referredId);
 
     if (!referrerProfile || !referredProfile) {
       throw new NotFoundException('Profile not found');
@@ -125,7 +102,7 @@ export class ReferralService {
       Date.now() + settings.referralCompletionTimeframe * 24 * 60 * 60 * 1000,
     );
 
-    await this.db.insert(referrals).values({
+    await this.referralRepository.insertReferral({
       referrer: referrerId,
       referred: referredId,
       status: ReferralStatus.PENDING,
@@ -136,21 +113,13 @@ export class ReferralService {
       expiresAt,
     } as ReferralInsert);
 
-    await this.db
-      .update(profiles)
-      .set({
-        referredBy: referrerId,
-        updatedAt: new Date(),
-      } as Partial<ProfileSelect>)
-      .where(eq(profiles.id, referredProfile.id));
+    await this.referralRepository.updateProfileById(referredProfile.id, {
+      referredBy: referrerId,
+    } as Partial<ProfileSelect>);
 
-    await this.db
-      .update(profiles)
-      .set({
-        referralCount: (referrerProfile.referralCount ?? 0) + 1,
-        updatedAt: new Date(),
-      } as Partial<ProfileSelect>)
-      .where(eq(profiles.id, referrerProfile.id));
+    await this.referralRepository.updateProfileById(referrerProfile.id, {
+      referralCount: (referrerProfile.referralCount ?? 0) + 1,
+    } as Partial<ProfileSelect>);
   }
 
   async updateReferralProgress(
@@ -158,19 +127,11 @@ export class ReferralService {
     depositAmount: number,
     betAmount: number,
   ): Promise<void> {
-    const [referral] = await this.db
-      .select()
-      .from(referrals)
-      .where(
-        and(
-          eq(referrals.referred, userId),
-          eq(referrals.status, ReferralStatus.PENDING),
-        ),
-      )
-      .limit(1);
+    const referral =
+      await this.referralRepository.findPendingReferralByReferred(userId);
     if (!referral) return;
 
-    const [settings] = await this.db.select().from(referralSettings).limit(1);
+    const settings = await this.referralRepository.findFirstReferralSettings();
     if (!settings) return;
 
     const progress = referral.progress as {
@@ -226,41 +187,29 @@ export class ReferralService {
         reason: 'All conditions met',
       });
 
-      const [referrerProfile] = await this.db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.userId, referral.referrer))
-        .limit(1);
+      const referrerProfile = await this.referralRepository.findProfileByUserId(
+        referral.referrer,
+      );
       if (referrerProfile) {
-        await this.db
-          .update(profiles)
-          .set({
-            referralEarnings:
-              (referrerProfile.referralEarnings ?? 0) + rewardAmount,
-            updatedAt: new Date(),
-          } as Partial<ProfileSelect>)
-          .where(eq(profiles.id, referrerProfile.id));
+        await this.referralRepository.updateProfileById(referrerProfile.id, {
+          referralEarnings:
+            (referrerProfile.referralEarnings ?? 0) + rewardAmount,
+        } as Partial<ProfileSelect>);
       }
     }
 
-    await this.db
-      .update(referrals)
-      .set({
-        progress: newProgress,
-        history: newHistory,
-        status: newStatus,
-        rewardAmount: String(rewardAmount),
-        completedAt,
-        updatedAt: new Date(),
-      } as Partial<ReferralSelect>)
-      .where(eq(referrals.id, referral.id));
+    await this.referralRepository.updateReferralById(referral.id, {
+      progress: newProgress,
+      history: newHistory,
+      status: newStatus,
+      rewardAmount: String(rewardAmount),
+      completedAt,
+    });
   }
 
   async getReferralStats(userId: string): Promise<ReferralStatsResponseDto> {
-    const referralRows = await this.db
-      .select()
-      .from(referrals)
-      .where(eq(referrals.referrer, userId));
+    const referralRows =
+      await this.referralRepository.findReferralsByReferrer(userId);
 
     const completedReferrals = referralRows.filter(
       (r) => r.status === ReferralStatus.COMPLETED,
@@ -301,18 +250,8 @@ export class ReferralService {
   }
 
   async checkExpiredReferrals(): Promise<void> {
-    const expiredRows = await this.db
-      .select()
-      .from(referrals)
-      .where(
-        and(
-          inArray(referrals.status, [
-            ReferralStatus.PENDING,
-            ReferralStatus.ACTIVE,
-          ]),
-          lt(referrals.expiresAt, new Date()),
-        ),
-      );
+    const expiredRows =
+      await this.referralRepository.findExpiredPendingOrActiveReferrals();
 
     for (const referral of expiredRows) {
       const history =
@@ -321,21 +260,17 @@ export class ReferralService {
           timestamp: string | Date;
           reason?: string;
         }>) ?? [];
-      await this.db
-        .update(referrals)
-        .set({
-          status: ReferralStatus.EXPIRED,
-          history: [
-            ...history,
-            {
-              status: ReferralStatus.EXPIRED,
-              timestamp: new Date() as unknown as string,
-              reason: 'Referral timeframe expired',
-            },
-          ],
-          updatedAt: new Date(),
-        } as Partial<ReferralSelect>)
-        .where(eq(referrals.id, referral.id));
+      await this.referralRepository.updateReferralById(referral.id, {
+        status: ReferralStatus.EXPIRED,
+        history: [
+          ...history,
+          {
+            status: ReferralStatus.EXPIRED,
+            timestamp: new Date() as unknown as string,
+            reason: 'Referral timeframe expired',
+          },
+        ],
+      });
     }
   }
 }

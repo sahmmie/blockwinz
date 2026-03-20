@@ -1,21 +1,14 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { desc, eq, sql, and } from 'drizzle-orm';
 import { BetHistoryDto } from '../dtos/betHistory.dto';
 import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
-import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { betHistories } from 'src/database/schema/bet-histories';
 
 @Injectable()
 export class BetHistoryRepository {
-  private readonly logger = new Logger(BetHistoryRepository.name);
-
-  constructor(
-    @Inject(DRIZZLE) private readonly db: DrizzleDb,
-    @Inject(ConfigService) public config: ConfigService,
-  ) {}
+  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDb) {}
 
   private rowToDto(row: typeof betHistories.$inferSelect): BetHistoryDto {
     return {
@@ -29,19 +22,11 @@ export class BetHistoryRepository {
     };
   }
 
-  async getUserBetHistory(
+  async findUserBetHistoryPaginated(
     userId: string,
     limit: number,
-    page: number,
-  ): Promise<PaginatedDataI<BetHistoryDto>> {
-    if (!limit || !page) {
-      throw new Error('Limit and page are required');
-    }
-    if (limit > 50) {
-      throw new Error('Limit cannot exceed 50');
-    }
-    const offset = (page - 1) * limit;
-
+    offset: number,
+  ): Promise<{ result: BetHistoryDto[]; total: number }> {
     const rows = await this.db
       .select()
       .from(betHistories)
@@ -66,20 +51,13 @@ export class BetHistoryRepository {
       );
 
     const total = Number(count ?? 0);
-    const pages =
-      limit > 0
-        ? Array.from({ length: Math.ceil(total / limit) }, (_, i) => i + 1)
-        : [1];
-
     return {
       result: rows.map((r) => this.rowToDto(r)),
       total,
-      page,
-      pages,
     };
   }
 
-  async getBetHistoryById(betId: string): Promise<BetHistoryDto> {
+  async findBetHistoryById(betId: string): Promise<BetHistoryDto | null> {
     const [row] = await this.db
       .select()
       .from(betHistories)
@@ -87,7 +65,7 @@ export class BetHistoryRepository {
       .limit(1);
 
     if (!row) {
-      throw new Error('Bet not found');
+      return null;
     }
     return this.rowToDto(row);
   }
@@ -111,7 +89,9 @@ export class BetHistoryRepository {
         totalWinAmount: totalWinAmount != null ? String(totalWinAmount) : null,
       } as typeof betHistories.$inferInsert)
       .returning();
-    if (!row) throw new Error('Failed to create bet history');
+    if (!row) {
+      throw new InternalServerErrorException('Failed to create bet history');
+    }
     return this.rowToDto(row);
   }
 
@@ -127,7 +107,7 @@ export class BetHistoryRepository {
       .where(eq(betHistories.gameId, gameId))
       .limit(1);
     if (!existing) {
-      throw new Error('Bet history not found');
+      throw new InternalServerErrorException('Bet history not found');
     }
     const [row] = await db
       .update(betHistories)
@@ -137,26 +117,17 @@ export class BetHistoryRepository {
       } as Record<string, unknown>)
       .where(eq(betHistories.id, existing.id))
       .returning();
-    if (!row) throw new Error('Failed to update bet history');
+    if (!row) {
+      throw new InternalServerErrorException('Failed to update bet history');
+    }
     return this.rowToDto(row);
   }
 
-  async getBetHistories(
+  async findAllBetHistoriesPaginated(
     limit: number,
-    page: number = 1,
-    sortby: 'latest' | 'totalWinAmount' = 'latest',
-  ): Promise<PaginatedDataI<BetHistoryDto>> {
-    if (sortby !== 'latest' && sortby !== 'totalWinAmount') {
-      throw new Error('Invalid sortby parameter');
-    }
-    if (!limit || !page) {
-      throw new Error('Limit and page are required');
-    }
-    if (limit > 50) {
-      throw new Error('Limit cannot exceed 50');
-    }
-    const offset = (page - 1) * limit;
-
+    offset: number,
+    sortby: 'latest' | 'totalWinAmount',
+  ): Promise<{ result: BetHistoryDto[]; total: number }> {
     const rows =
       sortby === 'latest'
         ? await this.db
@@ -183,16 +154,9 @@ export class BetHistoryRepository {
       .where(sql`${betHistories.betAmount} > 0`);
 
     const total = Number(count ?? 0);
-    const pages =
-      limit > 0
-        ? Array.from({ length: Math.ceil(total / limit) }, (_, i) => i + 1)
-        : [1];
-
     return {
       result: rows.map((r) => this.rowToDto(r)),
       total,
-      page,
-      pages,
     };
   }
 }

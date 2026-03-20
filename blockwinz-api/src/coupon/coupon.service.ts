@@ -13,7 +13,7 @@ import {
 import { RewardType } from 'src/shared/enums/rewardType.enum';
 import { RequiredTask } from 'src/shared/enums/requiredTask.enum';
 import { AuthenticationRepository } from '../authentication/repositories/authentication.repository';
-import { BetHistoryRepository } from '../betHistory/repositories/betHistory.repository';
+import { BetHistoryService } from '../betHistory/betHistory.service';
 import { TransactionRepository } from '../transaction/repositories/transaction.repository';
 import { ReferralService } from '../referral/referral.service';
 import { WalletRepository } from '../wallet/repositories/wallet.repository';
@@ -32,7 +32,7 @@ export class CouponService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDb,
     private readonly authenticationRepository: AuthenticationRepository,
-    private readonly betHistoryRepository: BetHistoryRepository,
+    private readonly betHistoryService: BetHistoryService,
     private readonly transactionRepository: TransactionRepository,
     private readonly referralService: ReferralService,
     private readonly walletRepository: WalletRepository,
@@ -217,7 +217,7 @@ export class CouponService {
     userId: string,
     minGames: number,
   ): Promise<void> {
-    const betHistory = await this.betHistoryRepository.getUserBetHistory(
+    const betHistory = await this.betHistoryService.getUserBetHistory(
       userId,
       1,
       1,

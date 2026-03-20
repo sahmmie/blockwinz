@@ -62,4 +62,7 @@ The API image uses Turborepo `turbo prune` inside [`blockwinz-api/Dockerfile`](b
 ## Git hooks
 
 [Husky](https://typicode.github.io/husky/) runs at the repo root (`.husky/pre-push` runs `pnpm exec turbo run build`).
-# blockwinz
+
+## AI assistants
+
+Coding patterns and conventions for assistants are documented in [`.cursor/commands/mcp-template.md`](.cursor/commands/mcp-template.md).
