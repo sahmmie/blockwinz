@@ -135,10 +135,12 @@ const BetTable: FunctionComponent<BetTableProps> = ({
               alt=''
               style={{ width: '24px', height: '24px' }}
             />
-            {item?.gameId?.betAmount.toFixed(
-              balances.find(c => c.currency === item.gameId.currency)
-                ?.decimals || DEFAULT_ROUNDING_DECIMALS,
-            )}
+            {item?.gameId?.betAmount != null
+              ? Number(item.gameId.betAmount).toFixed(
+                  balances.find(c => c.currency === item.gameId?.currency)
+                    ?.decimals ?? DEFAULT_ROUNDING_DECIMALS,
+                )
+              : '—'}
           </Table.Cell>
         )}
         <Table.Cell p={'12px'} textAlign={{ md: 'left', base: 'center' }}>
@@ -155,10 +157,12 @@ const BetTable: FunctionComponent<BetTableProps> = ({
             alt=''
             style={{ width: '24px', height: '24px' }}
           />
-          {item?.gameId?.totalWinAmount?.toFixed(
-            balances.find(c => c.currency === item.gameId.currency)?.decimals ||
-              DEFAULT_ROUNDING_DECIMALS,
-          )}
+          {item?.gameId?.totalWinAmount != null
+            ? Number(item.gameId.totalWinAmount).toFixed(
+                balances.find(c => c.currency === item.gameId?.currency)
+                  ?.decimals ?? DEFAULT_ROUNDING_DECIMALS,
+              )
+            : '—'}
         </Table.Cell>
         {!isMobile && betTableType === BetTableType.MY_BETS && (
           <Table.Cell p={'12px'}>{item?._id}</Table.Cell>
