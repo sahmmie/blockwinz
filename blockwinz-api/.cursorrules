@@ -1,5 +1,7 @@
 You are working on a NestJS backend application using TypeScript.
 
+Repo-wide API rules (financial data, fairness/secrets exposure, JSDoc) are defined in [`../.cursor/commands/mcp-template.md`](../.cursor/commands/mcp-template.md)—follow that document together with this file.
+
 Project Structure:
 
 - `src/` contains all source code.
@@ -30,8 +32,9 @@ Best Practices:
 - Apply guards, interceptors, and pipes as needed.
 - Write unit tests for services and controllers.
 - Use dependency injection for managing service/repository instances.
-- Document public classes and methods using JSDoc.
-- Maintain consistent code formatting and naming conventions especially as the met the project's coding standards.
+- **JSDoc**: Every method on **controllers**, **services**, and **repositories** must have a JSDoc block; add `@param` / `@returns` / `@throws` when not obvious. Document exported helpers and any function touching money, auth, seeds, or fairness.
+- Treat wallet, bets, and ledger code as **security- and financially sensitive**; never expose active plain `serverSeed` or other predictors to clients except where existing DTOs and flows already do.
+- Maintain consistent code formatting and naming conventions, matching the project's coding standards.
 
 Repository Pattern Guidelines:
 

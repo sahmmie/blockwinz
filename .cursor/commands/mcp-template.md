@@ -75,6 +75,22 @@ Prefer **repository commands** over ad-hoc paths:
 
 - Use **`@Public()`** (or equivalent reflector metadata) where the codebase marks routes that skip auth—mirror existing guards and decorators.
 
+### Financial data
+
+- Treat **balances, bets, payouts, fees, and ledger writes** as financially critical: validate inputs, use transactions for multi-step changes, preserve idempotency where the codebase already does, and follow existing wallet and transaction modules—never skip authorization or row scoping.
+- Do not log secrets, full payment or API credentials, or unnecessary PII; align with existing logging patterns for amounts and identifiers.
+
+### Fairness and sensitive data (do not leak predictors)
+
+- **Do not** return or log values that let a client **predict unrevealed outcomes**—for example the **active** plain `serverSeed` while it still governs upcoming rounds. Expose **hashes** (e.g. `serverSeedHash` / `serverSeedHashed`) for active seeds, and plain `serverSeed` only where this repo’s product rules and DTOs already allow (e.g. after rotation, or for settled bets and history). Follow existing **seeds**, **bet history**, and **fairness** modules when adding or changing responses.
+- Apply the same discipline to **internal RNG state**, **signing keys**, and **admin-only** configuration: add fields that support **verification**, not **prediction**.
+- **`@blockwinz/web`** and **`@blockwinz/admin`**: do not add UI, client storage, or logs that surface server-only secrets beyond what the API intentionally exposes today.
+
+### JSDoc (`@blockwinz/api`)
+
+- **Every** method on NestJS **controllers**, **services**, and **repositories** under `blockwinz-api/src/` must have a **JSDoc** block (`/** ... */`): a one-line or short description at minimum; add **`@param`**, **`@returns`**, and **`@throws`** when behavior, parameters, HTTP exceptions, or side effects are not obvious from the signature alone.
+- On **exported** helpers and utilities (`*.helper.ts`, shared `src/**` functions), use JSDoc on each **exported** function, and on any **non-exported** function that touches **money, auth, seeds, or fairness**.
+
 ---
 
 ## `@blockwinz/web` (Vite + React 18)
@@ -97,6 +113,7 @@ Prefer **repository commands** over ad-hoc paths:
 
 ## Quality bar
 
+- **Financial / fairness / JSDoc**: When changing **`@blockwinz/api`**, follow the **Financial data**, **Fairness and sensitive data**, and **JSDoc** subsections above—they are mandatory for new and edited code in those areas.
 - **Lint**: `pnpm lint` at root runs turbo pipelines per package; fix new issues in touched files.
 - **Format**: API sources use Prettier (`pnpm format`); match `.prettierrc` in `blockwinz-api` (e.g. single quotes, trailing commas).
 - **Tests**: Prefer adding or updating tests under `blockwinz-api` when changing critical logic; web/admin may still use placeholder `test` scripts—follow existing practice per package.
@@ -115,7 +132,7 @@ Prefer **repository commands** over ad-hoc paths:
 ## How assistants should work in this repo
 
 1. **Search and read this codebase** (semantic search, grep, reading files) and align answers with what is already here.
-2. **Apply this document** for architecture and style when implementing or reviewing.
+2. **Apply this document** for architecture, style, financial safety, fairness exposure, and API JSDoc when implementing or reviewing.
 3. **Keep changes minimal** and consistent with the surrounding module.
 4. For **unclear product behavior**, infer from tests and existing flows in this repo.
 
