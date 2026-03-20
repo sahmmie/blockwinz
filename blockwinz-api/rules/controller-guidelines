@@ -1,0 +1,4 @@
+- Add Swagger decorators for API docs
+- Controllers handle routing only
+- Controllers should not contain business logic
+- Controllers should not contain database queries

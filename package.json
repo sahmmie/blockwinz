@@ -1,0 +1,42 @@
+{
+  "name": "blockwinz-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "pnpm": {
+    "overrides": {
+      "@types/react": "18.3.28",
+      "@types/react-dom": "18.3.7"
+    }
+  },
+  "scripts": {
+    "prepare": "husky install",
+    "build": "turbo run build",
+    "build:api": "pnpm --filter @blockwinz/api build",
+    "build:web": "pnpm --filter @blockwinz/web build",
+    "build:admin": "pnpm --filter @blockwinz/admin build",
+    "dev": "turbo run dev",
+    "dev:api": "pnpm --filter @blockwinz/api dev",
+    "dev:web": "pnpm --filter @blockwinz/web dev",
+    "dev:admin": "pnpm --filter @blockwinz/admin dev",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "preview:web": "turbo run preview --filter=@blockwinz/web",
+    "start:api": "pnpm --filter @blockwinz/api start:prod",
+    "start:api:dev": "pnpm --filter @blockwinz/api start",
+    "debug:api": "pnpm --filter @blockwinz/api start:debug",
+    "start:admin": "pnpm --filter @blockwinz/admin start",
+    "update-structure": "pnpm --filter @blockwinz/api update-structure",
+    "db:generate": "pnpm --filter @blockwinz/api db:generate",
+    "db:migrate": "pnpm --filter @blockwinz/api db:migrate",
+    "db:push": "pnpm --filter @blockwinz/api db:push",
+    "db:studio": "pnpm --filter @blockwinz/api db:studio",
+    "seed": "pnpm --filter @blockwinz/api seed",
+    "compose:up": "docker compose up --build",
+    "compose:up:detached": "docker compose up -d --build",
+    "compose:down": "docker compose down"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0",
+    "turbo": "^2.5.4"
+  }
+}

@@ -1,0 +1,80 @@
+You are working on a NestJS backend application using TypeScript.
+
+Project Structure:
+
+- `src/` contains all source code.
+- `src/games/` contains game-related logic.
+- `src/shared/` contains shared constants decorators, enums, dtos, errors, filters, guards, helpers, interceptors, interfaces, middlewares, pipes, schemas,
+  services
+- `src/main.ts` is the entry point of the application.
+
+Coding Standards:
+
+- Use TypeScript for all code.
+- Apply SOLID principles and clean architecture.
+- Use PascalCase for class names and camelCase for variables and functions.
+- Use camelCase for file and directory names.
+- Use UPPERCASE for environment variables.
+- Avoid magic numbers; define constants instead.
+- Start function names with verbs (e.g., getUser, createOrder).
+- Use verbs for boolean variables (e.g., isActive, hasPermission).
+- Write short, single-purpose functions (preferably under 20 lines).
+- Use arrow functions for simple callbacks; named functions for complex logic.
+- Avoid nested blocks by using early returns and extracting utility functions.
+- Use default parameter values instead of checking for null or undefined (except for optional parameters).
+
+Best Practices:
+
+- Implement proper error handling and input validation.
+- Use DTOs for data transfer and validation.
+- Apply guards, interceptors, and pipes as needed.
+- Write unit tests for services and controllers.
+- Use dependency injection for managing service/repository instances.
+- Document public classes and methods using JSDoc.
+- Maintain consistent code formatting and naming conventions especially as the met the project's coding standards.
+
+Repository Pattern Guidelines:
+
+- For each entity, create a corresponding repository file named `entity.repository.ts`.
+- Repository files should encapsulate all data access logic related to the entity and also business logic.
+- Avoid using `entity.service.ts` files; instead, place business logic within the repository or a dedicated service if necessary.
+- Ensure that repositories are injected into controllers or services using NestJS's dependency injection.
+
+### 🧱 Code Patterns:
+- Use `PascalCase` for classes and interfaces.
+- Use `camelCase` for variables and functions.
+- Use `camelCase` for file names.
+- Do NOT use `any` unless absolutely necessary. Prefer stricter types.
+- All custom types and interfaces must be declared in separate `*.types.ts` or `*.interfaces.ts` files. Do NOT place them in controller, repository, or service files.
+
+### 📖 Swagger (API Docs) Rules:
+
+- Every controller method must be documented using Swagger decorators:
+  - `@ApiTags` for class
+  - `@ApiOperation` and `@ApiResponse` or `@ApiOkResponse` for methods
+  - Use DTOs in `@ApiBody`, `@ApiQuery`, `@ApiParam`, etc.
+- All DTOs used in Swagger must be imported from `dto/` folders.
+
+Example:
+
+```ts
+@ApiTags('Users')
+@Controller('users')
+export class UserController {
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a user by ID' })
+  @ApiOkResponse({ type: UserResponseDto })
+  getUser(@Param('id') id: string): Promise<UserResponseDto> {
+    ...
+  }
+}
+```
+
+These rules are based on:
+Your use of NestJS framework
+The presence of DTOs, schemas, and repositories
+The security-sensitive nature of your wallet and authentication code
+The consistent use of TypeScript throughout the codebase
+The modular structure of your application
+The use of Swagger/OpenAPI decorators
+The presence of encryption for sensitive data

@@ -1,0 +1,98 @@
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ValidationError } from '@nestjs/class-validator';
+import { ValidationPipe } from '@nestjs/common';
+import { FallbackExceptionFilter } from './shared/filters/fallback.filter';
+import { HttpExceptionFilter } from './shared/filters/http.filter';
+import { ValidationException } from './shared/filters/validation.exception';
+import { ValidationFilter } from './shared/filters/validation.filter';
+import compression from 'compression';
+import helmet from 'helmet';
+import { RedisIoAdapter } from './shared/adaptors/redisAdapter';
+// Import version from package.json (requires resolveJsonModule in tsconfig.json)
+import packageJson from '../package.json';
+import { WsExceptionFilter } from './shared/filters/ws-exception.filter';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    cors: {
+      origin: [
+        'https://staging.blockwinz.com',
+        'https://blockwinz.com',
+        'http://localhost:5173',
+        'https://bwzfunding.netlify.app',
+      ],
+      credentials: true,
+      preflightContinue: false,
+      maxAge: 60,
+      optionsSuccessStatus: 200,
+    },
+  });
+  const appVersion = packageJson.version;
+  app.setGlobalPrefix(`api`);
+  app.useGlobalFilters(
+    new FallbackExceptionFilter(),
+    new HttpExceptionFilter(),
+    new ValidationFilter(),
+    new WsExceptionFilter(),
+  );
+  app.useGlobalPipes(
+    new ValidationPipe({
+      skipMissingProperties: true,
+      exceptionFactory: (errors: ValidationError[]) => {
+        const messages = errors.map((error) => {
+          return `${error.property} has wrong value ${
+            error.value
+          },${Object.values(error.constraints).join(', ')}`;
+        });
+
+        return new ValidationException(messages);
+      },
+    }),
+  );
+
+  app.use(compression());
+
+  app.use(helmet());
+
+  const config = new DocumentBuilder()
+    .setTitle('BlockWinz API')
+    .setDescription('BlockWinz API description V-' + appVersion)
+    .setVersion(appVersion)
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controller!
+    )
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true, // this
+    },
+  });
+
+  const port = process.env.PORT || 3000;
+  console.warn(`[debug] Initializing server on port: ${port}`);
+  const redisIoAdapter = new RedisIoAdapter(app);
+  console.warn('[debug] Connecting to Redis for WebSocket support...');
+  await redisIoAdapter.connectToRedis();
+  console.warn('[debug] Redis connection established');
+  app.useWebSocketAdapter(redisIoAdapter);
+  console.warn('[debug] WebSocket adapter initialized');
+
+  await app
+    .listen(port)
+    .then(() =>
+      console.debug(`Server started on port: http://localhost:${port}`),
+    );
+}
+
+bootstrap();

@@ -1,0 +1,31 @@
+.select-trigger button {
+  background-color: rgba(74, 68, 90, 0.6); /* Subtle background color */
+}
+
+.input-group label {
+  width: 100%;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.input-icon {
+  padding-inline-start: 42px !important;
+}
+
+.select-button button {
+  border-color: #CBCCD1;
+}
+
+.border-none button{
+  border: none !important;
+  border-width: 0px;
+}

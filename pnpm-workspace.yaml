@@ -1,0 +1,4 @@
+packages:
+  - "blockwinz-api"
+  - "blockwinz-FE"
+  - "blockwinz-admin"

@@ -1,0 +1,712 @@
+  - path: /test
+    type: directory
+    contents:
+    - path: /test/app.e2e-spec.ts
+      type: file
+    - path: /test/jest-e2e.json
+      type: file
+  - path: /Dockerfile
+    type: file
+  - path: /nest-cli.json
+    type: file
+  - path: /README.md
+    type: file
+  - path: /package-lock.json
+    type: file
+  - path: /package.json
+    type: file
+  - path: /nginx
+    type: file
+  - path: /tsconfig.build.json
+    type: file
+  - path: /tsconfig.json
+    type: file
+  - path: /docker-compose.yml
+    type: file
+  - path: /src
+    type: directory
+    contents:
+    - path: /src/transaction
+      type: directory
+      contents:
+      - path: /src/transaction/transaction.module.ts
+        type: file
+      - path: /src/transaction/repositories
+        type: directory
+        contents:
+        - path: /src/transaction/repositories/transaction.repository.ts
+          type: file
+      - path: /src/transaction/schemas
+        type: directory
+        contents:
+        - path: /src/transaction/schemas/transaction.schema.ts
+          type: file
+      - path: /src/transaction/dtos
+        type: directory
+        contents:
+        - path: /src/transaction/dtos/transaction.dto.ts
+          type: file
+      - path: /src/transaction/controllers
+        type: directory
+        contents:
+        - path: /src/transaction/controllers/transaction.controller.ts
+          type: file
+    - path: /src/settings
+      type: directory
+      contents:
+      - path: /src/settings/settings.module.ts
+        type: file
+      - path: /src/settings/repositories
+        type: directory
+        contents:
+        - path: /src/settings/repositories/setting.repository.ts
+          type: file
+        - path: /src/settings/repositories/favourite.repository.ts
+          type: file
+      - path: /src/settings/schemas
+        type: directory
+        contents:
+        - path: /src/settings/schemas/favourite.schema.ts
+          type: file
+      - path: /src/settings/dtos
+        type: directory
+        contents:
+        - path: /src/settings/dtos/favourite.dto.ts
+          type: file
+      - path: /src/settings/controllers
+        type: directory
+        contents:
+        - path: /src/settings/controllers/settings.controller.ts
+          type: file
+    - path: /src/referral
+      type: directory
+      contents:
+      - path: /src/referral/schemas
+        type: directory
+        contents:
+        - path: /src/referral/schemas/referral-settings.schema.ts
+          type: file
+        - path: /src/referral/schemas/referral.schema.ts
+          type: file
+      - path: /src/referral/dtos
+        type: directory
+        contents:
+        - path: /src/referral/dtos/referral-settings.dto.ts
+          type: file
+        - path: /src/referral/dtos/referral.dto.ts
+          type: file
+        - path: /src/referral/dtos/referral-tracking.dto.ts
+          type: file
+      - path: /src/referral/referral.service.ts
+        type: file
+      - path: /src/referral/referral.module.ts
+        type: file
+      - path: /src/referral/controllers
+        type: directory
+        contents:
+        - path: /src/referral/controllers/referral.controller.ts
+          type: file
+      - path: /src/referral/services
+        type: directory
+        contents:
+        - path: /src/referral/services/referral.service.ts
+          type: file
+    - path: /src/core
+      type: directory
+      contents:
+      - path: /src/core/fairLogic
+        type: directory
+        contents:
+        - path: /src/core/fairLogic/repositories
+          type: directory
+          contents:
+          - path: /src/core/fairLogic/repositories/fairLogic.repository.ts
+            type: file
+        - path: /src/core/fairLogic/dtos
+          type: directory
+          contents:
+          - path: /src/core/fairLogic/dtos/fairLogic.dto.ts
+            type: file
+        - path: /src/core/fairLogic/fairLogic.module.ts
+          type: file
+      - path: /src/core/neoCore
+        type: directory
+        contents:
+        - path: /src/core/neoCore/repositories
+          type: directory
+          contents:
+          - path: /src/core/neoCore/repositories/neoCore.repository.ts
+            type: file
+        - path: /src/core/neoCore/schemas
+          type: directory
+          contents:
+        - path: /src/core/neoCore/helpers
+          type: directory
+          contents:
+          - path: /src/core/neoCore/helpers/urls.ts
+            type: file
+        - path: /src/core/neoCore/neoCore.module.ts
+          type: file
+      - path: /src/core/queue
+        type: directory
+        contents:
+        - path: /src/core/queue/repositories
+          type: directory
+          contents:
+          - path: /src/core/queue/repositories/walletQueue.repository.ts
+            type: file
+          - path: /src/core/queue/repositories/bullBoard.repository.ts
+            type: file
+          - path: /src/core/queue/repositories/withdrawalQueue.repository.ts
+            type: file
+        - path: /src/core/queue/dtos
+          type: directory
+          contents:
+          - path: /src/core/queue/dtos/walletQueue.dto.ts
+            type: file
+          - path: /src/core/queue/dtos/withdrawalQueue.dto.ts
+            type: file
+        - path: /src/core/queue/processors
+          type: directory
+          contents:
+          - path: /src/core/queue/processors/walletQueue.processor.ts
+            type: file
+          - path: /src/core/queue/processors/withdrawalQueue.processor.ts
+            type: file
+        - path: /src/core/queue/queue.module.ts
+          type: file
+      - path: /src/core/seeds
+        type: file
+      - path: /src/core/solanaCore
+        type: directory
+        contents:
+        - path: /src/core/solanaCore/repositories
+          type: directory
+          contents:
+          - path: /src/core/solanaCore/repositories/solanaCore.repository.ts
+            type: file
+          - path: /src/core/solanaCore/repositories/solanaTransaction.ts
+            type: file
+        - path: /src/core/solanaCore/solanaCore.module.ts
+          type: file
+        - path: /src/core/solanaCore/controllers
+          type: directory
+          contents:
+          - path: /src/core/solanaCore/controllers/solanaCore.controller.ts
+            type: file
+    - path: /src/main.ts
+      type: file
+    - path: /src/app.service.ts
+      type: file
+    - path: /src/withdrawal
+      type: directory
+      contents:
+      - path: /src/withdrawal/repositories
+        type: directory
+        contents:
+        - path: /src/withdrawal/repositories/withdrawal.repository.ts
+          type: file
+      - path: /src/withdrawal/schemas
+        type: directory
+        contents:
+        - path: /src/withdrawal/schemas/withdrawal.schema.ts
+          type: file
+      - path: /src/withdrawal/dtos
+        type: directory
+        contents:
+        - path: /src/withdrawal/dtos/withdrawal.dto.ts
+          type: file
+      - path: /src/withdrawal/withdrawal.module.ts
+        type: file
+      - path: /src/withdrawal/controllers
+        type: directory
+        contents:
+        - path: /src/withdrawal/controllers/withdrawal.controller.ts
+          type: file
+    - path: /src/shared
+      type: directory
+      contents:
+      - path: /src/shared/filters
+        type: directory
+        contents:
+        - path: /src/shared/filters/validation.exception.ts
+          type: file
+        - path: /src/shared/filters/validation.filter.ts
+          type: file
+        - path: /src/shared/filters/fallback.filter.ts
+          type: file
+        - path: /src/shared/filters/http.filter.ts
+          type: file
+      - path: /src/shared/interceptors
+        type: directory
+        contents:
+        - path: /src/shared/interceptors/currency.interceptor.ts
+          type: file
+        - path: /src/shared/interceptors/cache.interceptor.ts
+          type: file
+      - path: /src/shared/decorators
+        type: directory
+        contents:
+        - path: /src/shared/decorators/rateLimit.decorator.ts
+          type: file
+        - path: /src/shared/decorators/publicApi.decorator.ts
+          type: file
+        - path: /src/shared/decorators/user.decorator.ts
+          type: file
+        - path: /src/shared/decorators/cache.decorator.ts
+          type: file
+        - path: /src/shared/decorators/roles.decorator.ts
+          type: file
+        - path: /src/shared/decorators/idempotencyKey.decorator.ts
+          type: file
+        - path: /src/shared/decorators/currentUser.decorator.ts
+          type: file
+      - path: /src/shared/constants
+        type: directory
+        contents:
+        - path: /src/shared/constants/extra.constatnt.ts
+          type: file
+        - path: /src/shared/constants/currency.constant.ts
+          type: file
+      - path: /src/shared/enums
+        type: directory
+        contents:
+        - path: /src/shared/enums/currencies.enum.ts
+          type: file
+        - path: /src/shared/enums/userAccount.enums.ts
+          type: file
+        - path: /src/shared/enums/withdrawalStatus.enum.ts
+          type: file
+        - path: /src/shared/enums/dbSchema.enum.ts
+          type: file
+      - path: /src/shared/middlewares
+        type: directory
+        contents:
+        - path: /src/shared/middlewares/idempotency.middleware.ts
+          type: file
+        - path: /src/shared/middlewares/user.middleware.ts
+          type: file
+      - path: /src/shared/schemas
+        type: directory
+        contents:
+        - path: /src/shared/schemas/commonFields.schema.ts
+          type: file
+      - path: /src/shared/pipes
+        type: directory
+        contents:
+        - path: /src/shared/pipes/password-validation.pipe.ts
+          type: file
+      - path: /src/shared/dtos
+        type: directory
+        contents:
+        - path: /src/shared/dtos/admin.dto.ts
+          type: file
+        - path: /src/shared/dtos/user.dto.ts
+          type: file
+        - path: /src/shared/dtos/ActiveSeedPair.dto.ts
+          type: file
+        - path: /src/shared/dtos/gameRequest.dto.ts
+          type: file
+        - path: /src/shared/dtos/baseGame.dto.ts
+          type: file
+        - path: /src/shared/dtos/profile.dto.ts
+          type: file
+        - path: /src/shared/dtos/ApiResponseMessage.dto.ts
+          type: file
+      - path: /src/shared/shared.module.ts
+        type: file
+      - path: /src/shared/errors
+        type: directory
+        contents:
+        - path: /src/shared/errors/gamesErrors.ts
+          type: file
+      - path: /src/shared/helpers
+        type: directory
+        contents:
+        - path: /src/shared/helpers/utils-functions.helper.ts
+          type: file
+        - path: /src/shared/helpers/success-message.helper.ts
+          type: file
+        - path: /src/shared/helpers/encryption.ts
+          type: file
+      - path: /src/shared/services
+        type: directory
+        contents:
+        - path: /src/shared/services/cloudinary.service.ts
+          type: file
+      - path: /src/shared/guards
+        type: directory
+        contents:
+        - path: /src/shared/guards/authentication.guard.ts
+          type: file
+        - path: /src/shared/guards/rateLimit.guard.ts
+          type: file
+        - path: /src/shared/guards/admin-creation.guard.ts
+          type: file
+        - path: /src/shared/guards/admin.guard.ts
+          type: file
+      - path: /src/shared/interfaces
+        type: directory
+        contents:
+        - path: /src/shared/interfaces/userRequest.type.ts
+          type: file
+        - path: /src/shared/interfaces/pagination.interface.ts
+          type: file
+        - path: /src/shared/interfaces/rawSolanaTransaction.interface.ts
+          type: file
+        - path: /src/shared/interfaces/solanaTransaction.interface.ts
+          type: file
+    - path: /src/coupon
+      type: directory
+      contents:
+      - path: /src/coupon/schemas
+        type: directory
+        contents:
+        - path: /src/coupon/schemas/coupon.schema.ts
+          type: file
+      - path: /src/coupon/dtos
+        type: directory
+        contents:
+        - path: /src/coupon/dtos/coupon.dto.ts
+          type: file
+      - path: /src/coupon/coupon.module.ts
+        type: file
+      - path: /src/coupon/controllers
+        type: directory
+        contents:
+        - path: /src/coupon/controllers/coupon.controller.ts
+          type: file
+      - path: /src/coupon/coupon.service.ts
+        type: file
+    - path: /src/app.module.ts
+      type: file
+    - path: /src/wallet
+      type: directory
+      contents:
+      - path: /src/wallet/repositories
+        type: directory
+        contents:
+        - path: /src/wallet/repositories/bwzWallet.repository.ts
+          type: file
+        - path: /src/wallet/repositories/wallet.repository.ts
+          type: file
+        - path: /src/wallet/repositories/solWallet.repository.ts
+          type: file
+      - path: /src/wallet/schemas
+        type: directory
+        contents:
+        - path: /src/wallet/schemas/currencyInfo.schema.ts
+          type: file
+        - path: /src/wallet/schemas/wallet.schema.ts
+          type: file
+      - path: /src/wallet/wallet.module.ts
+        type: file
+      - path: /src/wallet/dtos
+        type: directory
+        contents:
+        - path: /src/wallet/dtos/currencyInfo.dto.ts
+          type: file
+        - path: /src/wallet/dtos/wallet.dto.ts
+          type: file
+      - path: /src/wallet/controllers
+        type: directory
+        contents:
+        - path: /src/wallet/controllers/wallet.controller.ts
+          type: file
+    - path: /src/app.controller.ts
+      type: file
+    - path: /src/games
+      type: directory
+      contents:
+      - path: /src/games/games.module.ts
+        type: file
+      - path: /src/games/tictactoe
+        type: directory
+        contents:
+        - path: /src/games/tictactoe/logic
+          type: directory
+          contents:
+          - path: /src/games/tictactoe/logic/game.ts
+            type: file
+        - path: /src/games/tictactoe/repositories
+          type: directory
+          contents:
+          - path: /src/games/tictactoe/repositories/tictactoe.repository.ts
+            type: file
+        - path: /src/games/tictactoe/schemas
+          type: directory
+          contents:
+          - path: /src/games/tictactoe/schemas/tictactoe.schema.ts
+            type: file
+        - path: /src/games/tictactoe/dtos
+          type: directory
+          contents:
+          - path: /src/games/tictactoe/dtos/tictactoe.dto.ts
+            type: file
+        - path: /src/games/tictactoe/tictactoe.module.ts
+          type: file
+        - path: /src/games/tictactoe/controllers
+          type: directory
+          contents:
+          - path: /src/games/tictactoe/controllers/tictactoe.controller.ts
+            type: file
+      - path: /src/games/wheel
+        type: directory
+        contents:
+        - path: /src/games/wheel/repositories
+          type: directory
+          contents:
+          - path: /src/games/wheel/repositories/wheel.repository.ts
+            type: file
+        - path: /src/games/wheel/schemas
+          type: directory
+          contents:
+          - path: /src/games/wheel/schemas/wheel.schema.ts
+            type: file
+        - path: /src/games/wheel/dtos
+          type: directory
+          contents:
+          - path: /src/games/wheel/dtos/wheel.dto.ts
+            type: file
+        - path: /src/games/wheel/wheel.module.ts
+          type: file
+        - path: /src/games/wheel/multipliers.ts
+          type: file
+        - path: /src/games/wheel/controllers
+          type: directory
+          contents:
+          - path: /src/games/wheel/controllers/wheel.controller.ts
+            type: file
+      - path: /src/games/keno
+        type: directory
+        contents:
+        - path: /src/games/keno/dto
+          type: directory
+          contents:
+          - path: /src/games/keno/dto/keno.dto.ts
+            type: file
+        - path: /src/games/keno/keno.module.ts
+          type: file
+        - path: /src/games/keno/repositories
+          type: directory
+          contents:
+          - path: /src/games/keno/repositories/keno.repositories.ts
+            type: file
+        - path: /src/games/keno/schema
+          type: directory
+          contents:
+          - path: /src/games/keno/schema/keno.schema.ts
+            type: file
+        - path: /src/games/keno/constants.ts
+          type: file
+        - path: /src/games/keno/controllers
+          type: directory
+          contents:
+          - path: /src/games/keno/controllers/keno.controller.ts
+            type: file
+      - path: /src/games/dices
+        type: directory
+        contents:
+        - path: /src/games/dices/repositories
+          type: directory
+          contents:
+          - path: /src/games/dices/repositories/dice.repository.ts
+            type: file
+        - path: /src/games/dices/schemas
+          type: directory
+          contents:
+          - path: /src/games/dices/schemas/dice.schema.ts
+            type: file
+        - path: /src/games/dices/dtos
+          type: directory
+          contents:
+          - path: /src/games/dices/dtos/dice.dto.ts
+            type: file
+        - path: /src/games/dices/validators
+          type: directory
+          contents:
+          - path: /src/games/dices/validators/validations.ts
+            type: file
+        - path: /src/games/dices/dice.module.ts
+          type: file
+        - path: /src/games/dices/controllers
+          type: directory
+          contents:
+          - path: /src/games/dices/controllers/dice.controller.ts
+            type: file
+      - path: /src/games/limbo
+        type: directory
+        contents:
+        - path: /src/games/limbo/dto
+          type: directory
+          contents:
+          - path: /src/games/limbo/dto/getLimboResult.dto.ts
+            type: file
+        - path: /src/games/limbo/repositories
+          type: directory
+          contents:
+          - path: /src/games/limbo/repositories/limbo.repository.ts
+            type: file
+        - path: /src/games/limbo/schemas
+          type: directory
+          contents:
+          - path: /src/games/limbo/schemas/limbo.schema.ts
+            type: file
+        - path: /src/games/limbo/limbo.module.ts
+          type: file
+        - path: /src/games/limbo/controllers
+          type: directory
+          contents:
+          - path: /src/games/limbo/controllers/limbo.controller.ts
+            type: file
+      - path: /src/games/coinflip
+        type: directory
+        contents:
+        - path: /src/games/coinflip/dto
+          type: directory
+          contents:
+          - path: /src/games/coinflip/dto/coinflip.dto.ts
+            type: file
+        - path: /src/games/coinflip/repos
+          type: directory
+          contents:
+          - path: /src/games/coinflip/repos/coinflip.repository.ts
+            type: file
+        - path: /src/games/coinflip/schemas
+          type: directory
+          contents:
+          - path: /src/games/coinflip/schemas/coinflip.schema.ts
+            type: file
+        - path: /src/games/coinflip/coinflip.module.ts
+          type: file
+        - path: /src/games/coinflip/controllers
+          type: directory
+          contents:
+          - path: /src/games/coinflip/controllers/coinflip.controller.ts
+            type: file
+      - path: /src/games/mines
+        type: directory
+        contents:
+        - path: /src/games/mines/dto
+          type: directory
+          contents:
+          - path: /src/games/mines/dto/mines.dto.ts
+            type: file
+        - path: /src/games/mines/repositories
+          type: directory
+          contents:
+          - path: /src/games/mines/repositories/mines.repository.ts
+            type: file
+        - path: /src/games/mines/mines.module.ts
+          type: file
+        - path: /src/games/mines/schema
+          type: directory
+          contents:
+          - path: /src/games/mines/schema/mines.schema.ts
+            type: file
+        - path: /src/games/mines/controllers
+          type: directory
+          contents:
+          - path: /src/games/mines/controllers/mines.controller.ts
+            type: file
+      - path: /src/games/plinko
+        type: directory
+        contents:
+        - path: /src/games/plinko/muls.ts
+          type: file
+        - path: /src/games/plinko/repositories
+          type: directory
+          contents:
+          - path: /src/games/plinko/repositories/plinko.repository.ts
+            type: file
+        - path: /src/games/plinko/schema
+          type: directory
+          contents:
+          - path: /src/games/plinko/schema/plinko.schema.ts
+            type: file
+        - path: /src/games/plinko/dtos
+          type: directory
+          contents:
+          - path: /src/games/plinko/dtos/plinko.dto.ts
+            type: file
+        - path: /src/games/plinko/controllers
+          type: directory
+          contents:
+          - path: /src/games/plinko/controllers/plinko.controller.ts
+            type: file
+        - path: /src/games/plinko/plinko.module.ts
+          type: file
+    - path: /src/betHistory
+      type: directory
+      contents:
+      - path: /src/betHistory/repositories
+        type: directory
+        contents:
+        - path: /src/betHistory/repositories/betHistory.repository.ts
+          type: file
+      - path: /src/betHistory/schemas
+        type: directory
+        contents:
+        - path: /src/betHistory/schemas/betHistory.scehma.ts
+          type: file
+      - path: /src/betHistory/dtos
+        type: directory
+        contents:
+        - path: /src/betHistory/dtos/betHistory.dto.ts
+          type: file
+      - path: /src/betHistory/controllers
+        type: directory
+        contents:
+        - path: /src/betHistory/controllers/betHistory.controller.ts
+          type: file
+      - path: /src/betHistory/betHistory.module.ts
+        type: file
+    - path: /src/authentication
+      type: directory
+      contents:
+      - path: /src/authentication/repositories
+        type: directory
+        contents:
+        - path: /src/authentication/repositories/otp.repository.ts
+          type: file
+        - path: /src/authentication/repositories/authentication.repository.ts
+          type: file
+        - path: /src/authentication/repositories/admin-auth.repository.ts
+          type: file
+      - path: /src/authentication/schemas
+        type: directory
+        contents:
+        - path: /src/authentication/schemas/user.schema.ts
+          type: file
+        - path: /src/authentication/schemas/otp.schema.ts
+          type: file
+        - path: /src/authentication/schemas/profile.schema.ts
+          type: file
+        - path: /src/authentication/schemas/admin.schema.ts
+          type: file
+      - path: /src/authentication/authentication.module.ts
+        type: file
+      - path: /src/authentication/controllers
+        type: directory
+        contents:
+        - path: /src/authentication/controllers/admin-auth.controller.ts
+          type: file
+        - path: /src/authentication/controllers/authentication.controller.ts
+          type: file
+      - path: /src/authentication/services
+        type: directory
+        contents:
+    - path: /src/email
+      type: directory
+      contents:
+      - path: /src/email/email.module.ts
+        type: file
+      - path: /src/email/email.service.ts
+        type: file
+      - path: /src/email/templates
+        type: directory
+        contents:
+        - path: /src/email/templates/register-template.ts
+          type: file
+        - path: /src/email/templates/password-reset-template.ts
+          type: file

@@ -1,0 +1,4 @@
+- Avoid `entity.service.ts` files
+- Use repositories for data access
+- business logic in repositories and data access.
+

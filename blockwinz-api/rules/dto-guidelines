@@ -1,0 +1,6 @@
+- Use classes with decorators for validation
+- Keep DTOs immutable
+- Group related DTOs in dto/ folder
+- Use DTOs in controllers
+- Use DTOs in services
+- Use DTOs in repositories
