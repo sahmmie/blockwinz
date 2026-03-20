@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { ReferralStatus } from './dtos/referral-tracking.dto';
+import { ReferralTrackingStatus } from './dtos/referral-tracking.dto';
 import { ReferralStatsResponseDto } from './dtos/referral-tracking.dto';
 import type { ProfileSelect } from 'src/database/schema/profiles';
 import type { ReferralInsert } from 'src/database/schema/referrals';
@@ -93,7 +93,7 @@ export class ReferralService {
     };
     const history = [
       {
-        status: ReferralStatus.PENDING,
+        status: ReferralTrackingStatus.PENDING,
         timestamp: new Date(),
         reason: 'Referral initiated',
       },
@@ -105,7 +105,7 @@ export class ReferralService {
     await this.referralRepository.insertReferral({
       referrer: referrerId,
       referred: referredId,
-      status: ReferralStatus.PENDING,
+      status: ReferralTrackingStatus.PENDING,
       rewardAmount: '0',
       conditions,
       progress,
@@ -163,9 +163,9 @@ export class ReferralService {
     const newHistory = [...history];
 
     if (newTotalDeposits >= (conditions?.minimumDeposit ?? 0)) {
-      newStatus = ReferralStatus.ACTIVE;
+      newStatus = ReferralTrackingStatus.ACTIVE;
       newHistory.push({
-        status: ReferralStatus.ACTIVE,
+        status: ReferralTrackingStatus.ACTIVE,
         timestamp: new Date() as unknown as string,
         reason: 'Minimum deposit requirement met',
       });
@@ -178,11 +178,11 @@ export class ReferralService {
       newTotalDeposits >= (conditions?.minimumDeposit ?? 0) &&
       newTotalBets >= (conditions?.minimumBets ?? 0)
     ) {
-      newStatus = ReferralStatus.COMPLETED;
+      newStatus = ReferralTrackingStatus.COMPLETED;
       rewardAmount = (settings.rewardPercentage * newTotalDeposits) / 100;
       completedAt = new Date();
       newHistory.push({
-        status: ReferralStatus.COMPLETED,
+        status: ReferralTrackingStatus.COMPLETED,
         timestamp: new Date() as unknown as string,
         reason: 'All conditions met',
       });
@@ -212,10 +212,10 @@ export class ReferralService {
       await this.referralRepository.findReferralsByReferrer(userId);
 
     const completedReferrals = referralRows.filter(
-      (r) => r.status === ReferralStatus.COMPLETED,
+      (r) => r.status === ReferralTrackingStatus.COMPLETED,
     );
     const activeReferrals = referralRows.filter(
-      (r) => r.status === ReferralStatus.ACTIVE,
+      (r) => r.status === ReferralTrackingStatus.ACTIVE,
     );
 
     const totalEarnings = completedReferrals.reduce(
@@ -261,11 +261,11 @@ export class ReferralService {
           reason?: string;
         }>) ?? [];
       await this.referralRepository.updateReferralById(referral.id, {
-        status: ReferralStatus.EXPIRED,
+        status: ReferralTrackingStatus.EXPIRED,
         history: [
           ...history,
           {
-            status: ReferralStatus.EXPIRED,
+            status: ReferralTrackingStatus.EXPIRED,
             timestamp: new Date() as unknown as string,
             reason: 'Referral timeframe expired',
           },

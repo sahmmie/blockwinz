@@ -1,5 +1,5 @@
 import { currencyInfoDto } from 'src/wallet/dtos/currencyInfo.dto';
-import { Currency } from '../enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 type CurrencyData = {
   minAmount: number;

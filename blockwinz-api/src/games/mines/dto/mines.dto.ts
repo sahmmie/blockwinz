@@ -13,7 +13,7 @@ import {
 import { MinesGameStatus } from '../enums/mines.enums';
 import { SpecificGameRequestDto } from 'src/shared/dtos/gameRequest.dto';
 import { BaseGameDto } from 'src/shared/dtos/baseGame.dto';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 export class StartMineDto extends SpecificGameRequestDto {
   @ApiProperty({

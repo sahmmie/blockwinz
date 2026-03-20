@@ -5,7 +5,7 @@ import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { TransactionDto } from 'src/transaction/dtos/transaction.dto';
 import { WithdrawalDto } from 'src/withdrawal/dtos/withdrawal.dto';
 import { WithdrawalQueueDto } from '../dtos/withdrawalQueue.dto';
-import { WithdrawalStatus } from 'src/shared/enums/withdrawalStatus.enum';
+import { WithdrawalStatus } from '@blockwinz/shared';
 
 @Injectable()
 export class WithdrawalQueueRepository {

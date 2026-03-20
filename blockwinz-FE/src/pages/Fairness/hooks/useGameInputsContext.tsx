@@ -37,9 +37,11 @@ const GameInputsProvider: React.FC<GameInputsProviderProps> = ({
   const seed = legacyGame?.seed as SeedT | undefined;
   const [baseInputs, setBaseInputs] = useState<BaseFairLogicGenerateForGameDto>(
     {
-      clientSeed: seed?.clientSeed || '',
-      serverSeed: seed?.serverSeed || '',
-      nonce: legacyGame?.nonce ?? 0,
+      clientSeed:
+        seed?.clientSeed || betHistory?.clientSeed || '',
+      serverSeed:
+        seed?.serverSeed || betHistory?.serverSeed || '',
+      nonce: legacyGame?.nonce ?? betHistory?.nonce ?? 0,
     },
   );
 

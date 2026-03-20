@@ -10,7 +10,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { UserDto } from 'src/shared/dtos/user.dto';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 
 class GameItemDto {
   @ApiProperty({ description: 'Game identifier or name' })

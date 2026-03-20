@@ -11,8 +11,8 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RewardType } from 'src/shared/enums/rewardType.enum';
-import { RequiredTask } from 'src/shared/enums/requiredTask.enum';
+import { RewardType } from '@blockwinz/shared';
+import { RequiredTask } from '@blockwinz/shared';
 
 export class CreateCouponDto {
   @ApiProperty({

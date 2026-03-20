@@ -1,4 +1,4 @@
-import { Currency } from "../enums/currency.enum";
+import { Currency } from "@blockwinz/shared";
 import pkg from '../../../package.json';
 
 export const APP_VERSION = pkg.version; 

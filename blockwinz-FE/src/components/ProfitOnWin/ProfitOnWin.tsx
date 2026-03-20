@@ -2,7 +2,7 @@ import { FunctionComponent } from 'react';
 import CustomInput from '../CustomInput/CustomInput';
 import { Box, Text } from '@chakra-ui/react';
 import useWalletState from '@/hooks/useWalletState';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
 
 interface ProfitOnWinProps {

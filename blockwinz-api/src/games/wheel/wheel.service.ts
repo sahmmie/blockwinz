@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { stringify } from 'flatted';
 import { SpinWheelDto, SpinWheelResponseDto } from './dtos/wheel.dto';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 import { FairLogicRepository } from 'src/core/fairLogic/repositories/fairLogic.repository';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { BetHistoryRepository } from 'src/betHistory/repositories/betHistory.repository';
 import { currencyData } from 'src/shared/constants/currency.constant';
@@ -19,9 +19,9 @@ import { multipliersRecords } from './multipliers';
 import {
   TransactionStatus,
   TransactionType,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
-import { CHAIN } from 'src/shared/enums/currencies.enum';
+import { CHAIN } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { wheelGames } from 'src/database/schema/wheel-games';

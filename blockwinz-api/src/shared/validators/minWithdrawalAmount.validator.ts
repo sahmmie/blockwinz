@@ -4,7 +4,7 @@ import {
   ValidationArguments,
 } from 'class-validator';
 import { currencyData } from 'src/shared/constants/currency.constant';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 export function MinWithdrawalAmount(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {

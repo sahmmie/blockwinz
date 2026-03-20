@@ -1,5 +1,5 @@
-import { Currency } from "@/shared/enums/currency.enum"
-import { GameMode } from "@/shared/enums/gameMode.enum"
+import { Currency } from "@blockwinz/shared"
+import { GameMode } from "@blockwinz/shared"
 
 export interface IMinesReveal {
   gameId: string

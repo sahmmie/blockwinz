@@ -9,13 +9,15 @@
     }
   },
   "scripts": {
-    "prepare": "husky install",
+    "prepare": "husky install && node scripts/ensure-blockwinz-api-packages-symlink.mjs",
     "build": "turbo run build",
     "build:api": "pnpm --filter @blockwinz/api build",
+    "build:generated": "pnpm --filter @blockwinz/api build:generated",
     "build:web": "pnpm --filter @blockwinz/web build",
     "build:admin": "pnpm --filter @blockwinz/admin build",
     "dev": "turbo run dev",
     "dev:api": "pnpm --filter @blockwinz/api dev",
+    "dev:api:shared": "pnpm exec turbo run dev --filter=@blockwinz/shared --filter=@blockwinz/api",
     "dev:web": "pnpm --filter @blockwinz/web dev",
     "dev:admin": "pnpm --filter @blockwinz/admin dev",
     "lint": "turbo run lint",

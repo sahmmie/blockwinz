@@ -7,7 +7,7 @@ import {
   IsOptional,
   IsString,
 } from '@nestjs/class-validator';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 
 export class BetHistoryDto {
   @IsNotEmpty()
@@ -39,6 +39,28 @@ export class BetHistoryDto {
   @IsOptional()
   @IsNumber()
   totalWinAmount?: number;
+
+  /** Provably-fair inputs (joined from game + seeds when available) */
+  @IsOptional()
+  @IsString()
+  clientSeed?: string;
+
+  @IsOptional()
+  @IsNumber()
+  nonce?: number;
+
+  @IsOptional()
+  @IsString()
+  serverSeedHash?: string;
+
+  /** Plain server seed when the seed pair has been rotated / revealed */
+  @IsOptional()
+  @IsString()
+  serverSeed?: string;
+
+  @IsOptional()
+  @IsString()
+  seedStatus?: string;
 
   @IsDate()
   createdAt?: Date;

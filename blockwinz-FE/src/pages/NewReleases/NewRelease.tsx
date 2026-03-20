@@ -6,7 +6,7 @@ import Bets from '@/casinoGames/bets/Bets';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 import GameCardList from '@/components/GameCardList/GameCardList';
 import { GameInfo } from '@/shared/types/types';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 import NoGameCard from '@/components/NoGameCard/NoGameCard';
 import usePageData from '@/hooks/usePageData';
 

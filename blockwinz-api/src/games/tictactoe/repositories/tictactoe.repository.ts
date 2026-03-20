@@ -9,7 +9,7 @@ import { tictactoeGames } from 'src/database/schema/tictactoe-games';
 import { and, eq } from 'drizzle-orm';
 import type { TicTacToeGameSelect } from 'src/database/schema/tictactoe-games';
 import { TicTacToeStatus } from '../enums/tictactoe.enums';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 import { TicTacToeDto } from '../dtos/tictactoe.dto';
 import { TicTacToeMultiplier } from '../enums/tictactoe.enums';
 

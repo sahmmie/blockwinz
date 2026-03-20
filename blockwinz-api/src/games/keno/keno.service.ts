@@ -11,7 +11,7 @@ import { stringify } from 'flatted';
 import { BetHistoryRepository } from 'src/betHistory/repositories/betHistory.repository';
 import { FairLogicGenerateFloatsDto } from 'src/core/fairLogic/dtos/fairLogic.dto';
 import { FairLogicRepository } from 'src/core/fairLogic/repositories/fairLogic.repository';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { KenoGameStatus, KenoRisk } from './enums/keno.enums';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
@@ -20,9 +20,9 @@ import { currencyData } from 'src/shared/constants/currency.constant';
 import {
   TransactionStatus,
   TransactionType,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
-import { CHAIN } from 'src/shared/enums/currencies.enum';
+import { CHAIN } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { kenoGames } from 'src/database/schema/keno-games';

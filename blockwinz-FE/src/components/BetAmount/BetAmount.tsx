@@ -4,7 +4,7 @@ import { Box, Text } from '@chakra-ui/react';
 import { FunctionComponent, useEffect, useState } from 'react';
 import CustomInput from '../CustomInput/CustomInput';
 import { Button } from '../ui/button';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
 

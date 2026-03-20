@@ -7,7 +7,7 @@ import {
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ReferralStatus } from './referral-tracking.dto';
+import { ReferralTrackingStatus } from './referral-tracking.dto';
 
 export class ReferralResponseDto {
   @ApiProperty({
@@ -58,11 +58,11 @@ export class ReferralStatsDto {
 export class UpdateReferralStatusDto {
   @ApiProperty({
     description: 'New status for the referral',
-    enum: ReferralStatus,
-    example: ReferralStatus.COMPLETED,
+    enum: ReferralTrackingStatus,
+    example: ReferralTrackingStatus.COMPLETED,
   })
-  @IsEnum(ReferralStatus)
-  status: ReferralStatus;
+  @IsEnum(ReferralTrackingStatus)
+  status: ReferralTrackingStatus;
 
   @ApiProperty({
     description: 'Reward amount to be given for the referral',
@@ -88,8 +88,8 @@ export class ReferralDto {
   referred: string;
 
   @ApiProperty()
-  @IsEnum(ReferralStatus)
-  status: ReferralStatus;
+  @IsEnum(ReferralTrackingStatus)
+  status: ReferralTrackingStatus;
 
   @ApiProperty()
   @IsNumber()
@@ -112,7 +112,7 @@ export class ReferralDto {
   @ApiProperty({ type: [Object] })
   @IsArray()
   history: Array<{
-    status: ReferralStatus;
+    status: ReferralTrackingStatus;
     timestamp: Date;
     reason?: string;
     details?: any;

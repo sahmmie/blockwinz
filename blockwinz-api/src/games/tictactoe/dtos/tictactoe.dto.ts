@@ -12,7 +12,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TicTacToeMultiplier, TicTacToeStatus } from '../enums/tictactoe.enums';
 import { Type } from 'class-transformer';
 import { BaseGameDto } from 'src/shared/dtos/baseGame.dto';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 export class TicTacToeStartReqDto {
   @ApiProperty({

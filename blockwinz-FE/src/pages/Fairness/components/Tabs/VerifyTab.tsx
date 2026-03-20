@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { gameOptions } from '../../constants';
 import GameResultComponentLoader from '../GameResults/GameResultComponentLoader';
 import DropdownAlt from '@/components/Dropdown/DropdownAlt';
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { GameInfo } from '@/shared/types/types';
 
 interface VerifyTabProps {

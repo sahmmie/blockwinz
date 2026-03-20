@@ -16,7 +16,7 @@ import { ApiResponseMessageDto } from 'src/shared/dtos/ApiResponseMessage.dto';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { SeedsRepository } from 'src/core/seeds /repositories/seeds.repository';
-import { SeedStatus } from 'src/shared/enums/seedStatus.enum';
+import { SeedStatus } from '@blockwinz/shared';
 import { CreateSeedRequestDto } from 'src/core/seeds /dtos/seeds.dto';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
 import { EmailService } from 'src/email/email.service';
@@ -33,7 +33,7 @@ import type { UserSelect } from 'src/database/schema/users';
 import type { ProfileSelect } from 'src/database/schema/profiles';
 import type { SeedSelect } from 'src/database/schema/seeds';
 import { randomUUID } from 'crypto';
-import { UserAccountEnum } from 'src/shared/enums/userAccount.enums';
+import { UserAccountEnum } from '@blockwinz/shared';
 
 @Injectable()
 export class AuthenticationRepository {

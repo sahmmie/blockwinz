@@ -3,7 +3,7 @@ import GameDashboard from '../dashboard/GameDashboard';
 import Dashboard from './components/Dashboard';
 import GameBoard from './components/GameBoard';
 import { LimboGameProvider } from './context/LimboGameContext';
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 interface LimboProps {}
 

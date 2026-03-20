@@ -2,7 +2,7 @@
 import { getNewTagGroupItem, TagGroupItem } from '@/components/TagGroup'
 import axiosInstance from '@/lib/axios'
 import { MAX_TAG_RESULTS } from '@/shared/constants/validation'
-import { Currency } from '@/shared/enums/currency.enum'
+import { Currency } from '@blockwinz/shared'
 import { BaseBetRequest, BaseBetResponse, BetStatus, GameState, SpeedTypes } from '@/shared/types/core'
 import { calculateNewBetAmount, getCurrencyMax, getDelayBeforeNextBet } from '@/shared/utils/common'
 import { useMutation } from '@tanstack/react-query'
@@ -11,7 +11,7 @@ import { ExtendedGameState, PartialEGS, StateUpdater, UseGameStateProps } from '
 import { useDebounce } from './useDebounce'
 import { useStrategies } from './useStrategies'
 import useWalletState from './useWalletState'
-import { GameMode } from '@/shared/enums/gameMode.enum'
+import { GameMode } from '@blockwinz/shared'
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant'
 
 export const AUTOBET_DEBOUNCE_DELAY = 500

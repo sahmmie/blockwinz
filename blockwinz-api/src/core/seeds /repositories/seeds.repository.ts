@@ -12,7 +12,7 @@ import {
   SeedDto,
 } from '../dtos/seeds.dto';
 import * as crypto from 'crypto';
-import { SeedStatus } from 'src/shared/enums/seedStatus.enum';
+import { SeedStatus } from '@blockwinz/shared';
 import { eq, and } from 'drizzle-orm';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { getUserId, getSeedId } from 'src/shared/helpers/user.helper';

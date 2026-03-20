@@ -1,5 +1,5 @@
 import { originalGamesInfo } from "@/shared/constants/originalGamesInfo.constant"
-import { GameTypeEnum, MultiplayerGameTypeEnum } from "@/shared/enums/gameType.enum"
+import { GameTypeEnum, MultiplayerGameTypeEnum } from "@blockwinz/shared"
 
 export const minesOptions = Array.from({ length: 24 }, (_, index) => ({
   value: (index + 1).toString(),

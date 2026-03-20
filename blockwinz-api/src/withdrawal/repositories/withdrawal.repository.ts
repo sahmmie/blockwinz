@@ -8,18 +8,18 @@ import {
 import { and, eq, gte, sql, desc, asc } from 'drizzle-orm';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { getUserId } from 'src/shared/helpers/user.helper';
-import { CHAIN, Currency } from 'src/shared/enums/currencies.enum';
-import { WithdrawalStatus } from 'src/shared/enums/withdrawalStatus.enum';
+import { CHAIN, Currency } from '@blockwinz/shared';
+import { WithdrawalStatus } from '@blockwinz/shared';
 import { WithdrawalDto } from '../dtos/withdrawal.dto';
 import { currencyData } from 'src/shared/constants/currency.constant';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
 import {
   TransactionStatus,
   TransactionType,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { ProfileDto } from 'src/shared/dtos/profile.dto';
-import { ApprovalType } from 'src/shared/enums/approvalType.enum';
+import { ApprovalType } from '@blockwinz/shared';
 import { WithdrawalQueueRepository } from 'src/core/queue/repositories/withdrawalQueue.repository';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';

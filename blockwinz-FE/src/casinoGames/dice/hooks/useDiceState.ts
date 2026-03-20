@@ -8,7 +8,7 @@ import { useEffect, useMemo } from "react"
 import { useSound } from "./useSound"
 import { useSettingsStore } from "@/hooks/useSettings"
 import { DiceBetRequest, DiceBetResponse, DiceGameState } from "../types"
-import { GameTypeEnum } from "@/shared/enums/gameType.enum"
+import { GameTypeEnum } from "@blockwinz/shared"
 import useWalletState from "@/hooks/useWalletState"
 
 export const useDiceState = () => {

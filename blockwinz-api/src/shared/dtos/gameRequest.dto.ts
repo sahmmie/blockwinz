@@ -1,6 +1,6 @@
 import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
 import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Currency } from '../enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 import { IsEnum } from '@nestjs/class-validator';
 import { ROUND_DECIMALS } from '../constants/extra.constatnt';
 

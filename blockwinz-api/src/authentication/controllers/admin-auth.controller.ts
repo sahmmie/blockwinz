@@ -17,7 +17,7 @@ import {
 import { Public } from 'src/shared/decorators/publicApi.decorator';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { AdminDto } from 'src/shared/dtos/admin.dto';
-import { AdminRole } from 'src/shared/enums/adminRole.enum';
+import { AdminRole } from '@blockwinz/shared';
 import { AdminCreationGuard } from 'src/shared/guards/admin-creation.guard';
 
 @ApiTags('Admin Authentication')

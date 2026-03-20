@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FavouriteDto } from '../dtos/favourite.dto';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { favourites } from 'src/database/schema/favourites';

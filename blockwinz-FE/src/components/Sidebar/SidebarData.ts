@@ -21,7 +21,7 @@ import AccountIcon from '@/assets/icons/user-icon.svg';
 import { multiplayerGamesInfo } from '@/shared/constants/multiplayerGamesInfo.constant';
 
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 
 export type SideBarLink = {
   icon: string;

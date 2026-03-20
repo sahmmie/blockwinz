@@ -7,7 +7,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { IsEnum } from 'class-validator';
-import { CHAIN, Currency } from 'src/shared/enums/currencies.enum';
+import { CHAIN, Currency } from '@blockwinz/shared';
 
 export class WalletDto {
   @ApiPropertyOptional({ description: 'Wallet ID' })

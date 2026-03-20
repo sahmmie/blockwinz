@@ -10,7 +10,7 @@ import { BetHistoryT } from './BetHistory.type';
 import { toaster } from '@/components/ui/toaster';
 import BetTable from '@/components/BetTable/BetTable';
 import usePageData from '@/hooks/usePageData';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 
 interface BetHistoryProps {}
 

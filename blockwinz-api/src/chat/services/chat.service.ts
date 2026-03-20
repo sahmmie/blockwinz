@@ -1,4 +1,3 @@
-import { DbSchema } from 'src/shared/enums/dbSchema.enum';
 import { WsException } from '@nestjs/websockets';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { UserDto } from 'src/shared/dtos/user.dto';
@@ -15,7 +14,7 @@ import type {
   MessageInsert,
 } from 'src/database/schema/messages';
 import type { RoomSelect, RoomInsert } from 'src/database/schema/rooms';
-import { RoomType } from 'src/shared/enums/roomType.enum';
+import { RoomType } from '@blockwinz/shared';
 import { getUserId } from 'src/shared/helpers/user.helper';
 
 type RoomMember = {

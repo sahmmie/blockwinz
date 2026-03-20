@@ -12,7 +12,7 @@ import {
   IsOptional,
 } from '@nestjs/class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserAccountEnum } from '../enums/userAccount.enums';
+import { UserAccountEnum } from '@blockwinz/shared';
 import { SeedDto } from 'src/core/seeds /dtos/seeds.dto';
 import { ProfileDto } from './profile.dto';
 

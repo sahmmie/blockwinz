@@ -1,4 +1,4 @@
-import { Currency } from "@/shared/enums/currency.enum"
+import { Currency } from "@blockwinz/shared"
 import { BetType } from "@/shared/types/core"
 
 export interface TicTacToeMove {

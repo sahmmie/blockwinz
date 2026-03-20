@@ -4,9 +4,14 @@ import {
   SeedStatus,
   SeedT,
 } from '@/pages/BetHistory/BetHistory.type';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import { Box, Image, Text } from '@chakra-ui/react';
-import { FunctionComponent, useState } from 'react';
+import {
+  FunctionComponent,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from 'react';
 import { Button } from '../ui/button';
 import TrendIcon from '@/assets/icons/trend-icon.svg';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
@@ -36,30 +41,110 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   const navigate = useNavigate();
 
   const [isLoadingDetails, setisLoadingDetails] = useState(false);
+  const [detail, setDetail] = useState<BetHistoryT>(betDetails);
+  const [fairnessLoading, setFairnessLoading] = useState(false);
 
   const { balances } = useWalletState();
 
-  const legacyGame = isPopulatedGame(betDetails.gameId)
-    ? betDetails.gameId
-    : null;
+  useEffect(() => {
+    setDetail(betDetails);
+  }, [betDetails]);
+
+  useLayoutEffect(() => {
+    const id = betDetails.id ?? betDetails._id;
+    const legacyHasSeed =
+      isPopulatedGame(betDetails.gameId) &&
+      betDetails.gameId.seed != null;
+    const alreadyHasFairness =
+      betDetails.clientSeed != null &&
+      betDetails.serverSeedHash != null &&
+      betDetails.nonce != null;
+    if (!id || legacyHasSeed || alreadyHasFairness) {
+      setFairnessLoading(false);
+    } else {
+      setFairnessLoading(true);
+    }
+  }, [
+    betDetails.id,
+    betDetails._id,
+    betDetails.gameId,
+    betDetails.clientSeed,
+    betDetails.serverSeedHash,
+    betDetails.nonce,
+  ]);
+
+  useEffect(() => {
+    const id = betDetails.id ?? betDetails._id;
+    const legacyHasSeed =
+      isPopulatedGame(betDetails.gameId) &&
+      betDetails.gameId.seed != null;
+    const alreadyHasFairness =
+      betDetails.clientSeed != null &&
+      betDetails.serverSeedHash != null &&
+      betDetails.nonce != null;
+    if (!id || legacyHasSeed || alreadyHasFairness) {
+      return;
+    }
+    let cancelled = false;
+    axiosInstance
+      .get(`/bet-history/${id}`)
+      .then(res => {
+        if (!cancelled) {
+          setDetail(prev => ({ ...prev, ...res.data }));
+        }
+      })
+      .catch(() => {
+        /* keep summary fields; user can retry via Verify Bet */
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setFairnessLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    betDetails.id,
+    betDetails._id,
+    betDetails.gameId,
+    betDetails.clientSeed,
+    betDetails.serverSeedHash,
+    betDetails.nonce,
+  ]);
+
+  const legacyGame = isPopulatedGame(detail.gameId) ? detail.gameId : null;
+  const seedInfoFromApi: SeedT | undefined =
+    detail.clientSeed != null &&
+    detail.serverSeedHash != null &&
+    detail.nonce != null
+      ? ({
+          clientSeed: detail.clientSeed,
+          serverSeedHash: detail.serverSeedHash,
+          serverSeed: detail.serverSeed ?? '',
+          status: (detail.seedStatus as SeedStatus) ?? SeedStatus.ACTIVE,
+        } as SeedT)
+      : undefined;
   const seedInfo = legacyGame?.seed
     ? (legacyGame.seed as SeedT)
-    : undefined;
+    : seedInfoFromApi;
+  const displayNonce = detail.nonce ?? legacyGame?.nonce;
+
   const currency =
-    betDetails.currency ?? legacyGame?.currency ?? Currency.SOL;
+    detail.currency ?? legacyGame?.currency ?? Currency.SOL;
   const betAmount =
-    betDetails.betAmount ?? legacyGame?.betAmount ?? 0;
+    detail.betAmount ?? legacyGame?.betAmount ?? 0;
   const totalWinAmount =
-    betDetails.totalWinAmount ?? legacyGame?.totalWinAmount ?? 0;
+    detail.totalWinAmount ?? legacyGame?.totalWinAmount ?? 0;
   const multiplierLabel =
-    betDetails.multiplier != null && !Number.isNaN(betDetails.multiplier)
-      ? Number(betDetails.multiplier).toFixed(2)
+    detail.multiplier != null && !Number.isNaN(detail.multiplier)
+      ? Number(detail.multiplier).toFixed(2)
       : legacyGame?.multiplier != null
         ? Number(legacyGame.multiplier).toFixed(2)
         : betAmount > 0
           ? (totalWinAmount / betAmount).toFixed(2)
           : '—';
-  const placedAt = betDetails.createdAt ?? legacyGame?.createdAt;
+  const placedAt = detail.createdAt ?? legacyGame?.createdAt;
 
   const openFairnessModal = (betHistory: BetHistoryT) => {
     const modalConfig: ModalProps = {
@@ -82,12 +167,12 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   };
 
   const getBetDetails = () => {
-    if (userData?._id !== (betDetails.user as UserI)._id) {
-      openFairnessModal(betDetails);
+    if (userData?._id !== (detail.user as UserI)._id) {
+      openFairnessModal(detail);
     }
     setisLoadingDetails(true);
     axiosInstance
-      .get(`/bet-history/${betDetails.id ?? betDetails._id}`)
+      .get(`/bet-history/${detail.id ?? detail._id}`)
       .then(response => {
         openFairnessModal(response.data);
         setisLoadingDetails(false);
@@ -104,7 +189,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   const getRotateButtonText = (): JSX.Element => {
     if (
       seedInfo &&
-      userData?._id === (betDetails.user as UserI)._id &&
+      userData?._id === (detail.user as UserI)._id &&
       seedInfo.serverSeedHash === activeSeedPair?.serverSeedHashed
     ) {
       return (
@@ -131,7 +216,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
     }
     if (
       seedInfo &&
-      userData?._id !== (betDetails.user as UserI)._id &&
+      userData?._id !== (detail.user as UserI)._id &&
       seedInfo.status === SeedStatus.ACTIVE
     ) {
       return (
@@ -188,13 +273,13 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
             alignItems={'center'}
             gap={'10px'}>
             <Image
-              src={originalGamesInfo[betDetails?.gameType].image}
+              src={originalGamesInfo[detail?.gameType].image}
               alt='game'
               w={'24px'}
               h={'24px'}
             />
             <Text>
-              {originalGamesInfo[betDetails?.gameType].name}
+              {originalGamesInfo[detail?.gameType].name}
               {seedInfo?.clientSeed != null
                 ? `: ${seedInfo.clientSeed}`
                 : ''}
@@ -214,7 +299,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
               h={'24px'}
               borderRadius={'full'}
             />
-            <Text>{(betDetails.user as UserI).username}</Text>
+            <Text>{(detail.user as UserI).username}</Text>
           </Box>
           <Box
             pt={'18px'}
@@ -296,14 +381,14 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
           </Box>
           <Box my={'28px'} textAlign={'center'}>
             <Button
-              onClick={() => navigate(originalGamesInfo[betDetails?.gameType].link)}
+              onClick={() => navigate(originalGamesInfo[detail?.gameType].link)}
               py={'24px'}
               px={'42px'}
               bg={'#00DD25'}
               borderRadius={'8px'}
               fontSize={'16px'}
               fontWeight={'500'}>
-              Play {originalGamesInfo[betDetails?.gameType].name}
+              Play {originalGamesInfo[detail?.gameType].name}
             </Button>
           </Box>
           <Box
@@ -316,7 +401,11 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
             </Text>
 
             <Box>
-              {seedInfo && legacyGame ? (
+              {fairnessLoading ? (
+                <Text mt={'16px'} fontSize={'14px'} color={'#939494'}>
+                  Loading seed details…
+                </Text>
+              ) : seedInfo ? (
                 <>
                   <Box
                     gap={'16px'}
@@ -344,7 +433,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
                       name='nonce'
                       w={'100%'}
                       placeholder='Nonce'
-                      value={legacyGame.nonce}
+                      value={displayNonce ?? ''}
                       type='text'
                       border={'1px solid #CBCCD1'}
                       borderRadius={'8px'}
@@ -384,8 +473,8 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
               ) : (
                 <>
                   <Text mt={'16px'} fontSize={'14px'} color={'#939494'}>
-                    Seed details are not included in this summary. Use Verify
-                    Bet to open fairness tools when available.
+                    Could not load seed details for this bet. Try Verify Bet or
+                    check your connection.
                   </Text>
                   <Box mt={'16px'} textAlign={'center'}>
                     {verifyButtonText()}

@@ -3,7 +3,7 @@ import { IsEnum, IsNumber, IsString } from '@nestjs/class-validator';
 import { IsRollOverBetValid } from '../validators/validations';
 import { SpecificGameRequestDto } from 'src/shared/dtos/gameRequest.dto';
 import { DiceGameStatus, RollDirection } from '../enums/dice.enums';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 export class RollDiceDto extends SpecificGameRequestDto {
   @ApiProperty({

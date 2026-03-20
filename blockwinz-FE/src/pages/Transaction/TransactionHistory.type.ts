@@ -1,4 +1,4 @@
-import { Currency } from "@/shared/enums/currency.enum";
+import { Currency } from "@blockwinz/shared";
 
 export type TransactionHistoryT = {
     _id: string;

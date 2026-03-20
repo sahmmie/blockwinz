@@ -1,4 +1,4 @@
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import GameDashboard from '../dashboard/GameDashboard';
 import { GameControlsProvider } from './hooks/gameControlsContext';
 import BetPanel from './components/Controls';

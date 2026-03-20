@@ -22,7 +22,7 @@ import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { getProfileId } from 'src/shared/helpers/user.helper';
 import { FavouriteDto } from '../dtos/favourite.dto';
 import { FavouriteRepository } from '../repositories/favourite.repository';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { SettingRepository } from '../repositories/setting.repository';
 import { ProfileDto } from 'src/shared/dtos/profile.dto';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';

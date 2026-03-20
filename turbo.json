@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**"]
     },
+    "build:generated": {
+      "dependsOn": ["^build"],
+      "outputs": ["../packages/shared/generated/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

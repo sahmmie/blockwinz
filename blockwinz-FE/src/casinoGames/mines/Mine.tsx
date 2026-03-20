@@ -2,7 +2,7 @@ import { FunctionComponent } from 'react';
 import Dashboard from './components/Dasboard';
 import GameDashboard from '../dashboard/GameDashboard';
 import { GameControlsProvider } from './context/GameControlsProvider';
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { MinesGameBoard } from './components/board';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 

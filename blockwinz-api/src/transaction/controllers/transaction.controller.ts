@@ -10,7 +10,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { TransactionDto } from '../dtos/transaction.dto';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
-import { TransactionType } from 'src/shared/enums/transaction.enums';
+import { TransactionType } from '@blockwinz/shared';
 import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
 
 @ApiTags('Transaction')

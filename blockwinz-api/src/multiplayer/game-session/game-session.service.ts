@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Inject } from '@nestjs/common';
-import { GameSessionStatus } from './interfaces/game-session.interface';
+import { MultiplayerSessionStatus } from './interfaces/game-session.interface';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { MultiplayerGameEmitterEvent } from 'src/shared/eventEmitters/gameEmitterEvent.enum';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -81,7 +81,7 @@ export class GameSessionService {
           betAmount: String(payload.betAmount),
           betAmountMustEqual: payload.betAmountMustEqual ?? false,
           currency: payload.currency,
-          gameStatus: GameSessionStatus.PENDING,
+          gameStatus: MultiplayerSessionStatus.PENDING,
           invitedPlayers,
           invitedEmail,
           gameId: null,
@@ -123,7 +123,7 @@ export class GameSessionService {
     const rows = await this.db
       .select()
       .from(gameSessions)
-      .where(eq(gameSessions.gameStatus, GameSessionStatus.IN_PROGRESS));
+      .where(eq(gameSessions.gameStatus, MultiplayerSessionStatus.IN_PROGRESS));
     const row = rows.find((r) => (r.players ?? []).includes(userId)) ?? null;
 
     if (!row) return null;

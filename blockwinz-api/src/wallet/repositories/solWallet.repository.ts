@@ -9,13 +9,13 @@ import { and, eq } from 'drizzle-orm';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { WalletDto } from '../dtos/wallet.dto';
-import { CHAIN, Currency } from 'src/shared/enums/currencies.enum';
+import { CHAIN, Currency } from '@blockwinz/shared';
 import { SolanaCoreRepository } from 'src/core/solanaCore/repositories/solanaCore.repository';
 import Encryption from 'src/shared/helpers/encryption';
 import {
   TransactionStatus,
   TransactionType,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';

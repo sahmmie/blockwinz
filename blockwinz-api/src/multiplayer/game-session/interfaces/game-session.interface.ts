@@ -1,6 +1,6 @@
 import { UserDto } from 'src/shared/dtos/user.dto';
-import { Currency } from 'src/shared/enums/currencies.enum';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { Currency } from '@blockwinz/shared';
+import { DbGameSchema } from '@blockwinz/shared';
 
 export interface GameSession {
   _id: string;
@@ -10,7 +10,7 @@ export interface GameSession {
   betAmount: number;
   betAmountMustEqual: boolean;
   currency: Currency;
-  status: GameSessionStatus;
+  status: MultiplayerSessionStatus;
   createdAt: Date;
   updatedAt: Date;
   invitedPlayers?: string[];
@@ -20,7 +20,8 @@ export interface GameSessionWithPlayers extends Omit<GameSession, 'players'> {
   players: UserDto[];
 }
 
-export enum GameSessionStatus {
+/** Multiplayer session lifecycle (in-memory / gateway). */
+export enum MultiplayerSessionStatus {
   PENDING = 'pending',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',

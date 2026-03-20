@@ -1,4 +1,4 @@
-import { GameCategoryEnum, GameTypeEnum } from '../enums/gameType.enum';
+import { GameCategoryEnum, GameTypeEnum } from '@blockwinz/shared';
 import { GameInfo } from '../types/types';
 import LimboImage from '@/assets/games-info-images/limbo-image.png';
 import PlinkoImage from '@/assets/games-info-images/plinko-image.png';

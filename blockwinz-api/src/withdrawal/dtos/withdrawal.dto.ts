@@ -5,9 +5,9 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { Currency } from 'src/shared/enums/currencies.enum';
-import { WithdrawalStatus } from 'src/shared/enums/withdrawalStatus.enum';
-import { ApprovalType } from 'src/shared/enums/approvalType.enum';
+import { Currency } from '@blockwinz/shared';
+import { WithdrawalStatus } from '@blockwinz/shared';
+import { ApprovalType } from '@blockwinz/shared';
 import { MinWithdrawalAmount } from 'src/shared/validators/minWithdrawalAmount.validator';
 
 export class WithdrawalDto {

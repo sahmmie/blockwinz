@@ -1,0 +1,1 @@
+{"version":3,"file":"otp.dto.d.ts","sourceRoot":"","sources":["../../../../../blockwinz-api/src/authentication/dtos/otp.dto.ts"],"names":[],"mappings":"AAQA,qBAAa,MAAM;IAEjB,GAAG,CAAC,EAAE,MAAM,CAAC;IAIb,KAAK,EAAE,MAAM,CAAC;IAId,GAAG,EAAE,MAAM,CAAC;IAIZ,SAAS,EAAE,IAAI,CAAC;IAIhB,MAAM,EAAE,OAAO,CAAC;IAKhB,SAAS,CAAC,EAAE,IAAI,CAAC;IAKjB,SAAS,CAAC,EAAE,IAAI,CAAC;CAClB"}

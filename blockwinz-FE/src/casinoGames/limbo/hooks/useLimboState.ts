@@ -8,7 +8,7 @@ import { checkIsBetDisabled } from '@/shared/utils/common'
 import { useEffect } from 'react'
 import { LimboBetRequest, LimboBetResponse, LimboGameState } from '../types/limboTypes'
 import { useSound } from './useSound'
-import { GameTypeEnum } from '@/shared/enums/gameType.enum'
+import { GameTypeEnum } from '@blockwinz/shared'
 import useWalletState from '@/hooks/useWalletState'
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant'
 export type GameState = LimboGameState & LimboBetRequest & LimboBetResponse

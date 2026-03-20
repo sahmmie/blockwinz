@@ -3,7 +3,7 @@ import React from 'react';
 import { AutoControls } from './AutoControls';
 import CustomSlider from '@/components/CustomSlider/CustomSlider';
 import { useGameControlsContext } from '../../hooks/gameControlsContext';
-import { GameMode } from '@/shared/enums/gameMode.enum';
+import { GameMode } from '@blockwinz/shared';
 import BetAmount from '@/components/BetAmount/BetAmount';
 import RiskLevelCard from '@/components/RiskLevelCard/RiskLevelCard';
 import { PLINKO_OPTIONS } from '../../clrs';

@@ -21,14 +21,14 @@ import { SeedDto } from 'src/core/seeds /dtos/seeds.dto';
 import {
   TransactionType,
   TransactionStatus,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { currencyData } from 'src/shared/constants/currency.constant';
 import { roundToDecimals } from 'src/shared/helpers/utils-functions.helper';
 import { BetHistoryRepository } from 'src/betHistory/repositories/betHistory.repository';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
-import { CHAIN, Currency } from 'src/shared/enums/currencies.enum';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { CHAIN, Currency } from '@blockwinz/shared';
+import { DbGameSchema } from '@blockwinz/shared';
 import { AuthenticationRepository } from 'src/authentication/repositories/authentication.repository';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';

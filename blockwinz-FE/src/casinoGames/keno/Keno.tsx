@@ -1,6 +1,6 @@
 import { FunctionComponent } from 'react';
 import GameDashboard from '../dashboard/GameDashboard';
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { KenoGameProvider } from './context/KenoGameContext';
 import Dashboard from './components/Dashboard';
 import GameBoard from './components/GameBoard/GameBoard';

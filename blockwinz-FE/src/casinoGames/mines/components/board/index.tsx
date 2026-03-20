@@ -8,7 +8,7 @@ import disabledDiamondImg from 'assets/icons/mines-images/mine-diamond-disabled.
 import blankImgSmall from 'assets/icons/mines-images/mine-default-small.png';
 import { useGridSize } from './useGridSize';
 import { ITile } from '../../types';
-import { GameMode } from '@/shared/enums/gameMode.enum';
+import { GameMode } from '@blockwinz/shared';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSound } from '../../hooks/useSound';
 import { BOARD_SIZE } from '../../constants';

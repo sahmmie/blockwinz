@@ -3,7 +3,7 @@ import { TictactoeGameProvider } from './context/TictactoeGameContext';
 import GameDashboard from '../dashboard/GameDashboard';
 import Dashboard from './components/Dashboard';
 import GameBoard from './components/GameBoard';
-import { MultiplayerGameTypeEnum } from '@/shared/enums/gameType.enum';
+import { MultiplayerGameTypeEnum } from '@blockwinz/shared';
 import { multiplayerGamesInfo } from '@/shared/constants/multiplayerGamesInfo.constant';
 
 interface TictactoeProps {}

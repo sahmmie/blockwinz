@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AdminRole } from 'src/shared/enums/adminRole.enum';
+import { AdminRole } from '@blockwinz/shared';
 
 @Injectable()
 export class AdminGuard implements CanActivate {

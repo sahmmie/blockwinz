@@ -1,7 +1,7 @@
 import * as Yup from 'yup'
 import { CurrencyMax } from '@/shared/types/core'
-import { Currency } from '../enums/currency.enum'
-import { GameTypeEnum } from '../enums/gameType.enum'
+import { Currency } from '@blockwinz/shared'
+import { GameTypeEnum } from '@blockwinz/shared'
 
 export const MIN_MULTIPLIER = 1.0102
 export const MAX_MULTIPLIER = 9900

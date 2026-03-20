@@ -1,0 +1,1 @@
+{"version":3,"file":"currencyInfo.dto.d.ts","sourceRoot":"","sources":["../../../../../blockwinz-api/src/wallet/dtos/currencyInfo.dto.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,QAAQ,EAAE,MAAM,mBAAmB,CAAC;AAE7C,qBAAa,eAAe;IAO1B,MAAM,EAAE,MAAM,CAAC;IASf,QAAQ,EAAE,QAAQ,CAAC;IAQnB,QAAQ,EAAE,MAAM,CAAC;CAClB"}

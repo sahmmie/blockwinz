@@ -12,7 +12,7 @@ import { UserDto } from 'src/shared/dtos/user.dto';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { getUserId, getWalletId } from 'src/shared/helpers/user.helper';
 import { WalletDto } from '../dtos/wallet.dto';
-import { CHAIN, Currency } from 'src/shared/enums/currencies.enum';
+import { CHAIN, Currency } from '@blockwinz/shared';
 import { SolWalletRepository } from './solWallet.repository';
 import { BwzWalletRepository } from './bwzWallet.repository';
 import { balanceIsSufficient } from 'src/shared/helpers/utils-functions.helper';

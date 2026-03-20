@@ -24,7 +24,7 @@ import { useBetAmount } from '@/hooks/useBetAmount'
 import { toaster } from '@/components/ui/toaster'
 import { BetType } from '@/shared/types/core'
 import useModal, { ModalProps } from '@/hooks/useModal'
-import { GameMode } from '@/shared/enums/gameMode.enum'
+import { GameMode } from '@blockwinz/shared'
 import GameStatusModal from '../components/modals/GameStatusModal'
 
 const createInitialCells = (): string[] => {

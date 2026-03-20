@@ -1,6 +1,6 @@
 import { FunctionComponent } from 'react';
 import { Box, Text } from '@chakra-ui/react';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
 import { ModalProps } from '@/hooks/useModal';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';

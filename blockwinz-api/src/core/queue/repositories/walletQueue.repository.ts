@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { TransactionDto } from 'src/transaction/dtos/transaction.dto';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 @Injectable()
 export class WalletQueueRepository {

@@ -11,8 +11,8 @@ import useWalletState from '@/hooks/useWalletState'
 import { useSound } from './useSound'
 import { asyncDelay, parseFloatValue } from '@/shared/utils/common'
 import { useBetAmount } from '@/hooks/useBetAmount'
-import { Currency } from '@/shared/enums/currency.enum'
-import { GameMode } from '@/shared/enums/gameMode.enum'
+import { Currency } from '@blockwinz/shared'
+import { GameMode } from '@blockwinz/shared'
 import { currencyMaxTable } from '@/shared/constants/validation'
 
 const initialState: KenoGameState = {

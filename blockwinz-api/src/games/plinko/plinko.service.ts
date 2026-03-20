@@ -11,7 +11,7 @@ import {
 } from './dtos/plinko.dto';
 import { multipliers } from './muls';
 import { FairLogicRepository } from 'src/core/fairLogic/repositories/fairLogic.repository';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { BetHistoryRepository } from 'src/betHistory/repositories/betHistory.repository';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
@@ -21,10 +21,10 @@ import { currencyData } from 'src/shared/constants/currency.constant';
 import {
   TransactionStatus,
   TransactionType,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { roundToDecimals } from 'src/shared/helpers/utils-functions.helper';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
-import { CHAIN } from 'src/shared/enums/currencies.enum';
+import { CHAIN } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { plinkoGames } from 'src/database/schema/plinko-games';

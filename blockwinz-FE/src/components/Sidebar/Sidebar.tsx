@@ -13,7 +13,7 @@ import { Button } from '../ui/button';
 import useAuth from '@/hooks/useAuth';
 import useAccount from '@/hooks/userAccount';
 import usePageData from '@/hooks/usePageData';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 
 interface SidebarProps {
   sidebarIsCollapsed: boolean;

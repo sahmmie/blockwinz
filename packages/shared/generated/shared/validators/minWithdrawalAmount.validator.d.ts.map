@@ -1,0 +1,1 @@
+{"version":3,"file":"minWithdrawalAmount.validator.d.ts","sourceRoot":"","sources":["../../../../../blockwinz-api/src/shared/validators/minWithdrawalAmount.validator.ts"],"names":[],"mappings":"AAAA,OAAO,EAEL,iBAAiB,EAElB,MAAM,iBAAiB,CAAC;AAIzB,wBAAgB,mBAAmB,CAAC,iBAAiB,CAAC,EAAE,iBAAiB,YAC9C,MAAM,gBAAgB,MAAM,UAoBtD"}

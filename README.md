@@ -13,6 +13,8 @@ pnpm workspaces + [Turborepo](https://turbo.build/repo) for the BlockWinz apps.
 pnpm install
 ```
 
+`prepare` creates `blockwinz-api/packages` → `../packages` (a symlink). Nest’s Swagger compiler plugin resolves `@blockwinz/shared` enums to `require("../../../../packages/shared/dist/index")` in compiled JS; from `dist/src/...` that must resolve under `blockwinz-api/`, so this symlink makes that path valid. Run `node scripts/ensure-blockwinz-api-packages-symlink.mjs` if you clone without `prepare`.
+
 The root `package.json` pins `@types/react` / `@types/react-dom` to v18 via `pnpm.overrides` so `@blockwinz/web` (React 18) does not pick up React 19 types from `@blockwinz/admin` in the shared lockfile.
 
 
@@ -20,10 +22,12 @@ The root `package.json` pins `@types/react` / `@types/react-dom` to v18 via `pnp
 
 | Goal | Command |
 |------|---------|
-| Dev (all apps) | `pnpm dev` |
+| Dev (all apps) | `pnpm dev` — runs `@blockwinz/shared` `build` once, then `tsup --watch` with API/web/admin; API and web start after shared `dist` exists |
 | Dev one app | `pnpm dev:api` / `pnpm dev:web` / `pnpm dev:admin` |
+| API + shared only | `pnpm dev:api:shared` — same shared watch + API without web/admin; **restart the API** (or save an API file) after shared changes if hot reload misses updates (Node caches `require`) |
 | Build (all) | `pnpm build` |
 | Build one app | `pnpm build:api` / `pnpm build:web` / `pnpm build:admin` |
+| Shared package + API DTO `.d.ts` emit | `pnpm --filter @blockwinz/shared build` then `pnpm build:generated` ([packages/shared/README.md](packages/shared/README.md)) |
 | Lint (all) | `pnpm lint` |
 | Format (API Prettier) | `pnpm format` |
 | Tests (all) | `pnpm test` |
@@ -42,6 +46,7 @@ The root `package.json` pins `@types/react` / `@types/react-dom` to v18 via `pnp
 | `blockwinz-api` | `@blockwinz/api` |
 | `blockwinz-FE` | `@blockwinz/web` |
 | `blockwinz-admin` | `@blockwinz/admin` |
+| `packages/shared` | `@blockwinz/shared` (enums + shared runtime; `generated/` = DTO types from API) |
 
 ## Backend (Docker)
 

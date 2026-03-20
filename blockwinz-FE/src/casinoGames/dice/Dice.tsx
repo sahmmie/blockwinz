@@ -3,7 +3,7 @@ import GameDashboard from '../dashboard/GameDashboard';
 import Dashboard from './components/Dashboard';
 import GameBoard from './components/GameBoard';
 import { DiceGameProvider } from './context/DiceGameContext';
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 
 interface DiceProps {}

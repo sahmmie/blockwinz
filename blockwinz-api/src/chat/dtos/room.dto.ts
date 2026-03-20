@@ -9,7 +9,7 @@ import {
   IsNumber,
   ValidateNested,
 } from '@nestjs/class-validator';
-import { RoomType } from 'src/shared/enums/roomType.enum';
+import { RoomType } from '@blockwinz/shared';
 import { Type } from 'class-transformer';
 
 export class RoomDto {

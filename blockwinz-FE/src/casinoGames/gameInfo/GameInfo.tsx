@@ -3,7 +3,7 @@ import usePageData from '@/hooks/usePageData';
 import { Box, Text } from '@chakra-ui/react';
 import { FunctionComponent, useRef, useState, useLayoutEffect } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 import { useNavigate } from 'react-router-dom';
 
 interface GameInfoProps {}

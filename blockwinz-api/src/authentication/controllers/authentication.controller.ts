@@ -16,7 +16,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ChangeEmailDto, LoginDto, UserDto } from 'src/shared/dtos/user.dto';
-import { UserAccountEnum } from 'src/shared/enums/userAccount.enums';
+import { UserAccountEnum } from '@blockwinz/shared';
 import { ApiResponseMessageDto } from 'src/shared/dtos/ApiResponseMessage.dto';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';

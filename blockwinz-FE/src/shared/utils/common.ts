@@ -17,7 +17,7 @@ import {
     MIN_ROLL_UNDER_BET,
     MINES_GAME_TILES_COUNT
 } from "../constants/validation"
-import { Currency } from "../enums/currency.enum"
+import { Currency } from "@blockwinz/shared"
 import {
     BaseBetRequest,
     BaseBetResponse,
@@ -26,7 +26,7 @@ import {
     GameStateWithMultiplier,
     MultiplierState
 } from "../types/core"
-import { GameMode } from "../enums/gameMode.enum"
+import { GameMode } from "@blockwinz/shared"
 import { DEFAULT_CURRENCY, DEFAULT_ROUNDING_DECIMALS } from "../constants/app.constant"
 
 export const TOTAL_PROBABILITY = 100
@@ -338,7 +338,7 @@ export const calculateWinMultiplier = (openedMines: number, minesCount: number) 
 
 export const asyncDelay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-export const formatDate = (dateStr: Date) => {
+export const formatDate = (dateStr: Date | string | number) => {
     const date = new Date(dateStr);
     const dd = String(date.getDate()).padStart(2, '0');
     const mm = String(date.getMonth() + 1).padStart(2, '0');

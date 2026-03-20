@@ -10,7 +10,7 @@ import { OTPRepository } from './otp.repository';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { AdminDto } from 'src/shared/dtos/admin.dto';
-import { AdminRole } from 'src/shared/enums/adminRole.enum';
+import { AdminRole } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { admins } from 'src/database/schema/admins';

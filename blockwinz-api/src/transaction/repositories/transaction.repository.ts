@@ -12,9 +12,9 @@ import { TransactionDto } from '../dtos/transaction.dto';
 import {
   TransactionStatus,
   TransactionType,
-} from 'src/shared/enums/transaction.enums';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
-import { CHAIN, Currency } from 'src/shared/enums/currencies.enum';
+} from '@blockwinz/shared';
+import { DbGameSchema } from '@blockwinz/shared';
+import { CHAIN, Currency } from '@blockwinz/shared';
 import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';

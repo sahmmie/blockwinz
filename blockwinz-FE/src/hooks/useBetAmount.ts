@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import useWalletState from './useWalletState'
 import { betAmountValidationSchema } from '@/shared/constants/validation'
 import { createMaxAmountValidationSchema } from '@/shared/utils/common'
-import { Currency } from '@/shared/enums/currency.enum'
+import { Currency } from '@blockwinz/shared'
 
 export const useBetAmount = (betAmount: string) => {
   const { selectedBalance } = useWalletState()

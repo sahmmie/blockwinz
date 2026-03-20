@@ -1,4 +1,4 @@
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 import { GameInfo } from '@/shared/types/types';
 import { create } from 'zustand'
 interface pageDataState {

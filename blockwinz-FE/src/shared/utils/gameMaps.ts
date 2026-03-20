@@ -1,4 +1,4 @@
-import { Currency } from "../enums/currency.enum";
+import { Currency } from "@blockwinz/shared";
 import SolIcon from 'assets/icons/solana-icon.svg'
 import BwzIcon from 'assets/bw.svg'
 

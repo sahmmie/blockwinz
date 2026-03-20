@@ -1,4 +1,4 @@
-import { GameMode } from "@/shared/enums/gameMode.enum"
+import { GameMode } from "@blockwinz/shared"
 import { KenoBetResponse } from "../api/types"
 
 type Risk = 'classic' | 'low' | 'medium' | 'high'

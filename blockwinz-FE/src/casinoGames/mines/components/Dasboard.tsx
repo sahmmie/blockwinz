@@ -2,7 +2,7 @@ import BetAmount from '@/components/BetAmount/BetAmount';
 import Segment from '@/components/Segment/Segment';
 import { Box } from '@chakra-ui/react';
 import { FunctionComponent } from 'react';
-import { GameMode } from '@/shared/enums/gameMode.enum';
+import { GameMode } from '@blockwinz/shared';
 import { useGameControls } from '../context/GameControlsContext';
 import Dropdown from '@/components/Dropdown/Dropdown';
 import { DROPDOWN_OPTIONS } from '../constants';

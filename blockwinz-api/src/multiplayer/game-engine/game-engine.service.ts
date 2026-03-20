@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TicTacToeService } from './services/tictactoe.service';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { OnEvent } from '@nestjs/event-emitter';
 import { GameSessionDocument } from '../game-session/game-session.service';
 import { MultiplayerGameEmitterEvent } from 'src/shared/eventEmitters/gameEmitterEvent.enum';

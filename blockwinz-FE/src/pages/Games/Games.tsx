@@ -5,7 +5,7 @@ import DropdownAlt from '@/components/Dropdown/DropdownAlt';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 import { GameInfo } from '@/shared/types/types';
 import GameCardList from '@/components/GameCardList/GameCardList';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 import NoGameCard from '@/components/NoGameCard/NoGameCard';
 import usePageData from '@/hooks/usePageData';
 

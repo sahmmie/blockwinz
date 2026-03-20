@@ -20,7 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 
 @ApiTags('Games')

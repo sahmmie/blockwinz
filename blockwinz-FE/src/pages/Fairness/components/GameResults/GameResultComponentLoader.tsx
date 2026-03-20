@@ -1,4 +1,4 @@
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { Box, Spinner, Text } from '@chakra-ui/react';
 import {
   FunctionComponent,

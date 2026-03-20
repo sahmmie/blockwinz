@@ -5,7 +5,7 @@ import DropdownAlt from '@/components/Dropdown/DropdownAlt';
 import EmptyFolderIcon from 'assets/icons/empty-folder-icon.svg';
 import Bets from '@/casinoGames/bets/Bets';
 import GameCardList from '@/components/GameCardList/GameCardList';
-import { GameCategoryEnum } from '@/shared/enums/gameType.enum';
+import { GameCategoryEnum } from '@blockwinz/shared';
 import { useFavouritesStore } from '@/hooks/useFavourite';
 import usePageData from '@/hooks/usePageData';
 

@@ -10,8 +10,8 @@ import {
   CouponResponseDto,
   CouponDto,
 } from './dtos/coupon.dto';
-import { RewardType } from 'src/shared/enums/rewardType.enum';
-import { RequiredTask } from 'src/shared/enums/requiredTask.enum';
+import { RewardType } from '@blockwinz/shared';
+import { RequiredTask } from '@blockwinz/shared';
 import { AuthenticationRepository } from '../authentication/repositories/authentication.repository';
 import { BetHistoryService } from '../betHistory/betHistory.service';
 import { TransactionRepository } from '../transaction/repositories/transaction.repository';
@@ -20,7 +20,7 @@ import { WalletRepository } from '../wallet/repositories/wallet.repository';
 import {
   TransactionType,
   TransactionStatus,
-} from 'src/shared/enums/transaction.enums';
+} from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { coupons } from 'src/database/schema/coupons';

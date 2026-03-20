@@ -3,7 +3,7 @@ import Segment from '@/components/Segment/Segment';
 import { Button } from '@/components/ui/button';
 import { Box } from '@chakra-ui/react';
 import { FunctionComponent, useState } from 'react';
-import { GameMode } from '@/shared/enums/gameMode.enum';
+import { GameMode } from '@blockwinz/shared';
 import { useKenoGameContext } from '../context/KenoGameContext';
 import RiskLevelCard from '@/components/RiskLevelCard/RiskLevelCard';
 import { RiskLevel } from '../api/types';

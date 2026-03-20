@@ -1,7 +1,7 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { desc, eq, sql, and } from 'drizzle-orm';
 import { BetHistoryDto } from '../dtos/betHistory.dto';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import { betHistories } from 'src/database/schema/bet-histories';

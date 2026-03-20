@@ -5,9 +5,9 @@ import { TransactionRepository } from 'src/transaction/repositories/transaction.
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
 import { WithdrawalRepository } from 'src/withdrawal/repositories/withdrawal.repository';
 import { WithdrawalQueueDto } from '../dtos/withdrawalQueue.dto';
-import { TransactionStatus } from 'src/shared/enums/transaction.enums';
+import { TransactionStatus } from '@blockwinz/shared';
 import { getTransactionId } from 'src/shared/helpers/user.helper';
-import { WithdrawalStatus } from 'src/shared/enums/withdrawalStatus.enum';
+import { WithdrawalStatus } from '@blockwinz/shared';
 
 @Processor('withdrawalQueue')
 export class WithdrawalQueueProcessor {

@@ -1,5 +1,5 @@
 import { UserDto } from 'src/shared/dtos/user.dto';
-import { SeedStatus } from 'src/shared/enums/seedStatus.enum';
+import { SeedStatus } from '@blockwinz/shared';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsUUID,

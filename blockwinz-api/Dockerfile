@@ -38,6 +38,10 @@ COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 ENV NODE_ENV=production
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=installer /app/blockwinz-api/dist ./blockwinz-api/dist
+# @nestjs/swagger emits require("../../../../packages/shared/dist/index") from dist/src/**/*.js — resolve via symlink (see scripts/ensure-blockwinz-api-packages-symlink.mjs).
+COPY --from=installer /app/packages/shared/dist ./packages/shared/dist
+COPY --from=installer /app/packages/shared/package.json ./packages/shared/package.json
+RUN ln -sfn ../packages ./blockwinz-api/packages
 WORKDIR /app/blockwinz-api
 EXPOSE 7979 8080
 ENTRYPOINT ["dumb-init", "--"]

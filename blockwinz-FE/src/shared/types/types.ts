@@ -1,5 +1,5 @@
 import { BaseBetRequest, BaseBetResponse, GameState } from "@/shared/types/core"
-import { GameCategoryEnum, GameTypeEnum, MultiplayerGameTypeEnum } from "../enums/gameType.enum"
+import { GameCategoryEnum, GameTypeEnum, MultiplayerGameTypeEnum } from "@blockwinz/shared"
 
 export type ExtendedGameState<
     T extends GameState,

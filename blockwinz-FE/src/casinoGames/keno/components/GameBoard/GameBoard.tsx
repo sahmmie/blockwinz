@@ -12,7 +12,7 @@ import GameStatusModal, {
 } from '@/components/Modal/GameStatusModal';
 import useModal from '@/hooks/useModal';
 import useWalletState from '@/hooks/useWalletState';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import GoldCoinIcon from 'assets/icons/gold-coin-icon.svg';
 
 const GameBoard: React.FC = () => {

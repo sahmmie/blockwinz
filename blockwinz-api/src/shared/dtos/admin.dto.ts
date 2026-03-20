@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AdminRole } from 'src/shared/enums/adminRole.enum';
+import { AdminRole } from '@blockwinz/shared';
 
 export class AdminDto {
   @ApiProperty()

@@ -1,6 +1,6 @@
 import { TagGroupItem } from "@/components/TagGroup"
-import { Currency } from "../enums/currency.enum"
-import { GameMode } from "../enums/gameMode.enum"
+import { Currency } from "@blockwinz/shared"
+import { GameMode } from "@blockwinz/shared"
 
 export type BaseHotkeyConfigs = Record<BaseHotKeyType, HotkeyConfig>
 

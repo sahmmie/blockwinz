@@ -11,7 +11,7 @@ import { useSettingsStore } from '@/hooks/useSettings'
 import { toaster } from '@/components/ui/toaster'
 import useWalletState from '@/hooks/useWalletState'
 import { useMaxProfit } from './useMaxProfit'
-import { GameMode } from '@/shared/enums/gameMode.enum'
+import { GameMode } from '@blockwinz/shared'
 import { DEFAULT_CURRENCY, DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant'
 
 const createInitialTiles = (selectedIndexes: number[] = []): ITile[] => {

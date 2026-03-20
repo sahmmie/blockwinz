@@ -11,7 +11,7 @@ import {
   BetHistoryT,
   isPopulatedGame,
 } from '../../pages/BetHistory/BetHistory.type';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';

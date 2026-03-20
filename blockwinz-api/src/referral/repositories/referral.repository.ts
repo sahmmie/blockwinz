@@ -7,7 +7,7 @@ import { profiles } from 'src/database/schema/profiles';
 import { eq, and, lt, inArray } from 'drizzle-orm';
 import type { ProfileSelect } from 'src/database/schema/profiles';
 import type { ReferralSelect, ReferralInsert } from 'src/database/schema/referrals';
-import { ReferralStatus } from '../dtos/referral-tracking.dto';
+import { ReferralTrackingStatus } from '../dtos/referral-tracking.dto';
 
 @Injectable()
 export class ReferralRepository {
@@ -60,7 +60,7 @@ export class ReferralRepository {
       .where(
         and(
           eq(referrals.referred, userId),
-          eq(referrals.status, ReferralStatus.PENDING),
+          eq(referrals.status, ReferralTrackingStatus.PENDING),
         ),
       )
       .limit(1);
@@ -94,8 +94,8 @@ export class ReferralRepository {
       .where(
         and(
           inArray(referrals.status, [
-            ReferralStatus.PENDING,
-            ReferralStatus.ACTIVE,
+            ReferralTrackingStatus.PENDING,
+            ReferralTrackingStatus.ACTIVE,
           ]),
           lt(referrals.expiresAt, new Date()),
         ),

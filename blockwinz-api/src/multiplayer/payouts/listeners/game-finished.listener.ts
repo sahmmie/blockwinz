@@ -7,7 +7,7 @@ import {
 } from '../../game-history/game-history.service';
 import { WalletRepository } from '../../../wallet/repositories/wallet.repository';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
-import { Currency } from 'src/shared/enums/currencies.enum';
+import { Currency } from '@blockwinz/shared';
 
 @Injectable()
 export class GameFinishedListener {

@@ -1,7 +1,7 @@
 import GameDashboard from '@/casinoGames/dashboard/GameDashboard';
 import BetPanel from '../components/Controls';
 import Game from '../components/Game/Game';
-import { GameTypeEnum } from '@/shared/enums/gameType.enum';
+import { GameTypeEnum } from '@blockwinz/shared';
 import { GameControlsProvider } from '../hooks/gameControlsContext';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 

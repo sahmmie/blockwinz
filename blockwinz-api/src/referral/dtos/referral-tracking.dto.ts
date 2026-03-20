@@ -10,7 +10,8 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export enum ReferralStatus {
+/** API / Swagger referral lifecycle (wire format). */
+export enum ReferralTrackingStatus {
   PENDING = 'PENDING',
   ACTIVE = 'ACTIVE',
   COMPLETED = 'COMPLETED',
@@ -34,8 +35,8 @@ export class ReferralProgressDto {
 
 export class ReferralHistoryEntryDto {
   @ApiProperty()
-  @IsEnum(ReferralStatus)
-  status: ReferralStatus;
+  @IsEnum(ReferralTrackingStatus)
+  status: ReferralTrackingStatus;
 
   @ApiProperty()
   @IsDate()
@@ -53,8 +54,8 @@ export class ReferralHistoryEntryDto {
 
 export class ReferralTrackingDto {
   @ApiProperty()
-  @IsEnum(ReferralStatus)
-  status: ReferralStatus;
+  @IsEnum(ReferralTrackingStatus)
+  status: ReferralTrackingStatus;
 
   @ApiProperty()
   @IsNumber()

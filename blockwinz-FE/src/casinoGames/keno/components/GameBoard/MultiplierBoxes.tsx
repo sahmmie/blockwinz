@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/popover';
 import { LuChartLine } from 'react-icons/lu';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
-import { Currency } from '@/shared/enums/currency.enum';
+import { Currency } from '@blockwinz/shared';
 import GoldCoinIcon from 'assets/icons/gold-coin-icon.svg';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 

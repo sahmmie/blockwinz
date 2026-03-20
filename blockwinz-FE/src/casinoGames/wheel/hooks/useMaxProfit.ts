@@ -1,7 +1,7 @@
 import { useValidation } from '@/hooks/useValidation'
 import useWalletState from '@/hooks/useWalletState'
 import { maxProfitValidationSchema } from '@/shared/constants/validation'
-import { Currency } from '@/shared/enums/currency.enum'
+import { Currency } from '@blockwinz/shared'
 import { useEffect } from 'react'
 
 export const useMaxProfit = (betAmount: number, multiplier: number) => {

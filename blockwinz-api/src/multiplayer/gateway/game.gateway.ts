@@ -20,7 +20,7 @@ import { WsValidationPipe } from 'src/shared/pipes/ws-validation.pipe';
 import { WsUser } from 'src/shared/decorators/ws-user.decorator';
 import { GameGatewaySocketEvent } from './gameGatewaySocketEvent.enum';
 import { GameSessionDocument } from '../game-session/game-session.service';
-import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
+import { DbGameSchema } from '@blockwinz/shared';
 import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WsResponse } from 'src/shared/helpers/wsResponse.helper';

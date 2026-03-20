@@ -3,7 +3,7 @@ import ProfitOnWin from '@/components/ProfitOnWin/ProfitOnWin';
 import Segment from '@/components/Segment/Segment';
 import { Box } from '@chakra-ui/react';
 import { FunctionComponent, useState } from 'react';
-import { GameMode } from '@/shared/enums/gameMode.enum';
+import { GameMode } from '@blockwinz/shared';
 import { useDiceGameContext } from '../context/DiceGameContext';
 import useWalletState from '@/hooks/useWalletState';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';

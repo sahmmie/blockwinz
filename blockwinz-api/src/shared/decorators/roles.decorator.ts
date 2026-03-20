@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { AdminRole } from 'src/shared/enums/adminRole.enum';
+import { AdminRole } from '@blockwinz/shared';
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: AdminRole[]) => SetMetadata(ROLES_KEY, roles);

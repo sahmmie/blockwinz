@@ -1,4 +1,4 @@
-import { GameCategoryEnum, MultiplayerGameTypeEnum } from '../enums/gameType.enum';
+import { GameCategoryEnum, MultiplayerGameTypeEnum } from '@blockwinz/shared';
 import { GameInfo } from '../types/types';
 import TicTacToeImage from '@/assets/games-info-images/xando-iamge.png';
 
