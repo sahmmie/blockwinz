@@ -22,7 +22,8 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
-RUN pnpm exec turbo run build --filter=@blockwinz/api
+# Shared must emit dist/*.d.ts before Nest compiles; explicit step avoids stale layers / CI that only runs nest build.
+RUN pnpm --filter @blockwinz/shared build && pnpm exec turbo run build --filter=@blockwinz/api
 
 FROM base AS development
 COPY --from=installer /app /app
