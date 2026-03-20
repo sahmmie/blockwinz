@@ -1,15 +1,15 @@
 import { Catch, ArgumentsHost } from '@nestjs/common';
-import { BaseWsExceptionFilter } from '@nestjs/websockets';
+import { BaseWsExceptionFilter, WsException } from '@nestjs/websockets';
 import { WsResponse } from '../helpers/wsResponse.helper';
 
-@Catch()
+// Must not use bare @Catch(): global filters run in order such that this would
+// handle HttpException too; switchToWs().getClient() is then the Express req,
+// so client.emit() never sends an HTTP body (login errors appear to hang).
+@Catch(WsException)
 export class WsExceptionFilter extends BaseWsExceptionFilter {
-  catch(exception: any, host: ArgumentsHost) {
+  catch(exception: WsException, host: ArgumentsHost) {
     const client = host.switchToWs().getClient();
-
-    // Create response using your WsResponse class
     const response = WsResponse.fromException(exception);
-
     client.emit('exception', response);
   }
 }
