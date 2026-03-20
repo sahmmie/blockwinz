@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { useSound } from './useSound'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMaxProfit } from './useMaxProfit'
 import { useBetAmount } from '@/hooks/useBetAmount'
 import { useGameState } from '@/hooks/useGameState'
@@ -10,12 +9,38 @@ import { GameRenderer } from '../components/Renderer/GameRenderer'
 import { PlinkoGameState, PlinkoBetRequest, PlinkoBetResponse, BucketData } from '../types'
 import { useSettingsStore } from '@/hooks/useSettings'
 import useWalletState from '@/hooks/useWalletState'
+import { SpeedTypes } from '@/shared/types/core'
 
 type EP = PlinkoGameState & PlinkoBetRequest & PlinkoBetResponse
 
 export const useGameControls = () => {
   const { getWalletData } = useWalletState()
+  const { play } = useSound()
+  const { settings } = useSettingsStore()
+
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
+
+  const gameRendererRef = useRef<GameRenderer | null>(null)
+  const finalizePlinkoRoundRef = useRef<(bucketIndex: number, fromAnimation: boolean) => void>(
+    () => {}
+  )
+
+  const bucketDataRef = useRef<BucketData[]>([])
+  const isMutedRef = useRef<boolean>(settings.isMuted || false)
+  const runningBallsRef = useRef<number>(0)
+  const rowsRef = useRef<number>(8)
+
+  const setRunningBalls = (newRunningBalls: number) => {
+    runningBallsRef.current = newRunningBalls
+  }
+
+  const bumpRunningBall = () => {
+    setRunningBalls(runningBallsRef.current + 1)
+  }
+
   const { state, actions } = useGameState<PlinkoGameState, PlinkoBetRequest, PlinkoBetResponse>({
+    deferAutobetContinue: true,
     initialState: {
       animSpeed: 50,
       animNormalSpeed: 50,
@@ -29,49 +54,72 @@ export const useGameControls = () => {
       delayBeforeNextAutoBet: 50,
     },
     onBetRequest: (currState) => {
-      play('startBet', settings.isMuted)
+      play('startBet', settingsRef.current.isMuted)
       return {
         rows: currState.rows,
         risk: currState.risk,
       }
     },
     onBetResult: async (currState: EP, res: PlinkoBetResponse) => {
-      currState
       const goalBucket = res.results.reduce((acc, cur) => acc + cur, 0)
-      if (!settings.isTurbo) await gameRendererRef.current?.createBall(goalBucket)
-      onBallSpawn()
+      const isTurboSkip =
+        settingsRef.current.isTurbo || currState.speedType === SpeedTypes.TURBO
       actions.updateState({ results: res.results })
+      if (isTurboSkip) {
+        finalizePlinkoRoundRef.current(goalBucket, false)
+      } else {
+        await gameRendererRef.current?.createBall(goalBucket)
+        bumpRunningBall()
+      }
     },
     onAnimFinish: () => {
-      // No-op: all finish logic is now in onBucketEnter
+      // No-op: round completion is in finalizePlinkoRound
     },
     betEndpoint: '/plinko/roll',
   })
 
-  const { play } = useSound()
-  const { settings } = useSettingsStore()
+  const signalRoundCompleteRef = useRef(actions.signalRoundComplete)
+  signalRoundCompleteRef.current = actions.signalRoundComplete
 
-  const bucketDataRef = useRef<BucketData[]>([])
-  const isMutedRef = useRef<boolean>(settings.isMuted || false)
-  const runningBallsRef = useRef<number>(0)
-  const rowsRef = useRef<number>(state.rows)
+  const finalizePlinkoRound = useCallback(
+    (bucketIndex: number, fromAnimation: boolean) => {
+      if (fromAnimation) {
+        setRunningBalls(Math.max(0, runningBallsRef.current - 1))
+      }
 
-  const onBallSpawn = () => {
-    setRunningBalls(runningBallsRef.current + 1)
-  }
+      const bucket = bucketDataRef.current[bucketIndex]
+      if (!bucket) return
+
+      play('score', isMutedRef.current, bucket.index)
+      const newResult = {
+        color: bucket.color,
+        label: bucket.label,
+        index: bucketIndex,
+        uid: Math.random().toString(),
+      }
+
+      actions.updateState((prevState) => ({
+        prevResults: [newResult, ...(prevState.prevResults || [])].slice(0, 5),
+      }))
+
+      getWalletData()
+      signalRoundCompleteRef.current()
+    },
+    [play, actions, getWalletData]
+  )
+
+  finalizePlinkoRoundRef.current = finalizePlinkoRound
 
   const setBucketsContainerP = (newP: number) => actions.updateState({ bucketsContainerP: newP })
 
   const [gameRendererInited, setGameRendererInited] = useState<boolean>(false)
   const [gameDataLoading, setGameDataLoading] = useState<boolean>(true)
-  const gameRendererRef = useRef<GameRenderer | null>(null)
 
   const { betAmountErrors } = useBetAmount(state.betAmount.toString())
 
   useEffect(() => {
     gameRendererRef.current = new GameRenderer(state.rows, state.risk, setBucketsContainerP)
-    
-    // Listen for game data loading completion
+
     const checkLoadingComplete = () => {
       if (gameRendererRef.current?.pathsLoaded) {
         setGameDataLoading(false)
@@ -80,8 +128,9 @@ export const useGameControls = () => {
       }
     }
     checkLoadingComplete()
-    
+
     setGameRendererInited(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- init renderer once on mount
   }, [])
 
   useEffect(() => {
@@ -89,17 +138,16 @@ export const useGameControls = () => {
   }, [state.risk])
 
   useEffect(() => {
-    gameRendererRef.current?.setOnBallInBucket(state.onBucketEnter)
-  }, [state.onBucketEnter])
+    if (!gameRendererInited || !gameRendererRef.current) return
+    const fn = (bucketIndex: number) => finalizePlinkoRoundRef.current(bucketIndex, true)
+    gameRendererRef.current.setOnBallInBucket(fn)
+    actions.updateState({ onBucketEnter: fn })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- actions.updateState is stable enough; avoid re-running every render
+  }, [state.rows, state.risk, gameRendererInited])
 
   useEffect(() => {
     isMutedRef.current = settings.isMuted || false
   }, [settings.isMuted])
-
-  const setBucketData = (newBucketData: BucketData[]) => {
-    bucketDataRef.current = newBucketData
-    actions.updateState({ bucketData: newBucketData })
-  }
 
   useEffect(() => {
     const maxSoundIndex = 6
@@ -120,53 +168,20 @@ export const useGameControls = () => {
       }
     })
 
-    setBucketData(newBD)
+    bucketDataRef.current = newBD
+    actions.updateState({ bucketData: newBD })
+    rowsRef.current = state.rows
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- actions.updateState; rows/risk drive bucket layout
   }, [state.rows, state.risk])
-
-  useEffect(() => {
-    const onBucketEnter = (bucketIndex: number) => {
-      setRunningBalls(runningBallsRef.current - 1)
-
-      const bucket = bucketDataRef.current[bucketIndex]
-      play('score', isMutedRef.current, bucket.index)
-      const newResult = {
-        color: bucket.color,
-        label: bucket.label,
-        index: bucketIndex,
-        uid: Math.random().toString(),
-      }
-
-      actions.updateState((prevState) => ({
-        prevResults: [newResult, ...(prevState.prevResults || [])].slice(0, 5),
-      }))
-
-      // --- Animation is truly finished here ---
-      getWalletData()
-      // Turbo mode finish logic
-      if (settings.isTurbo) {
-        const goalBucket = bucketIndex
-        state.onBucketEnter(goalBucket)
-      }
-    }
-
-    actions.updateState({ onBucketEnter: onBucketEnter })
-  }, [bucketDataRef.current, settings.isMuted, settings.isTurbo])
 
   const { rows, risk, betAmount } = state
 
   const { maxProfitErrors } = useMaxProfit(parseFloat(betAmount), plinkoMuls[risk][rows][0])
 
-  const setRunningBalls = (newRunningBalls: number) => {
-    runningBallsRef.current = newRunningBalls
-  }
-
-  useEffect(() => {
-    actions.updateState({ rows: rowsRef.current })
-  }, [rowsRef.current])
-
   const handleRowsChange = (newRows: number) => {
     if (runningBallsRef.current > 0 || newRows < 8 || newRows > 16) return
     rowsRef.current = newRows
+    actions.updateState({ rows: newRows })
     gameRendererRef.current?.updateGame(newRows)
   }
 
@@ -195,12 +210,10 @@ export const useGameControls = () => {
     gameRendererInited,
     gameDataLoading,
     gameRendererRef,
-    onBallSpawn,
     increaseRow,
     decreaseRow,
     toggleRisk,
     handleRowsChange,
-    setBucketData,
     setBucketsContainerP,
   }
 }

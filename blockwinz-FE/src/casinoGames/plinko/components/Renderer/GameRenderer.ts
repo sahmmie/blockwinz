@@ -206,11 +206,11 @@ export class GameRenderer {
 
       let framesToAdvance: number
       if (deltaTime > timePerFrame) {
-        // FPS is less than 60, interpolate
+        // FPS is less than 60, catch up by advancing multiple path indices
         framesToAdvance = deltaTime / timePerFrame
       } else {
-        // FPS is 60 or higher, advance by 1 without interpolation
-        framesToAdvance = .50
+        // ~60 FPS: advance one path sample per tick
+        framesToAdvance = 1
       }
 
       const previousIndex = ball.currentIndex

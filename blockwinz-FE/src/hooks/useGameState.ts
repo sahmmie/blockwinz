@@ -13,6 +13,7 @@ import { useStrategies } from './useStrategies'
 import useWalletState from './useWalletState'
 import { GameMode } from '@blockwinz/shared'
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant'
+import { useSettingsStore } from '@/hooks/useSettings'
 
 export const AUTOBET_DEBOUNCE_DELAY = 500
 
@@ -26,6 +27,7 @@ export const useGameState = <
   onBetRequest,
   onAnimFinish,
   onBetResult,
+  deferAutobetContinue = false,
 }: UseGameStateProps<T, R, S>) => {
   type EGS = ExtendedGameState<T, R, S>
   type PEGS = PartialEGS<T, R, S>
@@ -118,6 +120,11 @@ export const useGameState = <
 
   const latestStateRef = useRef(state)
   latestStateRef.current = state
+
+  const onBetResultRef = useRef(onBetResult)
+  onBetResultRef.current = onBetResult
+  const onAnimFinishRef = useRef(onAnimFinish)
+  onAnimFinishRef.current = onAnimFinish
 
   useEffect(() => {
     return () => {
@@ -218,12 +225,15 @@ export const useGameState = <
     },
     {
       onSuccess: (data) => {
-        onBetResult(state, data)
+        const curr = latestStateRef.current as EGS
+        onBetResultRef.current(curr, data)
         updateState({ ...data } as EGS)
         setIsAnimating(true)
 
-        const delayBeforeNextBet = getDelayBeforeNextBet(state as unknown as ExtendedGameState<GameState, BaseBetRequest, BaseBetResponse>)
-        setTimeout(() => onAnimFinish?.(state, data), state.animSpeed)
+        const delayBeforeNextBet = getDelayBeforeNextBet(
+          latestStateRef.current as unknown as ExtendedGameState<GameState, BaseBetRequest, BaseBetResponse>
+        )
+        setTimeout(() => onAnimFinishRef.current?.(latestStateRef.current as EGS, data), curr.animSpeed)
         setTimeout(() => setIsAnimating(false), delayBeforeNextBet)
       },
       onError: (error) => {
@@ -234,10 +244,11 @@ export const useGameState = <
 
   const createBetRequest = (): BaseBetRequest => {
     const currState = latestStateRef.current
+    const profileTurbo = !!useSettingsStore.getState().settings.isTurbo
     return {
       betAmount: parseFloat(currState.betAmount),
       isManualMode: currState.mode === 'manual',
-      isTurboMode: currState.speedType === SpeedTypes.TURBO,
+      isTurboMode: currState.speedType === SpeedTypes.TURBO || profileTurbo,
       stopOnProfit: parseFloat(currState.stopOnProfit),
       stopOnLoss: parseFloat(currState.stopOnLoss),
       increaseBy: currState.onWinIncrease,
@@ -259,14 +270,15 @@ export const useGameState = <
   }
 
   const shouldStopAutoBetting = (): boolean => {
-    const stopOnProfit = parseFloat(state.stopOnProfit)
-    const stopOnLoss = parseFloat(state.stopOnLoss)
+    const s = latestStateRef.current
+    const stopOnProfit = parseFloat(s.stopOnProfit)
+    const stopOnLoss = parseFloat(s.stopOnLoss)
 
     return (
       !isAutoBettingRef.current ||
       (stopOnProfit > 0 && totalProfitRef.current >= stopOnProfit) ||
       (stopOnLoss > 0 && totalProfitRef.current <= -stopOnLoss) ||
-      (state.numberOfBets !== 0 && totalBetsRef.current >= state.numberOfBets)
+      (s.numberOfBets !== 0 && totalBetsRef.current >= s.numberOfBets)
     )
   }
 
@@ -276,11 +288,18 @@ export const useGameState = <
       totalBetsRef.current = 0
       updateState({ isAutoBetting: false, numberOfBets: 0 } as EGS)
     } else {
-      const delayBeforeNextBet = getDelayBeforeNextBet(state as unknown as ExtendedGameState<GameState, BaseBetRequest, BaseBetResponse>)
+      const delayBeforeNextBet = getDelayBeforeNextBet(
+        latestStateRef.current as unknown as ExtendedGameState<GameState, BaseBetRequest, BaseBetResponse>
+      )
       autoBetTimeoutRef.current = setTimeout(() => {
         handleBet()
       }, delayBeforeNextBet)
     }
+  }
+
+  const signalRoundComplete = () => {
+    if (!deferAutobetContinue || !isAutoBettingRef.current) return
+    continueAutoBetting()
   }
 
   const handleBet = async () => {
@@ -294,7 +313,7 @@ export const useGameState = <
       handleBetResult(result)
       isBettingRef.current = false
 
-      if (isAutoBettingRef.current) {
+      if (isAutoBettingRef.current && !deferAutobetContinue) {
         continueAutoBetting()
       }
     } catch (error) {
@@ -357,6 +376,7 @@ export const useGameState = <
       startBetting,
       halveBetAmount,
       doubleBetAmount,
+      signalRoundComplete,
       isLoading: state.isAutoBetting || isPlacingBet || state.isAnimating,
       ...strategyActions,
     },

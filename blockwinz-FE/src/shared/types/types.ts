@@ -29,6 +29,8 @@ export interface UseGameStateProps<
     onBetRequest: (currState: T & S & R) => Partial<R>
     onBetResult: (currState: T & S & R, res: S) => void
     onAnimFinish?: (currState: T & S & R, res: S) => void
+    /** When true, autobet schedules the next bet only after `signalRoundComplete()` (e.g. animation end). */
+    deferAutobetContinue?: boolean
 }
 
 export type StateUpdater<T> = (prevState: T) => T

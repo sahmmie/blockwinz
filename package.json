@@ -11,7 +11,7 @@
   "scripts": {
     "prepare": "husky install && node scripts/ensure-blockwinz-api-packages-symlink.mjs",
     "build": "turbo run build",
-    "build:api": "pnpm --filter @blockwinz/api build",
+    "build:api": "pnpm exec turbo run build --filter=@blockwinz/api",
     "build:generated": "pnpm --filter @blockwinz/api build:generated",
     "build:web": "pnpm --filter @blockwinz/web build",
     "build:admin": "pnpm --filter @blockwinz/admin build",
