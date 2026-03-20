@@ -47,7 +47,7 @@ Prefer **repository commands** over ad-hoc paths:
   - **`Controller`**: HTTP concerns only—route params, DTO validation, Swagger, guards/interceptors. Delegate to a **service** for behavior.
   - **`Service`**: Application logic—rules, `BadRequestException` / `NotFoundException` (and related Nest HTTP exceptions), orchestration across repositories, **owning `db.transaction()`** when several writes must commit together, passing **`tx?: DrizzleDb`** into repositories inside that callback.
   - **`Repository`**: **Persistence only**—Drizzle queries, optional `tx`, row → DTO (or typed row) mapping with existing `toXxxDto` / `rowToDto` style in that module.
-- **Legacy / in-flight modules** (e.g. some `games/*` repositories that still orchestrate fairness, wallet, and bet history) should move toward the same split when touched: thin repositories plus a **game service** that composes shared repositories.
+- **Game features** under `games/*` follow the same pattern: a `*.service.ts` owns fairness, wallet, transactions, and bet-history orchestration; a slim `repositories/*.repository.ts` handles inserts/updates/selects for that game’s tables (e.g. dice, limbo, plinko, wheel, keno, tictactoe, mines). The **coinflip** module is currently a stub (empty repository) until implemented.
 - **Drizzle** is provided via the `DRIZZLE` injection token (`src/database/constants.ts`) and typed as `DrizzleDb` from `src/database/database.module.ts`.
 - **Schemas** live under `src/database/schema/`; feature-specific Drizzle schema fragments may appear under a feature’s `schemas/` folder where present.
 

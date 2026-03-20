@@ -19,7 +19,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { DiceRepository } from '../repositories/dice.repository';
+import { DiceService } from '../dice.service';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 
@@ -28,7 +28,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class DicesController {
-  constructor(private readonly diceRepository: DiceRepository) {}
+  constructor(private readonly diceService: DiceService) {}
 
   @Post()
   @ApiOperation({
@@ -52,6 +52,6 @@ export class DicesController {
     const requestBody: RollDiceWithGameTokenDto = {
       ...request,
     };
-    return await this.diceRepository.getDiceResult(requestBody, user);
+    return await this.diceService.getDiceResult(requestBody, user);
   }
 }

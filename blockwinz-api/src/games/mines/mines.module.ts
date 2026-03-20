@@ -5,6 +5,7 @@ import { TransactionModule } from 'src/transaction/transaction.module';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
 import { MinesRepository } from './repositories/mines.repository';
+import { MinesService } from './mines.service';
 import { FairLogicModule } from 'src/core/fairLogic/fairLogic.module';
 import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { DatabaseModule } from 'src/database/database.module';
@@ -23,7 +24,7 @@ const customModules = [
 @Module({
   imports: [BetHistoryModule, ...customModules],
   controllers: [...controllers],
-  providers: [MinesRepository],
+  providers: [MinesRepository, MinesService],
   exports: [],
 })
 export class MinesModule {}

@@ -8,6 +8,7 @@ import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
 import { PlinkoController } from './controllers/plinko.controller';
 import { PlinkoRepository } from './repositories/plinko.repository';
+import { PlinkoService } from './plinko.service';
 
 const controllers = [PlinkoController];
 
@@ -23,7 +24,7 @@ const customModules = [
 @Module({
   imports: [BetHistoryModule, ...customModules],
   controllers: [...controllers],
-  providers: [PlinkoRepository],
+  providers: [PlinkoRepository, PlinkoService],
   exports: [],
 })
 export class PlinkoModule {}

@@ -4,10 +4,16 @@ import {
   IsEnum,
   IsDate,
   IsNumber,
+  IsOptional,
+  IsString,
 } from '@nestjs/class-validator';
 import { DbGameSchema } from 'src/shared/enums/dbSchema.enum';
 
 export class BetHistoryDto {
+  @IsNotEmpty()
+  @IsUUID('4')
+  id: string;
+
   @IsNotEmpty()
   @IsUUID('4')
   user: string;
@@ -20,11 +26,19 @@ export class BetHistoryDto {
   @IsEnum(DbGameSchema)
   gameType: DbGameSchema;
 
+  @IsString()
+  currency: string;
+
+  @IsOptional()
+  @IsNumber()
+  multiplier?: number;
+
   @IsNumber()
   betAmount: number;
 
+  @IsOptional()
   @IsNumber()
-  totalWinAmount: number;
+  totalWinAmount?: number;
 
   @IsDate()
   createdAt?: Date;

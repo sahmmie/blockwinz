@@ -1,4 +1,8 @@
-import { BetHistoryT, SeedT } from '@/pages/BetHistory/BetHistory.type';
+import {
+  BetHistoryT,
+  SeedT,
+  isPopulatedGame,
+} from '@/pages/BetHistory/BetHistory.type';
 import { BaseFairLogicGenerateForGameDto } from '@/shared/types/core';
 import React, {
   createContext,
@@ -26,11 +30,16 @@ const GameInputsProvider: React.FC<GameInputsProviderProps> = ({
   children,
   betHistory,
 }) => {
+  const legacyGame =
+    betHistory && isPopulatedGame(betHistory.gameId)
+      ? betHistory.gameId
+      : null;
+  const seed = legacyGame?.seed as SeedT | undefined;
   const [baseInputs, setBaseInputs] = useState<BaseFairLogicGenerateForGameDto>(
     {
-      clientSeed: (betHistory?.gameId?.seed as SeedT)?.clientSeed || '',
-      serverSeed: (betHistory?.gameId?.seed as SeedT)?.serverSeed || '',
-      nonce: (betHistory?.gameId.nonce as number) || 0,
+      clientSeed: seed?.clientSeed || '',
+      serverSeed: seed?.serverSeed || '',
+      nonce: legacyGame?.nonce ?? 0,
     },
   );
 

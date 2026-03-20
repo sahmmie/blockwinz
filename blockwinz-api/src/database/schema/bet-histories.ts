@@ -10,6 +10,10 @@ export const betHistories = pgTable(
     gameType: text('game_type').notNull(),
     betAmount: numeric('bet_amount', { precision: 20, scale: 8 }).notNull(),
     totalWinAmount: numeric('total_win_amount', { precision: 20, scale: 8 }),
+    /** Lowercase currency code (e.g. sol, bwz) — matches wallet / Currency enum */
+    currency: text('currency').notNull().default('sol'),
+    /** Game multiplier at resolution (target mult, wheel segment mult, payout ratio, etc.) */
+    multiplier: numeric('multiplier', { precision: 20, scale: 8 }),
     ...timestampColumns,
   },
   (t) => [

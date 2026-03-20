@@ -13,7 +13,7 @@ import {
   ApiOkResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { WheelRepository } from '../repositories/wheel.repository';
+import { WheelService } from '../wheel.service';
 import { SpinWheelDto, SpinWheelResponseDto } from '../dtos/wheel.dto';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
@@ -24,7 +24,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class WheelController {
-  constructor(private readonly wheelRepository: WheelRepository) {}
+  constructor(private readonly wheelService: WheelService) {}
 
   @Post('spin')
   @ApiOperation({
@@ -46,7 +46,7 @@ export class WheelController {
     @Body() request: SpinWheelDto,
   ): Promise<SpinWheelResponseDto> {
     try {
-      return await this.wheelRepository.spin(user, request);
+      return await this.wheelService.spin(user, request);
     } catch (error) {
       throw error;
     }

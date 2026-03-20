@@ -8,6 +8,7 @@ import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
 import { KenoController } from './controllers/keno.controller';
 import { KenoRepository } from './repositories/keno.repositories';
+import { KenoService } from './keno.service';
 
 const controllers = [KenoController];
 
@@ -23,7 +24,7 @@ const customModules = [
 @Module({
   imports: [BetHistoryModule, ...customModules],
   controllers: [...controllers],
-  providers: [KenoRepository],
+  providers: [KenoRepository, KenoService],
   exports: [],
 })
 export class KenoModule {}

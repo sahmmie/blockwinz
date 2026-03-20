@@ -19,7 +19,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { KenoRepository } from '../repositories/keno.repositories';
+import { KenoService } from '../keno.service';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
@@ -31,7 +31,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class KenoController {
-  constructor(private readonly kenoRepository: KenoRepository) {}
+  constructor(private readonly kenoService: KenoService) {}
 
   @Post('bet')
   @ApiOperation({
@@ -56,7 +56,7 @@ export class KenoController {
     const requestBody: KenoBetRequestDto = {
       ...request,
     };
-    return await this.kenoRepository.getKenoResult(user, requestBody);
+    return await this.kenoService.getKenoResult(user, requestBody);
   }
 
   @Get('risk-data')

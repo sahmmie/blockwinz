@@ -6,7 +6,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { TicTacToeRepository } from '../repositories/tictactoe.repository';
+import { TicTacToeService } from '../tictactoe.service';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -31,7 +31,7 @@ import { Disabled } from 'src/shared/decorators/disabled.decorator';
 @UseGuards(AuthenticationGuard)
 @Disabled()
 export class TictactoeController {
-  constructor(private ticTacToeRepository: TicTacToeRepository) {}
+  constructor(private readonly ticTacToeService: TicTacToeService) {}
 
   @Post('newGame')
   @ApiOperation({
@@ -53,7 +53,7 @@ export class TictactoeController {
     @Body() requestBody: TicTacToeStartReqDto,
     @CurrentUser() user: UserRequestI,
   ): Promise<TicTacToeDto> {
-    return await this.ticTacToeRepository.startNewGame(requestBody, user);
+    return await this.ticTacToeService.startNewGame(requestBody, user);
   }
 
   @Post('makeMove')
@@ -74,7 +74,7 @@ export class TictactoeController {
     @Body() requestBody: TicTacToeMoveDto,
     @CurrentUser() user: UserRequestI,
   ): Promise<TicTacToeMoveDto> {
-    return await this.ticTacToeRepository.makeMove(requestBody, user);
+    return await this.ticTacToeService.makeMove(requestBody, user);
   }
 
   @Get('game')
@@ -89,6 +89,6 @@ export class TictactoeController {
   async getActiveGame(
     @CurrentUser() user: UserRequestI,
   ): Promise<TicTacToeDto> {
-    return await this.ticTacToeRepository.getActiveGame(user);
+    return await this.ticTacToeService.getActiveGame(user);
   }
 }

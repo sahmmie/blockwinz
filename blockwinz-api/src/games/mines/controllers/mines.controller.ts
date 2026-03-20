@@ -6,7 +6,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { MinesRepository } from '../repositories/mines.repository';
+import { MinesService } from '../mines.service';
 import {
   MinesResponseDto,
   RevealMineDto,
@@ -29,7 +29,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class MinesController {
-  constructor(private readonly minesRepository: MinesRepository) {}
+  constructor(private readonly minesService: MinesService) {}
 
   @Post('start')
   @ApiOperation({ summary: 'Start a new mine game' })
@@ -47,7 +47,7 @@ export class MinesController {
     const requestBody: StartMineDto = {
       ...request,
     };
-    return await this.minesRepository.start(user, requestBody);
+    return await this.minesService.start(user, requestBody);
   }
 
   @Post('reveal')
@@ -65,7 +65,7 @@ export class MinesController {
     const requestBody: RevealMineDto = {
       ...request,
     };
-    return await this.minesRepository.reveal(user, requestBody);
+    return await this.minesService.reveal(user, requestBody);
   }
 
   @Post('cashout')
@@ -76,7 +76,7 @@ export class MinesController {
     type: MinesResponseDto,
   })
   async cashout(@CurrentUser() user: UserRequestI): Promise<MinesResponseDto> {
-    return await this.minesRepository.cashout(user);
+    return await this.minesService.cashout(user);
   }
 
   @Get('active-game')
@@ -89,6 +89,6 @@ export class MinesController {
   async getActiveGame(
     @CurrentUser() user: UserRequestI,
   ): Promise<MinesResponseDto> {
-    return await this.minesRepository.getActiveGame(user.id);
+    return await this.minesService.getActiveGame(user.id);
   }
 }

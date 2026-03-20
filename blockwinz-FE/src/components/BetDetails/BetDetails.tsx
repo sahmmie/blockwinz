@@ -1,8 +1,10 @@
 import {
   BetHistoryT,
+  isPopulatedGame,
   SeedStatus,
   SeedT,
 } from '@/pages/BetHistory/BetHistory.type';
+import { Currency } from '@/shared/enums/currency.enum';
 import { Box, Image, Text } from '@chakra-ui/react';
 import { FunctionComponent, useState } from 'react';
 import { Button } from '../ui/button';
@@ -37,6 +39,28 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
 
   const { balances } = useWalletState();
 
+  const legacyGame = isPopulatedGame(betDetails.gameId)
+    ? betDetails.gameId
+    : null;
+  const seedInfo = legacyGame?.seed
+    ? (legacyGame.seed as SeedT)
+    : undefined;
+  const currency =
+    betDetails.currency ?? legacyGame?.currency ?? Currency.SOL;
+  const betAmount =
+    betDetails.betAmount ?? legacyGame?.betAmount ?? 0;
+  const totalWinAmount =
+    betDetails.totalWinAmount ?? legacyGame?.totalWinAmount ?? 0;
+  const multiplierLabel =
+    betDetails.multiplier != null && !Number.isNaN(betDetails.multiplier)
+      ? Number(betDetails.multiplier).toFixed(2)
+      : legacyGame?.multiplier != null
+        ? Number(legacyGame.multiplier).toFixed(2)
+        : betAmount > 0
+          ? (totalWinAmount / betAmount).toFixed(2)
+          : '—';
+  const placedAt = betDetails.createdAt ?? legacyGame?.createdAt;
+
   const openFairnessModal = (betHistory: BetHistoryT) => {
     const modalConfig: ModalProps = {
       size: 'lg',
@@ -63,7 +87,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
     }
     setisLoadingDetails(true);
     axiosInstance
-      .get(`/bet-history/${betDetails._id}`)
+      .get(`/bet-history/${betDetails.id ?? betDetails._id}`)
       .then(response => {
         openFairnessModal(response.data);
         setisLoadingDetails(false);
@@ -79,9 +103,9 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
 
   const getRotateButtonText = (): JSX.Element => {
     if (
+      seedInfo &&
       userData?._id === (betDetails.user as UserI)._id &&
-      (betDetails.gameId.seed as SeedT).serverSeedHash ===
-        activeSeedPair?.serverSeedHashed
+      seedInfo.serverSeedHash === activeSeedPair?.serverSeedHashed
     ) {
       return (
         <>
@@ -106,8 +130,9 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
       );
     }
     if (
+      seedInfo &&
       userData?._id !== (betDetails.user as UserI)._id &&
-      (betDetails.gameId.seed as SeedT)?.status === SeedStatus.ACTIVE
+      seedInfo.status === SeedStatus.ACTIVE
     ) {
       return (
         <>
@@ -169,8 +194,10 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
               h={'24px'}
             />
             <Text>
-              {originalGamesInfo[betDetails?.gameType].name}:{' '}
-              {(betDetails.gameId.seed as SeedT)?.clientSeed}
+              {originalGamesInfo[betDetails?.gameType].name}
+              {seedInfo?.clientSeed != null
+                ? `: ${seedInfo.clientSeed}`
+                : ''}
             </Text>
           </Box>
           <Box
@@ -195,7 +222,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
             display={'flex'}
             justifyContent={'center'}
             alignItems={'center'}>
-            <Text>On {formatDate(betDetails.gameId.createdAt)}</Text>
+            <Text>On {formatDate(placedAt)}</Text>
           </Box>
           <Box
             p={'16px'}
@@ -216,16 +243,15 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
                 gap={'8px'}
                 justifyContent={'center'}>
                 <Image
-                  src={currencyIconMap[betDetails.gameId.currency]}
+                  src={currencyIconMap[currency]}
                   alt='game'
                   w={'18px'}
                   h={'18px'}
                 />
                 <Text fontWeight={'500'}>
-                  {betDetails.gameId.betAmount.toFixed(
-                    balances.find(
-                      c => c.currency === betDetails.gameId.currency,
-                    )?.decimals || DEFAULT_ROUNDING_DECIMALS,
+                  {betAmount.toFixed(
+                    balances.find(c => c.currency === currency)?.decimals ||
+                      DEFAULT_ROUNDING_DECIMALS,
                   )}
                 </Text>
               </Box>
@@ -234,7 +260,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
               borderRight={'1px solid #ECF0F1'}
               w={'100%'}
               textAlign={'center'}>
-              <Text fontWeight={'600'}>Multiplayer</Text>
+              <Text fontWeight={'600'}>Multiplier</Text>
               <Box
                 mt={'12px'}
                 display={'flex'}
@@ -242,9 +268,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
                 gap={'8px'}
                 justifyContent={'center'}>
                 <Image src={TrendIcon} alt='Multiplier' w={'18px'} />
-                <Text fontWeight={'500'}>
-                  {Number(betDetails.gameId.multiplier).toFixed(2)}
-                </Text>
+                <Text fontWeight={'500'}>{multiplierLabel}</Text>
               </Box>
             </Box>
             <Box w={'100%'} textAlign={'center'}>
@@ -256,16 +280,15 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
                 gap={'8px'}
                 justifyContent={'center'}>
                 <Image
-                  src={currencyIconMap[betDetails.gameId.currency]}
+                  src={currencyIconMap[currency]}
                   alt='game'
                   w={'18px'}
                   h={'18px'}
                 />
                 <Text fontWeight={'500'}>
-                  {betDetails.gameId.totalWinAmount.toFixed(
-                    balances.find(
-                      c => c.currency === betDetails.gameId.currency,
-                    )?.decimals || DEFAULT_ROUNDING_DECIMALS,
+                  {totalWinAmount.toFixed(
+                    balances.find(c => c.currency === currency)?.decimals ||
+                      DEFAULT_ROUNDING_DECIMALS,
                   )}
                 </Text>
               </Box>
@@ -293,68 +316,82 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
             </Text>
 
             <Box>
-              <Box
-                gap={'16px'}
-                mt={'16px'}
-                display={'flex'}
-                justifyContent={'space-between'}
-                alignItems={'center'}>
-                <CustomInput
-                  name='clientSeed'
-                  w={'100%'}
-                  placeholder='Client Seed'
-                  value={(betDetails.gameId.seed as SeedT).clientSeed}
-                  type='text'
-                  border={'1px solid #CBCCD1'}
-                  borderRadius={'8px'}
-                  inputGroupProps={{
-                    bg: '#000A27',
-                  }}
-                  fieldProps={{
-                    label: 'Client Seed',
-                  }}
-                  readOnly={true}
-                />
-                <CustomInput
-                  name='nonce'
-                  w={'100%'}
-                  placeholder='Nonce'
-                  value={betDetails.gameId.nonce}
-                  type='text'
-                  border={'1px solid #CBCCD1'}
-                  borderRadius={'8px'}
-                  inputGroupProps={{
-                    bg: '#000A27',
-                  }}
-                  fieldProps={{
-                    label: 'Nonce',
-                  }}
-                  readOnly={true}
-                />
-              </Box>
+              {seedInfo && legacyGame ? (
+                <>
+                  <Box
+                    gap={'16px'}
+                    mt={'16px'}
+                    display={'flex'}
+                    justifyContent={'space-between'}
+                    alignItems={'center'}>
+                    <CustomInput
+                      name='clientSeed'
+                      w={'100%'}
+                      placeholder='Client Seed'
+                      value={seedInfo.clientSeed}
+                      type='text'
+                      border={'1px solid #CBCCD1'}
+                      borderRadius={'8px'}
+                      inputGroupProps={{
+                        bg: '#000A27',
+                      }}
+                      fieldProps={{
+                        label: 'Client Seed',
+                      }}
+                      readOnly={true}
+                    />
+                    <CustomInput
+                      name='nonce'
+                      w={'100%'}
+                      placeholder='Nonce'
+                      value={legacyGame.nonce}
+                      type='text'
+                      border={'1px solid #CBCCD1'}
+                      borderRadius={'8px'}
+                      inputGroupProps={{
+                        bg: '#000A27',
+                      }}
+                      fieldProps={{
+                        label: 'Nonce',
+                      }}
+                      readOnly={true}
+                    />
+                  </Box>
 
-              <Box mt={'16px'}>
-                <CustomInput
-                  name='serverSeed'
-                  w={'100%'}
-                  placeholder='Server Seed Hashed'
-                  value={(betDetails.gameId.seed as SeedT).serverSeedHash}
-                  type='text'
-                  border={'1px solid #CBCCD1'}
-                  borderRadius={'8px'}
-                  inputGroupProps={{
-                    bg: '#000A27',
-                  }}
-                  fieldProps={{
-                    label: 'Server Seed (Hashed)',
-                  }}
-                  readOnly={true}
-                />
-              </Box>
+                  <Box mt={'16px'}>
+                    <CustomInput
+                      name='serverSeed'
+                      w={'100%'}
+                      placeholder='Server Seed Hashed'
+                      value={seedInfo.serverSeedHash}
+                      type='text'
+                      border={'1px solid #CBCCD1'}
+                      borderRadius={'8px'}
+                      inputGroupProps={{
+                        bg: '#000A27',
+                      }}
+                      fieldProps={{
+                        label: 'Server Seed (Hashed)',
+                      }}
+                      readOnly={true}
+                    />
+                  </Box>
 
-              <Box mt={'16px'} textAlign={'center'}>
-                {getRotateButtonText()}
-              </Box>
+                  <Box mt={'16px'} textAlign={'center'}>
+                    {getRotateButtonText()}
+                  </Box>
+                </>
+              ) : (
+                <>
+                  <Text mt={'16px'} fontSize={'14px'} color={'#939494'}>
+                    Seed details are not included in this summary. Use Verify
+                    Bet to open fairness tools when available.
+                  </Text>
+                  <Box mt={'16px'} textAlign={'center'}>
+                    {verifyButtonText()}
+                  </Box>
+                </>
+              )}
               <Box
                 mt={'24px'}
                 textAlign={'center'}

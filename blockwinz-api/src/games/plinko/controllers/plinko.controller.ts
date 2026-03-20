@@ -13,7 +13,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
-import { PlinkoRepository } from '../repositories/plinko.repository';
+import { PlinkoService } from '../plinko.service';
 import {
   GetPlinkoResultRequestDto,
   GetPlinkoResultResponseDto,
@@ -27,7 +27,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class PlinkoController {
-  constructor(private readonly plinkoRepository: PlinkoRepository) {}
+  constructor(private readonly plinkoService: PlinkoService) {}
 
   @Post('roll')
   @UseInterceptors(CurrencyInterceptor)
@@ -48,6 +48,6 @@ export class PlinkoController {
     const requestBody: GetPlinkoResultRequestDto = {
       ...request,
     };
-    return await this.plinkoRepository.getPlinkoResult(user, requestBody);
+    return await this.plinkoService.getPlinkoResult(user, requestBody);
   }
 }

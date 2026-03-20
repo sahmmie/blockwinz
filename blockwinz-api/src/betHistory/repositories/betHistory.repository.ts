@@ -12,9 +12,13 @@ export class BetHistoryRepository {
 
   private rowToDto(row: typeof betHistories.$inferSelect): BetHistoryDto {
     return {
+      id: row.id,
       user: row.userId,
       gameId: row.gameId,
       gameType: row.gameType as DbGameSchema,
+      currency: row.currency,
+      multiplier:
+        row.multiplier != null ? Number(row.multiplier) : undefined,
       betAmount: Number(row.betAmount),
       totalWinAmount:
         row.totalWinAmount != null ? Number(row.totalWinAmount) : undefined,
@@ -75,7 +79,9 @@ export class BetHistoryRepository {
     gameId: string,
     gameType: DbGameSchema,
     betAmount: number,
-    totalWinAmount: number,
+    totalWinAmount: number | null,
+    currency: string,
+    multiplier?: number | null,
     tx?: DrizzleDb,
   ): Promise<BetHistoryDto> {
     const db = tx ?? this.db;
@@ -87,6 +93,11 @@ export class BetHistoryRepository {
         gameType,
         betAmount: String(betAmount),
         totalWinAmount: totalWinAmount != null ? String(totalWinAmount) : null,
+        currency,
+        multiplier:
+          multiplier != null && multiplier !== undefined
+            ? String(multiplier)
+            : null,
       } as typeof betHistories.$inferInsert)
       .returning();
     if (!row) {
@@ -99,6 +110,7 @@ export class BetHistoryRepository {
     gameId: string,
     totalWinAmount: number,
     tx?: DrizzleDb,
+    multiplier?: number | null,
   ): Promise<BetHistoryDto> {
     const db = tx ?? this.db;
     const [existing] = await db
@@ -113,6 +125,9 @@ export class BetHistoryRepository {
       .update(betHistories)
       .set({
         totalWinAmount: String(totalWinAmount),
+        ...(multiplier != null && multiplier !== undefined
+          ? { multiplier: String(multiplier) }
+          : {}),
         updatedAt: new Date(),
       } as Record<string, unknown>)
       .where(eq(betHistories.id, existing.id))

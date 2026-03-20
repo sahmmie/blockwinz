@@ -5,7 +5,7 @@ import {
   UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
-import { LimboRepository } from '../repositories/limbo.repository';
+import { LimboService } from '../limbo.service';
 import {
   GetLimboResultRequestDto,
   GetLimboResultResponseDto,
@@ -28,7 +28,7 @@ import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class LimboController {
-  constructor(private readonly limboRepository: LimboRepository) {}
+  constructor(private readonly limboService: LimboService) {}
 
   @Post()
   @ApiOperation({
@@ -69,6 +69,6 @@ export class LimboController {
     const requestBody: GetLimboResultRequestDto = {
       ...createLimboDto,
     };
-    return await this.limboRepository.getLimboResult(requestBody, user);
+    return await this.limboService.getLimboResult(requestBody, user);
   }
 }

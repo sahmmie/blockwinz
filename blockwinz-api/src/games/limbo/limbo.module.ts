@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NeoCoreModule } from '../../core/neoCore/neoCore.module';
 import { LimboRepository } from './repositories/limbo.repository';
+import { LimboService } from './limbo.service';
 import { LimboController } from './controllers/limbo.controller';
 import { FairLogicModule } from '../../core/fairLogic/fairLogic.module';
 import { QueueModule } from 'src/core/queue/queue.module';
@@ -23,7 +24,7 @@ const customModules = [
 @Module({
   imports: [BetHistoryModule, ...customModules],
   controllers: [...controllers],
-  providers: [LimboRepository],
+  providers: [LimboRepository, LimboService],
   exports: [],
 })
 export class LimboModule {}

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TicTacToeRepository } from './repositories/tictactoe.repository';
+import { TicTacToeService } from './tictactoe.service';
 import { TictactoeController } from './controllers/tictactoe.controller';
 import { QueueModule } from 'src/core/queue/queue.module';
 import { TransactionModule } from 'src/transaction/transaction.module';
@@ -21,7 +22,7 @@ const customModules = [
 @Module({
   imports: [BetHistoryModule, ...customModules],
   controllers: [...controllers],
-  providers: [TicTacToeRepository],
+  providers: [TicTacToeRepository, TicTacToeService],
   exports: [],
 })
 export class TicTacToeModule {}

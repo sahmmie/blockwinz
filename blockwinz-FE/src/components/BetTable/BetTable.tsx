@@ -7,7 +7,11 @@ import {
 import { currencyIconMap } from '@/shared/utils/gameMaps';
 import { Box, HStack, Table, Text } from '@chakra-ui/react';
 import { FunctionComponent, useEffect, useState } from 'react';
-import { BetHistoryT } from '../../pages/BetHistory/BetHistory.type';
+import {
+  BetHistoryT,
+  isPopulatedGame,
+} from '../../pages/BetHistory/BetHistory.type';
+import { Currency } from '@/shared/enums/currency.enum';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
@@ -21,6 +25,40 @@ import { useSeedPair } from '@/hooks/useSeedPair';
 import useAuth from '@/hooks/useAuth';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import useWalletState from '@/hooks/useWalletState';
+
+function rowCurrency(item: BetHistoryT): Currency {
+  if (item.currency) return item.currency;
+  if (isPopulatedGame(item.gameId)) return item.gameId.currency;
+  return Currency.SOL;
+}
+
+function rowBetAmount(item: BetHistoryT): number | undefined {
+  if (item.betAmount != null) return item.betAmount;
+  if (isPopulatedGame(item.gameId)) return item.gameId.betAmount;
+  return undefined;
+}
+
+function rowTotalWin(item: BetHistoryT): number | undefined {
+  if (item.totalWinAmount != null) return item.totalWinAmount;
+  if (isPopulatedGame(item.gameId)) return item.gameId.totalWinAmount;
+  return undefined;
+}
+
+function rowMultiplierLabel(item: BetHistoryT): string {
+  if (item.multiplier != null && !Number.isNaN(item.multiplier)) {
+    return `${Number(item.multiplier).toFixed(2)}x`;
+  }
+  if (isPopulatedGame(item.gameId) && item.gameId.multiplier != null) {
+    const g = Number(item.gameId.multiplier);
+    if (!Number.isNaN(g)) return `${g.toFixed(2)}x`;
+  }
+  const bet = rowBetAmount(item);
+  const win = rowTotalWin(item);
+  if (bet != null && bet > 0 && win != null) {
+    return `${(win / bet).toFixed(2)}x`;
+  }
+  return '—';
+}
 
 interface BetTableProps {
   items: BetHistoryT[];
@@ -66,7 +104,6 @@ const BetTable: FunctionComponent<BetTableProps> = ({
           'Bet Amount',
           'Multiplier',
           'Payout',
-          'Bet ID',
         ]);
       } else {
         setActiveColumn([
@@ -107,7 +144,7 @@ const BetTable: FunctionComponent<BetTableProps> = ({
         _hover={{ bg: '#545463' }}
         color={'#ECF0F1'}
         w={'100%'}
-        key={item._id}
+        key={item.id ?? item._id ?? `bet-row-${index}`}
         bg={index % 2 === 0 ? '#000A27' : '#151832'}>
         <Table.Cell
           p={'12px'}
@@ -131,43 +168,42 @@ const BetTable: FunctionComponent<BetTableProps> = ({
             alignItems={'center'}
             gap={'8px'}>
             <img
-              src={currencyIconMap[item?.gameId?.currency]}
+              src={currencyIconMap[rowCurrency(item)]}
               alt=''
               style={{ width: '24px', height: '24px' }}
             />
-            {item?.gameId?.betAmount != null
-              ? Number(item.gameId.betAmount).toFixed(
-                  balances.find(c => c.currency === item.gameId?.currency)
+            {rowBetAmount(item) != null
+              ? Number(rowBetAmount(item)).toFixed(
+                  balances.find(c => c.currency === rowCurrency(item))
                     ?.decimals ?? DEFAULT_ROUNDING_DECIMALS,
                 )
               : '—'}
           </Table.Cell>
         )}
         <Table.Cell p={'12px'} textAlign={{ md: 'left', base: 'center' }}>
-          {item?.gameId?.multiplier}
+          {rowMultiplierLabel(item)}
         </Table.Cell>
         <Table.Cell
           p={'12px'}
           display={'flex'}
           alignItems={'center'}
           gap={'8px'}
-          color={item?.gameId?.totalWinAmount > 0 ? '#00DD25' : '#939494'}>
+          color={
+            (rowTotalWin(item) ?? 0) > 0 ? '#00DD25' : '#939494'
+          }>
           <img
-            src={currencyIconMap[item?.gameId?.currency]}
+            src={currencyIconMap[rowCurrency(item)]}
             alt=''
             style={{ width: '24px', height: '24px' }}
           />
-          {item?.gameId?.totalWinAmount != null
-            ? Number(item.gameId.totalWinAmount).toFixed(
-                balances.find(c => c.currency === item.gameId?.currency)
+          {rowTotalWin(item) != null
+            ? Number(rowTotalWin(item)).toFixed(
+                balances.find(c => c.currency === rowCurrency(item))
                   ?.decimals ?? DEFAULT_ROUNDING_DECIMALS,
               )
             : '—'}
         </Table.Cell>
-        {!isMobile && betTableType === BetTableType.MY_BETS && (
-          <Table.Cell p={'12px'}>{item?._id}</Table.Cell>
-        )}
-        {!isMobile && (
+        {!isMobile && betTableType !== BetTableType.MY_BETS && (
           <Table.Cell p={'12px'}>{(item?.user as UserI)?.username}</Table.Cell>
         )}
       </Table.Row>
@@ -225,8 +261,8 @@ const BetTable: FunctionComponent<BetTableProps> = ({
             fontSize={'18px'}
             fontWeight={'400'}
             lineHeight={'24px'}>
-            {activeColumn.map((column, index) => (
-              <Table.ColumnHeader pb={'10px'} key={index} p={'12px'}>
+            {activeColumn.map(column => (
+              <Table.ColumnHeader pb={'10px'} key={column} p={'12px'}>
                 {column}
               </Table.ColumnHeader>
             ))}

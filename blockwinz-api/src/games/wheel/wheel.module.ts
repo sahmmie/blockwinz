@@ -8,6 +8,7 @@ import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
 import { WheelController } from './controllers/wheel.controller';
 import { WheelRepository } from './repositories/wheel.repository';
+import { WheelService } from './wheel.service';
 
 const controllers = [WheelController];
 
@@ -23,7 +24,7 @@ const customModules = [
 @Module({
   imports: [BetHistoryModule, ...customModules],
   controllers: [...controllers],
-  providers: [WheelRepository],
+  providers: [WheelRepository, WheelService],
   exports: [],
 })
 export class WheelModule {}
