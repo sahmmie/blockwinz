@@ -99,8 +99,11 @@ The API uses **PostgreSQL** with **Drizzle ORM**. Schema and migrations live und
 # Generate migrations from schema changes
 $ npm run db:generate
 
-# Apply migrations
+# Apply migrations (dev / CI; uses drizzle-kit)
 $ npm run db:migrate
+
+# Apply migrations from compiled output only (production / no drizzle-kit)
+$ npm run db:migrate:prod
 
 # Push schema directly (dev)
 $ npm run db:push
@@ -108,6 +111,8 @@ $ npm run db:push
 # Open Drizzle Studio
 $ npm run db:studio
 ```
+
+**Production / Docker:** `pnpm start:prod` (and the API production image) runs **`db:migrate:prod`** before starting the server, so the database is migrated using bundled SQL files and runtime dependencies only (no `drizzle-kit`).
 
 **Seed data (not automatic):** After `db:push` / `db:migrate`, create the default admin (when `DEFAULT_ADMIN_EMAIL` is set) and the `general` chat room:
 

@@ -5,7 +5,12 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "outputPath": "dist",
-    "assets": [],
+    "assets": [
+      {
+        "include": "database/migrations/**/*",
+        "watchAssets": true
+      }
+    ],
     "plugins": [
       {
         "name": "@nestjs/swagger",

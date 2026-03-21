@@ -48,4 +48,4 @@ EXPOSE 7979 8080
 ENTRYPOINT ["dumb-init", "--"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node --version || exit 1
-CMD ["node", "dist/src/main"]
+CMD ["sh", "-c", "node dist/src/database/run-migrations.js && node dist/src/main"]
