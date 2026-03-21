@@ -47,6 +47,8 @@ interface WalletStoreI {
     setSolStakeUsdInput: (usd: number | null) => void;
 }
 
+const launchCurrencySet = new Set(SUPPORTED_CURRENCIES.map((c) => c.currency));
+
 const mapCurrencyToData = (currencies: CurrencyInfo[]): CurrencyInfo[] => {
     return currencies.map((currency) => {
         const currencyIcon = currencyIconMap[currency.currency];
@@ -58,6 +60,10 @@ const mapCurrencyToData = (currencies: CurrencyInfo[]): CurrencyInfo[] => {
         };
     });
 };
+
+/** Hide currencies not in SUPPORTED_CURRENCIES (e.g. BWZ until launch). */
+const filterLaunchBalances = (balances: CurrencyInfo[]): CurrencyInfo[] =>
+    balances.filter((b) => launchCurrencySet.has(b.currency));
 
 const foundCurrency = SUPPORTED_CURRENCIES.find(
     c => c.currency === DEFAULT_CURRENCY,
@@ -89,7 +95,7 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
     setSolStakeUsdInput: (usd: number | null) => set({ solStakeUsdInput: usd }),
     prices: {},
     setBalances: (balances: CurrencyInfo[]) =>
-        set({ balances: mapCurrencyToData(balances) }),
+        set({ balances: filterLaunchBalances(mapCurrencyToData(balances)) }),
     setSelectedBalance: (currencyInfo: CurrencyInfo) =>
         set({
             selectedBalance: {
@@ -108,13 +114,20 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
             set({ isFetchingForceBalances: true });
             const response = await axiosService.get(`/wallet/balances?forceRefresh=${forceRefresh}`);
             const balances = response.data;
-            const balancesWithIcons = mapCurrencyToData(balances);
+            const balancesWithIcons = filterLaunchBalances(mapCurrencyToData(balances));
 
             set((state) => ({
                 balances: balancesWithIcons,
-                selectedBalance: balancesWithIcons.find(balance => balance?.currency === state.selectedBalance?.currency) ||
+                selectedBalance:
+                    balancesWithIcons.find(balance => balance?.currency === state.selectedBalance?.currency) ||
                     balancesWithIcons.find(balance => balance?.currency === DEFAULT_CURRENCY) ||
-                    balancesWithIcons[0],
+                    balancesWithIcons[0] || {
+                        availableBalance: 0,
+                        currency: foundCurrency?.currency || DEFAULT_CURRENCY,
+                        icon: currencyIconMap[foundCurrency?.currency || DEFAULT_CURRENCY],
+                        decimals: foundCurrency?.decimals || DEFAULT_ROUNDING_DECIMALS,
+                        withdrawalFee: foundCurrency?.withdrawalFee || 0.0,
+                    },
             }));
 
             return balancesWithIcons;

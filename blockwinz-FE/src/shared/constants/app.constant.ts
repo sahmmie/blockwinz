@@ -9,9 +9,9 @@ export const WS_URL = import.meta.env.VITE_REACT_APP_WS_URL as string
 export const WAITLIST_LAUNCH_DATE = import.meta.env.VITE_WAITLIST_LAUNCH_DATE as string
 
 
+/** Wallet / deposit / withdraw options. BWZ omitted until launch. */
 export const SUPPORTED_CURRENCIES: { chain: string, currency: Currency, network: string[], withdrawalFee: number, decimals: number }[] = [
     { chain: 'Solana', currency: Currency.SOL, network: ['sol'], withdrawalFee: 0.0001, decimals: 4 },
-    { chain: 'Solana', currency: Currency.BWZ, network: ['bwz'], withdrawalFee: 0.001, decimals: 2 },
 ];
 
 export const DEFAULT_CURRENCY = Currency.SOL
