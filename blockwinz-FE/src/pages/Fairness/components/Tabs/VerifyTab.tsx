@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box } from '@chakra-ui/react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { gameOptions } from '../../constants';
 import GameResultComponentLoader from '../GameResults/GameResultComponentLoader';
 import DropdownAlt from '@/components/Dropdown/DropdownAlt';
@@ -12,7 +11,17 @@ interface VerifyTabProps {
 }
 
 const VerifyTab: React.FC<VerifyTabProps> = ({ initialGameValue }) => {
-  const [game, setGame] = useState<GameTypeEnum>(initialGameValue?.id as GameTypeEnum);
+  const [game, setGame] = useState<GameTypeEnum | null>(() => {
+    const id = initialGameValue?.id as GameTypeEnum | undefined;
+    return id ?? null;
+  });
+
+  useEffect(() => {
+    const id = initialGameValue?.id as GameTypeEnum | undefined;
+    if (id != null) {
+      setGame(id);
+    }
+  }, [initialGameValue?.id]);
 
   return (
     <Box display='flex' flexDirection='column' gap={'12px'} minH={'400px'}>
@@ -21,9 +30,9 @@ const VerifyTab: React.FC<VerifyTabProps> = ({ initialGameValue }) => {
         placeholder='Select a game'
         handleChange={selectedOption => setGame(selectedOption as GameTypeEnum)}
         label='Game'
-        selected={game}
+        selected={game ?? ''}
       />
-      <GameResultComponentLoader selectedGame={game} />
+      {game != null && <GameResultComponentLoader selectedGame={game} />}
     </Box>
   );
 };

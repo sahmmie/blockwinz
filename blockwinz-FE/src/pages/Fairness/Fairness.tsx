@@ -1,11 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Box, Text } from '@chakra-ui/react';
-import { FunctionComponent, useState } from 'react';
+import { FunctionComponent, useMemo, useState } from 'react';
 import SeedsTab from './components/Tabs/SeedsTab';
 import VerifyTab from './components/Tabs/VerifyTab';
 import usePageData from '@/hooks/usePageData';
 import { GameInputsProvider } from './hooks/useGameInputsContext';
 import { BetHistoryT } from '../BetHistory/BetHistory.type';
+import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
 
 interface FairnessProps {
   preSelectedSegment?: 'seeds' | 'verify';
@@ -26,6 +27,15 @@ const Fairness: FunctionComponent<FairnessProps> = ({
   ];
 
   const { currentGame } = usePageData();
+
+  /** Bet-specific verify flow must use the row's game, not Zustand `currentGame` (stale off game routes, e.g. bet history). */
+  const verifyInitialGame = useMemo(() => {
+    if (betHistory?.gameType != null) {
+      const fromBet = originalGamesInfo[betHistory.gameType];
+      if (fromBet) return fromBet;
+    }
+    return currentGame;
+  }, [betHistory?.gameType, currentGame]);
 
   const renderSegments = () => {
     return (
@@ -92,9 +102,7 @@ const Fairness: FunctionComponent<FairnessProps> = ({
         {segment === 'seeds' && <SeedsTab />}
         {segment === 'verify' && (
           <GameInputsProvider betHistory={betHistory}>
-            <VerifyTab
-              initialGameValue={currentGame}
-            />
+            <VerifyTab initialGameValue={verifyInitialGame} />
           </GameInputsProvider>
         )}
       </Box>

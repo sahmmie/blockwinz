@@ -34,10 +34,17 @@ interface BetDetailsProps {
   betDetails: BetHistoryT;
 }
 
+/** API often returns `user` as an id string; list views may populate a partial user object. */
+function getBettorUserId(user: BetHistoryT['user']): string | undefined {
+  if (typeof user === 'string') return user;
+  return user?._id;
+}
+
 const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   const { userData } = useAccount();
   const { openModal } = useModal();
-  const { rotateSeedPair, seedPairLoading, activeSeedPair } = useSeedPair();
+  const { rotateSeedPair, seedPairLoading, activeSeedPair, getActiveSeedPair } =
+    useSeedPair();
   const navigate = useNavigate();
 
   const [isLoadingDetails, setisLoadingDetails] = useState(false);
@@ -113,6 +120,12 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
     betDetails.nonce,
   ]);
 
+  const bettorUserId = getBettorUserId(detail.user);
+  const isViewingOwnBet =
+    userData?._id != null &&
+    bettorUserId != null &&
+    userData._id === bettorUserId;
+
   const legacyGame = isPopulatedGame(detail.gameId) ? detail.gameId : null;
   const seedInfoFromApi: SeedT | undefined =
     detail.clientSeed != null &&
@@ -129,6 +142,29 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
     ? (legacyGame.seed as SeedT)
     : seedInfoFromApi;
   const displayNonce = detail.nonce ?? legacyGame?.nonce;
+
+  const legacySeedPresent =
+    legacyGame != null && legacyGame.seed != null;
+
+  useEffect(() => {
+    if (!isViewingOwnBet) return;
+    const hasSeedFields =
+      (detail.clientSeed != null &&
+        detail.serverSeedHash != null &&
+        detail.nonce != null) ||
+      legacySeedPresent;
+    if (!hasSeedFields) return;
+    void getActiveSeedPair();
+  }, [
+    isViewingOwnBet,
+    detail.id,
+    detail._id,
+    detail.clientSeed,
+    detail.serverSeedHash,
+    detail.nonce,
+    legacySeedPresent,
+    getActiveSeedPair,
+  ]);
 
   const currency =
     detail.currency ?? legacyGame?.currency ?? Currency.SOL;
@@ -166,8 +202,24 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
     );
   };
 
+  const refreshBetFairnessDetails = async () => {
+    const id = detail.id ?? detail._id;
+    if (!id) return;
+    try {
+      const { data } = await axiosInstance.get(`/bet-history/${id}`);
+      setDetail(prev => ({ ...prev, ...data }));
+    } catch {
+      /* keep existing row; user can retry */
+    }
+  };
+
+  const handleRotateForVerification = async () => {
+    const ok = await rotateSeedPair(true);
+    if (ok) await refreshBetFairnessDetails();
+  };
+
   const getBetDetails = () => {
-    if (userData?._id !== (detail.user as UserI)._id) {
+    if (!isViewingOwnBet) {
       openFairnessModal(detail);
     }
     setisLoadingDetails(true);
@@ -189,7 +241,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   const getRotateButtonText = (): JSX.Element => {
     if (
       seedInfo &&
-      userData?._id === (detail.user as UserI)._id &&
+      isViewingOwnBet &&
       seedInfo.serverSeedHash === activeSeedPair?.serverSeedHashed
     ) {
       return (
@@ -206,7 +258,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
             px={'64px'}
             py={'16px'}
             unstyled
-            onClick={() => rotateSeedPair(true)}
+            onClick={() => void handleRotateForVerification()}
             border={'.5px solid #ECF0F1'}
             borderRadius={'8px'}>
             Rotate Pair
@@ -216,7 +268,7 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
     }
     if (
       seedInfo &&
-      userData?._id !== (detail.user as UserI)._id &&
+      !isViewingOwnBet &&
       seedInfo.status === SeedStatus.ACTIVE
     ) {
       return (

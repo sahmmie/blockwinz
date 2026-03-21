@@ -7,7 +7,7 @@ import { toaster } from '@/components/ui/toaster';
 interface SeedPairState {
     activeSeedPair: ActiveSeedPairI | null;
     seedPairLoading: boolean;
-    rotateSeedPair: (showToast?: boolean) => Promise<void>;
+    rotateSeedPair: (showToast?: boolean) => Promise<boolean>;
     getActiveSeedPair: () => Promise<void>;
     setActiveSeedPair: (pair: ActiveSeedPairI) => void;
 }
@@ -31,12 +31,14 @@ export const useSeedPair = create<SeedPairState>((set) => ({
                     type: 'success',
                 });
             }
+            return true;
         } catch {
             set({ seedPairLoading: false });
             toaster.create({
                 title: 'Failed to rotate seed pair',
                 type: 'error',
             });
+            return false;
         }
     },
 
