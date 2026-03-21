@@ -1,4 +1,4 @@
-import { IsBoolean, IsString, IsNumber } from 'class-validator';
+import { IsBoolean, IsString, IsNumber, IsOptional, IsDate } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /** Profile DTO. Prefer `id` (UUID) over `_id` when reading the profile identifier. */
@@ -15,4 +15,14 @@ export class ProfileDto {
   @ApiPropertyOptional() @IsString() referredBy?: string;
   @ApiPropertyOptional() @IsNumber() referralCount?: number;
   @ApiPropertyOptional() @IsNumber() referralEarnings?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDate()
+  createdAt?: Date;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDate()
+  updatedAt?: Date;
 }

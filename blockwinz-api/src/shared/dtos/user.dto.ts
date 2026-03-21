@@ -49,6 +49,18 @@ export class UserDto {
   username: string;
   @ApiPropertyOptional() @IsDate() lastLogin?: Date;
   @ApiPropertyOptional() @IsDate() lastLogout?: Date;
+
+  @ApiPropertyOptional({
+    description: 'User account creation time (e.g. for “Joined” on profile)',
+  })
+  @IsOptional()
+  @IsDate()
+  createdAt?: Date;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDate()
+  updatedAt?: Date;
   @ApiPropertyOptional() @IsBoolean() faEnabled?: boolean;
 
   @ApiPropertyOptional() @IsNumber() nonce?: number;

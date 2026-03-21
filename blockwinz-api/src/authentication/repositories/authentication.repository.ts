@@ -75,6 +75,8 @@ export class AuthenticationRepository {
         userRow.emailVerificationTokenExpires ?? undefined,
       emailVerificationResendCount:
         userRow.emailVerificationResendCount ?? undefined,
+      createdAt: userRow.createdAt ?? undefined,
+      updatedAt: userRow.updatedAt ?? undefined,
       profile: profileRow
         ? {
             _id: profileRow.id,
@@ -88,6 +90,8 @@ export class AuthenticationRepository {
             referredBy: profileRow.referredBy ?? undefined,
             referralCount: profileRow.referralCount,
             referralEarnings: profileRow.referralEarnings,
+            createdAt: profileRow.createdAt ?? undefined,
+            updatedAt: profileRow.updatedAt ?? undefined,
           }
         : (userRow.profileId as unknown as UserDto['profile']),
       activeSeed: seedRow

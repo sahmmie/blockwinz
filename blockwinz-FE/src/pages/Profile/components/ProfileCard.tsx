@@ -18,6 +18,10 @@ interface ProfileCardProps {}
 const ProfileCard: FunctionComponent<ProfileCardProps> = () => {
   const { userData } = useAccount();
   const { openModal } = useModal();
+
+  const joinedAt =
+    userData?.createdAt ?? userData?.profile?.createdAt ?? undefined;
+
   return (
     <Box>
       <Box
@@ -52,8 +56,8 @@ const ProfileCard: FunctionComponent<ProfileCardProps> = () => {
           <Text textWrap={'nowrap'}>
             {' '}
             Joined{' '}
-            {userData?.createdAt
-              ? new Date(userData.createdAt).toLocaleDateString('en-US', {
+            {joinedAt
+              ? new Date(joinedAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                 })
