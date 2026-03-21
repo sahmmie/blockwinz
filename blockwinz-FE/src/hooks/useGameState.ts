@@ -2,7 +2,7 @@
 import { getNewTagGroupItem, TagGroupItem } from '@/components/TagGroup'
 import axiosInstance from '@/lib/axios'
 import { MAX_TAG_RESULTS } from '@/shared/constants/validation'
-import { Currency } from '@blockwinz/shared'
+import { Currency, StakeDenomination } from '@blockwinz/shared'
 import { BaseBetRequest, BaseBetResponse, BetStatus, GameState, SpeedTypes } from '@/shared/types/core'
 import { calculateNewBetAmount, getCurrencyMax, getDelayBeforeNextBet } from '@/shared/utils/common'
 import { useMutation } from '@tanstack/react-query'
@@ -14,6 +14,27 @@ import useWalletState from './useWalletState'
 import { GameMode } from '@blockwinz/shared'
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant'
 import { useSettingsStore } from '@/hooks/useSettings'
+import { toaster } from '@/components/ui/toaster'
+
+/** USD stake for API when in USD mode: prefer store, else derive from SOL × price. */
+function resolvedUsdStakeAmount(
+  betAmountStr: string,
+  solStakeUsdInput: number | null,
+  priceSol: number,
+): number {
+  const solAmt = parseFloat(betAmountStr) || 0
+  let usdRaw = 0
+  if (
+    solStakeUsdInput != null &&
+    Number.isFinite(solStakeUsdInput) &&
+    solStakeUsdInput > 0
+  ) {
+    usdRaw = solStakeUsdInput
+  } else if (priceSol > 0 && solAmt > 0) {
+    usdRaw = solAmt * priceSol
+  }
+  return Math.round(usdRaw * 100) / 100
+}
 
 export const AUTOBET_DEBOUNCE_DELAY = 500
 
@@ -245,16 +266,37 @@ export const useGameState = <
   const createBetRequest = (): BaseBetRequest => {
     const currState = latestStateRef.current
     const profileTurbo = !!useSettingsStore.getState().settings.isTurbo
-    return {
-      betAmount: parseFloat(currState.betAmount),
+    const currency = selectedBalance?.currency as Currency
+    const { stakeDenomination, solStakeUsdInput, getTokenPrice } =
+      useWalletState.getState()
+    const partial = {
       isManualMode: currState.mode === 'manual',
       isTurboMode: currState.speedType === SpeedTypes.TURBO || profileTurbo,
       stopOnProfit: parseFloat(currState.stopOnProfit),
       stopOnLoss: parseFloat(currState.stopOnLoss),
       increaseBy: currState.onWinIncrease,
       decreaseBy: currState.onLossIncrease,
-      currency: selectedBalance?.currency as Currency,
+      currency,
       ...onBetRequest(currState),
+    }
+    if (currency === Currency.SOL && stakeDenomination === StakeDenomination.Usd) {
+      const priceSol = getTokenPrice('SOL')
+      const usdAmount = resolvedUsdStakeAmount(
+        currState.betAmount,
+        solStakeUsdInput,
+        priceSol,
+      )
+      return {
+        ...partial,
+        betAmount: 0,
+        usdAmount,
+        stakeDenomination: StakeDenomination.Usd,
+      } as BaseBetRequest
+    }
+    return {
+      ...partial,
+      betAmount: parseFloat(currState.betAmount),
+      stakeDenomination: StakeDenomination.Native,
     } as BaseBetRequest
   }
 
@@ -305,6 +347,26 @@ export const useGameState = <
   const handleBet = async () => {
     if (isBettingRef.current) return
 
+    const currState = latestStateRef.current
+    const currency = selectedBalance?.currency as Currency
+    const { stakeDenomination, solStakeUsdInput, getTokenPrice } =
+      useWalletState.getState()
+    if (currency === Currency.SOL && stakeDenomination === StakeDenomination.Usd) {
+      const usd = resolvedUsdStakeAmount(
+        currState.betAmount,
+        solStakeUsdInput,
+        getTokenPrice('SOL'),
+      )
+      if (usd > 0 && usd < 1) {
+        toaster.create({
+          title: 'Minimum USD stake is $1',
+          description: 'Use $0 for a free round, or enter at least $1.',
+          type: 'warning',
+        })
+        return
+      }
+    }
+
     try {
       isBettingRef.current = true
       const betRequest = createBetRequest()
@@ -334,11 +396,41 @@ export const useGameState = <
   }
 
   const halveBetAmount = () => {
+    const currency = selectedBalance?.currency as Currency
+    const { stakeDenomination, getTokenPrice, setSolStakeUsdInput } =
+      useWalletState.getState()
+    if (currency === Currency.SOL && stakeDenomination === StakeDenomination.Usd) {
+      const price = getTokenPrice('SOL')
+      if (!price) return
+      const sol = parseFloat(state.betAmount)
+      const usd =
+        (useWalletState.getState().solStakeUsdInput ?? sol * price) / 2
+      setSolStakeUsdInput(usd)
+      handleBetAmountChange((usd / price).toFixed(ROUNDING_DECIMALS))
+      return
+    }
     const newAmount = (parseFloat(state.betAmount) / 2).toFixed(ROUNDING_DECIMALS)
     handleBetAmountChange(newAmount)
   }
 
   const doubleBetAmount = () => {
+    const currency = selectedBalance?.currency as Currency
+    const { stakeDenomination, getTokenPrice, setSolStakeUsdInput } =
+      useWalletState.getState()
+    if (currency === Currency.SOL && stakeDenomination === StakeDenomination.Usd) {
+      const price = getTokenPrice('SOL')
+      if (!price) return
+      const sol = parseFloat(state.betAmount)
+      const usd = (useWalletState.getState().solStakeUsdInput ?? sol * price) * 2
+      const maxSol = selectedBalance?.availableBalance || 0
+      const maxUsd = maxSol * price
+      const cappedUsd = Math.min(usd, maxUsd)
+      const currMaxSol = getCurrencyMax(selectedBalance?.currency as Currency, 'bet')
+      const cappedUsd2 = Math.min(cappedUsd, currMaxSol * price)
+      setSolStakeUsdInput(cappedUsd2)
+      handleBetAmountChange((cappedUsd2 / price).toFixed(ROUNDING_DECIMALS))
+      return
+    }
     let newAmount = parseFloat(state.betAmount) * 2
     newAmount = Math.min(newAmount, selectedBalance?.availableBalance || 0)
     const currMax = getCurrencyMax(selectedBalance?.currency as Currency, 'bet')

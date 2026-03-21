@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { KenoService } from '../keno.service';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
+import { UsdStakeResolverInterceptor } from 'src/shared/interceptors/usd-stake-resolver.interceptor';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
@@ -48,7 +49,7 @@ export class KenoController {
       'Response after placing the Keno bet, including the outcome, payout, balance, and drawn numbers',
     type: KenoBetResponseDto,
   })
-  @UseInterceptors(CurrencyInterceptor)
+  @UseInterceptors(UsdStakeResolverInterceptor, CurrencyInterceptor)
   async bet(
     @CurrentUser() user: UserRequestI,
     @Body() request: KenoBetRequestDto,

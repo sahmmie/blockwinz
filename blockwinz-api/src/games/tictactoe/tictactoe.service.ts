@@ -28,6 +28,7 @@ import { DbGameSchema } from '@blockwinz/shared';
 import { BetHistoryRepository } from 'src/betHistory/repositories/betHistory.repository';
 import { roundToDecimals } from 'src/shared/helpers/utils-functions.helper';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
+import { stakeAuditFromRequest } from 'src/shared/utils/stake-audit.util';
 import { CHAIN, Currency } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -134,6 +135,7 @@ export class TicTacToeService {
         requestBody.currency,
         null,
         txDb,
+        stakeAuditFromRequest(requestBody),
       );
 
       return this.ticTacToeRepository.mapToDto(gameRow);

@@ -9,6 +9,7 @@ import { QueueModule } from 'src/core/queue/queue.module';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
+import { PricesModule } from 'src/prices/prices.module';
 
 const controllers = [DicesController];
 
@@ -22,7 +23,7 @@ const customModules = [
 ];
 
 @Module({
-  imports: [...customModules, BetHistoryModule],
+  imports: [...customModules, BetHistoryModule, PricesModule],
   controllers: [...controllers],
   providers: [DiceRepository, DiceService],
   exports: [],

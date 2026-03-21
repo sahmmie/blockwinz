@@ -15,6 +15,13 @@
       "when": 1774008695004,
       "tag": "0001_cloudy_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774042076818,
+      "tag": "0002_thick_ultimates",
+      "breakpoints": true
     }
   ]
 }

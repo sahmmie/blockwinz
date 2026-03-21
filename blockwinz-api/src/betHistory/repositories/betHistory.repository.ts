@@ -83,6 +83,10 @@ export class BetHistoryRepository {
     currency: string,
     multiplier?: number | null,
     tx?: DrizzleDb,
+    stakeAudit?: {
+      usdAmountRequested: number;
+      solUsdRateAtBet: number;
+    },
   ): Promise<BetHistoryDto> {
     const db = tx ?? this.db;
     const [row] = await db
@@ -98,6 +102,12 @@ export class BetHistoryRepository {
           multiplier != null && multiplier !== undefined
             ? String(multiplier)
             : null,
+        ...(stakeAudit
+          ? {
+              usdAmountRequested: String(stakeAudit.usdAmountRequested),
+              solUsdRateAtBet: String(stakeAudit.solUsdRateAtBet),
+            }
+          : {}),
       } as typeof betHistories.$inferInsert)
       .returning();
     if (!row) {

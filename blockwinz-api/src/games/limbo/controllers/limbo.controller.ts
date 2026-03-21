@@ -11,6 +11,7 @@ import {
   GetLimboResultResponseDto,
 } from '../dto/getLimboResult.dto';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
+import { UsdStakeResolverInterceptor } from 'src/shared/interceptors/usd-stake-resolver.interceptor';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -61,7 +62,7 @@ export class LimboController {
       },
     },
   })
-  @UseInterceptors(CurrencyInterceptor)
+  @UseInterceptors(UsdStakeResolverInterceptor, CurrencyInterceptor)
   async getLimboResult(
     @Body() createLimboDto: GetLimboResultRequestDto,
     @CurrentUser() user: UserRequestI,

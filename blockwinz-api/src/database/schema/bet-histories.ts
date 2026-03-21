@@ -12,6 +12,16 @@ export const betHistories = pgTable(
     totalWinAmount: numeric('total_win_amount', { precision: 20, scale: 8 }),
     /** Lowercase currency code (e.g. sol, bwz) — matches wallet / Currency enum */
     currency: text('currency').notNull().default('sol'),
+    /** When stake was specified in USD (SOL wallet), the client-requested USD amount */
+    usdAmountRequested: numeric('usd_amount_requested', {
+      precision: 20,
+      scale: 8,
+    }),
+    /** Effective USD per 1 SOL at bet time (usd_amount_requested / bet_amount in SOL) */
+    solUsdRateAtBet: numeric('sol_usd_rate_at_bet', {
+      precision: 20,
+      scale: 8,
+    }),
     /** Game multiplier at resolution (target mult, wheel segment mult, payout ratio, etc.) */
     multiplier: numeric('multiplier', { precision: 20, scale: 8 }),
     ...timestampColumns,

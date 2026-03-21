@@ -6,6 +6,7 @@ import { TransactionModule } from 'src/transaction/transaction.module';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
+import { PricesModule } from 'src/prices/prices.module';
 import { WheelController } from './controllers/wheel.controller';
 import { WheelRepository } from './repositories/wheel.repository';
 import { WheelService } from './wheel.service';
@@ -22,7 +23,7 @@ const customModules = [
 ];
 
 @Module({
-  imports: [BetHistoryModule, ...customModules],
+  imports: [BetHistoryModule, PricesModule, ...customModules],
   controllers: [...controllers],
   providers: [WheelRepository, WheelService],
   exports: [],

@@ -9,6 +9,7 @@ import { MinesService } from './mines.service';
 import { FairLogicModule } from 'src/core/fairLogic/fairLogic.module';
 import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { PricesModule } from 'src/prices/prices.module';
 
 const controllers = [MinesController];
 
@@ -22,7 +23,7 @@ const customModules = [
 ];
 
 @Module({
-  imports: [BetHistoryModule, ...customModules],
+  imports: [BetHistoryModule, PricesModule, ...customModules],
   controllers: [...controllers],
   providers: [MinesRepository, MinesService],
   exports: [],

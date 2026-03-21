@@ -22,6 +22,7 @@ import {
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
+import { UsdStakeResolverInterceptor } from 'src/shared/interceptors/usd-stake-resolver.interceptor';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 
 @ApiTags('Games')
@@ -33,7 +34,7 @@ export class MinesController {
 
   @Post('start')
   @ApiOperation({ summary: 'Start a new mine game' })
-  @UseInterceptors(CurrencyInterceptor)
+  @UseInterceptors(UsdStakeResolverInterceptor, CurrencyInterceptor)
   @ApiBody({ type: StartMineDto })
   @ApiOkResponse({
     status: 201,

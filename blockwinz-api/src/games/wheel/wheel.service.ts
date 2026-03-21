@@ -21,6 +21,7 @@ import {
   TransactionType,
 } from '@blockwinz/shared';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
+import { stakeAuditFromRequest } from 'src/shared/utils/stake-audit.util';
 import { CHAIN } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -171,6 +172,7 @@ export class WheelService {
           request.currency,
           multiplier,
           txDb,
+          stakeAuditFromRequest(request),
         );
 
         return this.getGameResponseFromRow(gameRow, request, totalWinAmount);

@@ -15,6 +15,7 @@ import {
   ApiOkResponse,
 } from '@nestjs/swagger';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
+import { UsdStakeResolverInterceptor } from 'src/shared/interceptors/usd-stake-resolver.interceptor';
 import {
   TicTacToeDto,
   TicTacToeMoveDto,
@@ -48,7 +49,7 @@ export class TictactoeController {
       'Response after the dice roll, including whether the player won and the payout',
     type: TicTacToeDto,
   })
-  @UseInterceptors(CurrencyInterceptor)
+  @UseInterceptors(UsdStakeResolverInterceptor, CurrencyInterceptor)
   async createNewGame(
     @Body() requestBody: TicTacToeStartReqDto,
     @CurrentUser() user: UserRequestI,

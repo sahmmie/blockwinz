@@ -22,6 +22,7 @@ import {
   TransactionType,
 } from '@blockwinz/shared';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
+import { stakeAuditFromRequest } from 'src/shared/utils/stake-audit.util';
 import { CHAIN } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -185,6 +186,7 @@ export class KenoService {
           request.currency,
           multiplier,
           txDb,
+          stakeAuditFromRequest(request),
         );
 
         return {

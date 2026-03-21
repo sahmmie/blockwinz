@@ -1,4 +1,5 @@
 export * from './enums/currencies';
+export * from './enums/stake-denomination';
 export * from './enums/transaction';
 export * from './enums/withdrawal';
 export * from './enums/approval';

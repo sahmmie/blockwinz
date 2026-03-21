@@ -6,15 +6,37 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  ValidateIf,
   ValidateNested,
 } from '@nestjs/class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TicTacToeMultiplier, TicTacToeStatus } from '../enums/tictactoe.enums';
 import { Type } from 'class-transformer';
 import { BaseGameDto } from 'src/shared/dtos/baseGame.dto';
-import { Currency } from '@blockwinz/shared';
+import { Currency, StakeDenomination } from '@blockwinz/shared';
 
 export class TicTacToeStartReqDto {
+  @ApiPropertyOptional({
+    description: 'When stakeDenomination is usd, server sets from usdAmount',
+    enum: StakeDenomination,
+  })
+  @IsOptional()
+  @IsEnum(StakeDenomination)
+  stakeDenomination?: StakeDenomination;
+
+  @ApiPropertyOptional({
+    description: 'Stake in USD (SOL only); required when stakeDenomination is usd',
+    example: 10,
+  })
+  @ValidateIf(
+    (o: TicTacToeStartReqDto) =>
+      o.stakeDenomination === StakeDenomination.Usd &&
+      o.usdAmount !== undefined &&
+      o.usdAmount !== null,
+  )
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'usdAmount must be a number' })
+  usdAmount?: number;
+
   @ApiProperty({
     description: 'Bet amount for the game',
     type: Number,

@@ -8,6 +8,7 @@ import { WalletModule } from 'src/wallet/wallet.module';
 import { BetHistoryModule } from 'src/betHistory/betHistory.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { FairLogicModule } from 'src/core/fairLogic/fairLogic.module';
+import { PricesModule } from 'src/prices/prices.module';
 
 const controllers = [TictactoeController];
 
@@ -20,7 +21,7 @@ const customModules = [
 ];
 
 @Module({
-  imports: [BetHistoryModule, ...customModules],
+  imports: [BetHistoryModule, PricesModule, ...customModules],
   controllers: [...controllers],
   providers: [TicTacToeRepository, TicTacToeService],
   exports: [],

@@ -27,6 +27,7 @@ import { currencyData } from 'src/shared/constants/currency.constant';
 import { roundToDecimals } from 'src/shared/helpers/utils-functions.helper';
 import { BetHistoryRepository } from 'src/betHistory/repositories/betHistory.repository';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
+import { stakeAuditFromRequest } from 'src/shared/utils/stake-audit.util';
 import { CHAIN, Currency } from '@blockwinz/shared';
 import { DbGameSchema } from '@blockwinz/shared';
 import { AuthenticationRepository } from 'src/authentication/repositories/authentication.repository';
@@ -172,6 +173,7 @@ export class MinesService {
           request.currency,
           null,
           txDb,
+          stakeAuditFromRequest(request),
         );
 
         this.logger.log(

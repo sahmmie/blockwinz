@@ -6,6 +6,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
+import { UsdStakeResolverInterceptor } from 'src/shared/interceptors/usd-stake-resolver.interceptor';
 import {
   ApiTags,
   ApiBody,
@@ -40,7 +41,7 @@ export class WheelController {
     description:
       'Response after the wheel spin, including whether the player won and the payout',
   })
-  @UseInterceptors(CurrencyInterceptor)
+  @UseInterceptors(UsdStakeResolverInterceptor, CurrencyInterceptor)
   async rollBall(
     @CurrentUser() user: UserRequestI,
     @Body() request: SpinWheelDto,

@@ -13,6 +13,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrencyInterceptor } from 'src/shared/interceptors/currency.interceptor';
+import { UsdStakeResolverInterceptor } from 'src/shared/interceptors/usd-stake-resolver.interceptor';
 import { PlinkoService } from '../plinko.service';
 import {
   GetPlinkoResultRequestDto,
@@ -30,7 +31,7 @@ export class PlinkoController {
   constructor(private readonly plinkoService: PlinkoService) {}
 
   @Post('roll')
-  @UseInterceptors(CurrencyInterceptor)
+  @UseInterceptors(UsdStakeResolverInterceptor, CurrencyInterceptor)
   @ApiOperation({ summary: 'Roll the ball in Plinko game and get the result' })
   @ApiBody({
     type: GetPlinkoResultRequestDto,

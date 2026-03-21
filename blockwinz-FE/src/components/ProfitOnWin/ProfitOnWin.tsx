@@ -1,11 +1,15 @@
-import { FunctionComponent } from 'react';
+import { FunctionComponent, useMemo } from 'react';
 import CustomInput from '../CustomInput/CustomInput';
 import { Box, Text } from '@chakra-ui/react';
 import useWalletState from '@/hooks/useWalletState';
-import { Currency } from '@blockwinz/shared';
-import { currencyIconMap } from '@/shared/utils/gameMaps';
+import { Currency, StakeDenomination } from '@blockwinz/shared';
+import { WalletCurrencyIcon } from '@/components/WalletCurrencyIcon/WalletCurrencyIcon';
+import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
+
+const USD_PROFIT_DECIMALS = 2;
 
 interface ProfitOnWinProps {
+  /** Expected profit in native currency (SOL/BWZ); same basis as `getProfitOnWin` */
   value: string;
   error?: string | undefined;
   currency?: Currency;
@@ -16,21 +20,45 @@ const ProfitOnWin: FunctionComponent<ProfitOnWinProps> = ({
   error,
   currency,
 }) => {
-  const { selectedBalance } = useWalletState();
+  const { selectedBalance, stakeDenomination, getTokenPrice } = useWalletState();
+  const effectiveCurrency = currency ?? selectedBalance?.currency;
+  const ROUNDING_DECIMALS =
+    selectedBalance?.decimals || DEFAULT_ROUNDING_DECIMALS;
+  const solUsd = getTokenPrice('SOL');
+  const isUsdStake =
+    effectiveCurrency === Currency.SOL &&
+    stakeDenomination === StakeDenomination.Usd;
 
-  const startElement = () => {
-    return (
-      <>
-        <Box>
-          <img
-            src={currency ? currencyIconMap[currency] : selectedBalance?.icon}
-            alt='Currency Icon'
-            style={{ width: '22px', height: '22px' }}
-          />
-        </Box>
-      </>
-    );
-  };
+  const profitSol = useMemo(() => {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : 0;
+  }, [value]);
+
+  const inputDisplay = useMemo(() => {
+    if (isUsdStake && solUsd > 0) {
+      return (profitSol * solUsd).toFixed(USD_PROFIT_DECIMALS);
+    }
+    return Number.isFinite(parseFloat(value)) ? value : '0.00';
+  }, [isUsdStake, solUsd, profitSol, value]);
+
+  /** One line only: complement to the disabled input (USD in field → ≈ SOL; SOL in field → ≈ $). */
+  const conversionHint =
+    isUsdStake && solUsd > 0
+      ? `≈ ${profitSol.toFixed(ROUNDING_DECIMALS)} SOL`
+      : effectiveCurrency === Currency.SOL && solUsd > 0
+        ? `≈ $${(profitSol * solUsd).toFixed(USD_PROFIT_DECIMALS)}`
+        : null;
+
+  const walletCurrency = currency ?? selectedBalance?.currency ?? Currency.SOL;
+
+  const startElement = () => (
+    <Box>
+      <WalletCurrencyIcon
+        currency={walletCurrency}
+        usdDenominatedSol={isUsdStake}
+      />
+    </Box>
+  );
 
   const label = (): JSX.Element => {
     return (
@@ -45,21 +73,17 @@ const ProfitOnWin: FunctionComponent<ProfitOnWinProps> = ({
           <Box fontSize={'14px'} fontWeight={'500'}>
             <Text>Profit On Win</Text>
           </Box>
-        </Box>
-      </>
-    );
-  };
-
-  const endElement = () => {
-    return (
-      <>
-        <Box fontSize={'14px'} fontWeight={'500'} color={'#D9D9D9'}>
-          <Text>
-            {currency
-              ? currency.toUpperCase()
-              : selectedBalance?.currency.toUpperCase()} {' '}
-            {isNaN(parseFloat(value)) ? '0.00' : value}
-          </Text>
+          <Box
+            fontSize={'14px'}
+            fontWeight={'500'}
+            mr={'14px'}
+            textAlign="right">
+            {conversionHint && (
+              <Text color="#9ca3af">
+                {conversionHint}
+              </Text>
+            )}
+          </Box>
         </Box>
       </>
     );
@@ -70,11 +94,10 @@ const ProfitOnWin: FunctionComponent<ProfitOnWinProps> = ({
       <CustomInput
         disabled
         type='number'
-        value={value}
+        value={inputDisplay}
         fieldProps={{ label: label(), errorText: error }}
         inputGroupProps={{
           startElement: startElement(),
-          endElement: endElement(),
         }}
       />
     </>

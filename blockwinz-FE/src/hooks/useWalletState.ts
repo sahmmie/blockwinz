@@ -5,6 +5,21 @@ import { CurrencyInfo } from '@/shared/types/core';
 import axiosService from '@/lib/axios';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
 import { DEFAULT_CURRENCY, DEFAULT_ROUNDING_DECIMALS, SUPPORTED_CURRENCIES } from '@/shared/constants/app.constant';
+import { Currency, StakeDenomination } from '@blockwinz/shared';
+
+const STAKE_DENOM_KEY = 'blockwinz_stakeDenomination';
+
+function readStoredStakeDenomination(): StakeDenomination {
+    try {
+        const v = localStorage.getItem(STAKE_DENOM_KEY);
+        if (v === StakeDenomination.Usd || v === StakeDenomination.Native) {
+            return v as StakeDenomination;
+        }
+    } catch {
+        /* ignore */
+    }
+    return StakeDenomination.Native;
+}
 
 interface TokenPrice {
     symbol: string;
@@ -24,6 +39,12 @@ interface WalletStoreI {
     setPrices: (prices: Record<string, number>) => void;
     getTokenPrices: () => Promise<Record<string, number>>;
     getTokenPrice: (symbol: string) => number;
+    /** SOL wallet: whether bet input is in SOL or USD (persisted) */
+    stakeDenomination: StakeDenomination;
+    setStakeDenomination: (mode: StakeDenomination) => void;
+    /** Exact USD amount for the next USD-denominated SOL bet (authoritative for API usdAmount) */
+    solStakeUsdInput: number | null;
+    setSolStakeUsdInput: (usd: number | null) => void;
 }
 
 const mapCurrencyToData = (currencies: CurrencyInfo[]): CurrencyInfo[] => {
@@ -52,6 +73,20 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
         decimals: foundCurrency?.decimals || DEFAULT_ROUNDING_DECIMALS,
         withdrawalFee: foundCurrency?.withdrawalFee || 0.0,
     },
+    stakeDenomination: readStoredStakeDenomination(),
+    setStakeDenomination: (mode: StakeDenomination) => {
+        try {
+            localStorage.setItem(STAKE_DENOM_KEY, mode);
+        } catch {
+            /* ignore */
+        }
+        set({ stakeDenomination: mode });
+        if (mode === StakeDenomination.Native) {
+            set({ solStakeUsdInput: null });
+        }
+    },
+    solStakeUsdInput: null,
+    setSolStakeUsdInput: (usd: number | null) => set({ solStakeUsdInput: usd }),
     prices: {},
     setBalances: (balances: CurrencyInfo[]) =>
         set({ balances: mapCurrencyToData(balances) }),
@@ -59,7 +94,13 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
         set({
             selectedBalance: {
                 ...currencyInfo
-            }
+            },
+            ...(currencyInfo.currency !== Currency.SOL
+                ? {
+                      stakeDenomination: StakeDenomination.Native,
+                      solStakeUsdInput: null,
+                  }
+                : {}),
         }),
     setPrices: (prices: Record<string, number>) => set({ prices }),
     getWalletData: async (forceRefresh = false) => {

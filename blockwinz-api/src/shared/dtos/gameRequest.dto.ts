@@ -1,20 +1,47 @@
-import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Currency } from '@blockwinz/shared';
+import { ApiProperty, ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
+import { Currency, StakeDenomination } from '@blockwinz/shared';
 import { IsEnum } from '@nestjs/class-validator';
-import { ROUND_DECIMALS } from '../constants/extra.constatnt';
-
 export class CommonGameRequestDto {
   @ApiProperty({
-    description: 'Bet amount',
+    description:
+      'Bet amount in native currency (SOL/BWZ). Normalized with ROUND_DECIMALS in CurrencyInterceptor. For stakeDenomination usd, resolver sets this before validation.',
     type: 'number',
-    example: 100,
+    example: 0.1,
   })
-  @IsNumber(
-    { maxDecimalPlaces: ROUND_DECIMALS },
-    { message: 'Bet amount must be a number' },
-  )
+  @IsNumber({}, { message: 'Bet amount must be a number' })
   betAmount: number;
+
+  @ApiPropertyOptional({
+    description: 'Stake size in USD (SOL wallet only); server converts to SOL',
+    example: 10,
+  })
+  @ValidateIf(
+    (o: CommonGameRequestDto) =>
+      o.stakeDenomination === StakeDenomination.Usd &&
+      o.usdAmount !== undefined &&
+      o.usdAmount !== null,
+  )
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'usdAmount must be a number' },
+  )
+  usdAmount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Whether betAmount / usdAmount is in native token or USD',
+    enum: StakeDenomination,
+    example: StakeDenomination.Native,
+  })
+  @IsOptional()
+  @IsEnum(StakeDenomination)
+  stakeDenomination?: StakeDenomination;
 
   @ApiProperty({
     description: 'Currency',

@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { currencyData } from 'src/shared/constants/currency.constant';
+import { ROUND_DECIMALS } from 'src/shared/constants/extra.constatnt';
+import { roundToDecimals } from 'src/shared/helpers/utils-functions.helper';
 
 @Injectable()
 export class CurrencyInterceptor implements NestInterceptor {
@@ -27,9 +29,17 @@ export class CurrencyInterceptor implements NestInterceptor {
       throw new BadRequestException(`Unsupported token has: ${currency}`);
     }
 
+    const n = Number(betAmount);
+    if (!Number.isFinite(n)) {
+      throw new BadRequestException('betAmount must be a finite number');
+    }
+
+    const rounded = roundToDecimals(n, ROUND_DECIMALS);
+    request.body.betAmount = rounded;
+
     const { minAmount, maxBet, maxProfit } = currencyInfo;
 
-    if (betAmount > maxBet) {
+    if (rounded > maxBet) {
       throw new BadRequestException(
         `betAmount must be less than or equal to ${maxBet} for currency ${currency}`,
       );
@@ -39,14 +49,15 @@ export class CurrencyInterceptor implements NestInterceptor {
       `
         CurrencyInterceptor
           TokenHash: ${currency}
-          BetAmount: ${betAmount}
+          BetAmount(raw): ${betAmount}
+          BetAmount(rounded): ${rounded}
           MinAmount: ${minAmount}
           MaxBet: ${maxBet}
           MaxProfit: ${maxProfit}
       `,
     );
 
-    if (betAmount < minAmount && betAmount !== 0) {
+    if (rounded < minAmount && rounded !== 0) {
       throw new BadRequestException(
         `betAmount must be at least ${minAmount} for currency ${currency}`,
       );

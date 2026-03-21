@@ -26,6 +26,22 @@ const COIN_SYMBOLS = {
   solana: 'SOL',
 };
 
+/** Redis key for SOL/USD quote (matches `solana:price` cache entries). */
+export const SOLANA_PRICE_REDIS_ID = 'solana';
+
+export interface SolUsdQuote {
+  /** USD price of 1 SOL */
+  priceUsdPerSol: number;
+  /** When the quote was cached (ms since epoch) */
+  quoteTimestampMs: number;
+}
+
+/**
+ * Max age of a cached quote before we try CoinGecko on-demand.
+ * Must be ≥ cron interval (see fetchAndCachePrice) so scheduled jobs alone don't leave "stale" gaps.
+ */
+const DEFAULT_SOL_USD_QUOTE_MAX_AGE_MS = 12 * 60 * 1000;
+
 @Injectable()
 export class CoinPriceService {
   private readonly logger = new Logger(CoinPriceService.name);
@@ -53,7 +69,7 @@ export class CoinPriceService {
     this.isDev = this.config.get('NODE_ENV') === 'dev';
   }
 
-  @Cron('*/10 * * * *') // every 5 minutes
+  @Cron('*/10 * * * *') // every 10 minutes
   async fetchAndCachePrice() {
     if (this.isDev) {
       // In dev, hardcode all 4 currencies
@@ -172,5 +188,121 @@ export class CoinPriceService {
     const bwz: CoinPrice = { symbol: 'BWZ', price: 1.1 };
     results.push(bwz);
     return results;
+  }
+
+  /**
+   * SOL/USD for staking. Reads Redis; if missing, invalid, or older than `SOL_USD_QUOTE_MAX_AGE_MS`
+   * (cache `timestamp` when we wrote Redis — not the same as CoinGecko's `last_updated_at`),
+   * fetches CoinGecko once and updates Redis. If that fails, returns the last cached price with a warning.
+   */
+  async getSolUsdQuote(): Promise<SolUsdQuote> {
+    const maxAgeMs = Number(
+      this.config.get('SOL_USD_QUOTE_MAX_AGE_MS') ??
+        DEFAULT_SOL_USD_QUOTE_MAX_AGE_MS,
+    );
+    if (this.isDev) {
+      const devData = DEV_PRICES.SOL;
+      const ts = Date.now();
+      return {
+        priceUsdPerSol: devData.price,
+        quoteTimestampMs: ts,
+      };
+    }
+
+    const parsedCache = await this.readSolUsdFromRedis();
+    const freshEnough = (ts: number) => Date.now() - ts <= maxAgeMs;
+
+    if (parsedCache?.price && parsedCache.price > 0) {
+      const ts = parsedCache.quoteTimestampMs;
+      if (freshEnough(ts)) {
+        return {
+          priceUsdPerSol: parsedCache.price,
+          quoteTimestampMs: ts,
+        };
+      }
+      this.logger.debug(
+        `SOL/USD cache older than ${maxAgeMs}ms; refreshing from CoinGecko`,
+      );
+    }
+
+    try {
+      await this.refreshSolanaUsdPrice();
+      const after = await this.readSolUsdFromRedis();
+      if (after?.price && after.price > 0) {
+        return {
+          priceUsdPerSol: after.price,
+          quoteTimestampMs: after.quoteTimestampMs,
+        };
+      }
+    } catch (e: unknown) {
+      this.logger.warn(
+        `On-demand SOL/USD refresh failed: ${e instanceof Error ? e.message : e}`,
+      );
+    }
+
+    if (parsedCache?.price && parsedCache.price > 0) {
+      this.logger.warn(
+        'Using cached SOL/USD after refresh failed or returned empty (quote may be older than preferred)',
+      );
+      return {
+        priceUsdPerSol: parsedCache.price,
+        quoteTimestampMs: parsedCache.quoteTimestampMs,
+      };
+    }
+
+    throw new Error('SOL/USD price unavailable');
+  }
+
+  private async readSolUsdFromRedis(): Promise<{
+    price: number;
+    quoteTimestampMs: number;
+  } | null> {
+    const cached = await this.redis.getValue(`${SOLANA_PRICE_REDIS_ID}:price`);
+    if (!cached) {
+      return null;
+    }
+    const parsed = JSON.parse(cached) as {
+      price: number;
+      timestamp?: number;
+      last_updated_at?: number;
+    };
+    if (!parsed?.price || parsed.price <= 0) {
+      return null;
+    }
+    const quoteTimestampMs =
+      typeof parsed.timestamp === 'number'
+        ? parsed.timestamp
+        : typeof parsed.last_updated_at === 'number'
+          ? parsed.last_updated_at * 1000
+          : Date.now();
+    return { price: parsed.price, quoteTimestampMs };
+  }
+
+  /** Single-asset fetch + Redis write (used when cache is stale or missing). */
+  private async refreshSolanaUsdPrice(): Promise<void> {
+    const { data } = await firstValueFrom(
+      this.http.get(this.priceUrl, {
+        params: {
+          vs_currencies: 'usd',
+          ids: 'solana',
+          include_last_updated_at: 'true',
+          precision: '8',
+        },
+        headers: this.priceHeaders,
+      }),
+    );
+    const coin = data?.solana;
+    if (!coin?.usd || coin.usd <= 0) {
+      throw new Error('No SOL price in CoinGecko response');
+    }
+    await this.redis.setValue(
+      `${SOLANA_PRICE_REDIS_ID}:price`,
+      JSON.stringify({
+        price: coin.usd,
+        timestamp: Date.now(),
+        last_updated_at: coin.last_updated_at,
+      }),
+    );
+    this.logger.log(`Refreshed SOL/USD in Redis: ${coin.usd}`);
   }
 }

@@ -1,5 +1,5 @@
 import { TagGroupItem } from "@/components/TagGroup"
-import { Currency } from "@blockwinz/shared"
+import { Currency, StakeDenomination } from "@blockwinz/shared"
 import { GameMode } from "@blockwinz/shared"
 
 export type BaseHotkeyConfigs = Record<BaseHotKeyType, HotkeyConfig>
@@ -45,6 +45,9 @@ export interface BaseBetRequest {
     decreaseBy: string
     isManualMode: boolean
     isTurboMode: boolean
+    stakeDenomination?: StakeDenomination
+    /** Exact USD stake when stakeDenomination is usd (SOL wallet); server derives SOL */
+    usdAmount?: number
 }
 
 export interface BaseBetResponse {

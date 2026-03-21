@@ -24,6 +24,7 @@ import {
 } from '@blockwinz/shared';
 import { roundToDecimals } from 'src/shared/helpers/utils-functions.helper';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
+import { stakeAuditFromRequest } from 'src/shared/utils/stake-audit.util';
 import { CHAIN } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -189,6 +190,7 @@ export class PlinkoService {
           request.currency,
           multiplier,
           txDb,
+          stakeAuditFromRequest(request),
         );
 
         return {
