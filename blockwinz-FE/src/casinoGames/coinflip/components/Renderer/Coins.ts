@@ -21,6 +21,8 @@ export class Coins {
     private positionSpeedMul = 1;
     private gapFactor = 3.5;
     private scl = 0.5;
+    /** GSAP tweens for the in-flight bet idle toss only (killed separately from reveal flips). */
+    private idleTossTweens: gsap.core.Tween[] = [];
     public onResults: (results: number[], multiplier: number, status: BetStatus) => void;
 
     constructor(maxCoins: number, coins: number, min: number, coinType: number) {
@@ -44,6 +46,48 @@ export class Coins {
     public setTurbo(isTurbo: boolean) {
         this.flipSpeedMul = isTurbo ? 0.2 : 1;
         this.positionSpeedMul = isTurbo ? 0.2 : 1;
+    }
+
+    /** Stops idle toss and restores scale on visible sprites so reveal tweens start clean. */
+    public stopIdleToss(): void {
+        for (const t of this.idleTossTweens) {
+            t.kill();
+        }
+        this.idleTossTweens = [];
+        for (let i = 0; i < this.currentCoins; i++) {
+            const [goldCoin, silverCoin] = this.coins[i];
+            const isGold = this.coinStates[i] === 0;
+            const sprite = isGold ? goldCoin : silverCoin;
+            sprite.scale.set(this.scl, this.scl);
+        }
+    }
+
+    /**
+     * Loops a 2D “toss” (horizontal squash) on each visible coin while waiting for the bet result.
+     */
+    public startIdleToss(): void {
+        this.stopIdleToss();
+        if (this.currentCoins === 0 || !this.goldTexture) return;
+
+        const halfCycle = 0.14 * this.flipSpeedMul;
+        const minScaleX = this.scl * 0.09;
+
+        for (let i = 0; i < this.currentCoins; i++) {
+            const [goldCoin, silverCoin] = this.coins[i];
+            const isGold = this.coinStates[i] === 0;
+            const sprite = isGold ? goldCoin : silverCoin;
+            if (!sprite.visible || sprite.alpha < 0.01) continue;
+
+            sprite.scale.set(this.scl, this.scl);
+            const tween = gsap.to(sprite.scale, {
+                x: minScaleX,
+                duration: halfCycle,
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+            });
+            this.idleTossTweens.push(tween);
+        }
     }
 
     private initializeCoins() {
@@ -209,6 +253,8 @@ export class Coins {
     }
 
     public flipCoins(newStates: number[], multiplier: number, status: BetStatus) {
+        this.stopIdleToss();
+
         // Update coinStates with new results
         const oldCoinStates = [...this.coinStates];
         this.coinStates = newStates.slice(0, this.currentCoins);

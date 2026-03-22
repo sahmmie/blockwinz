@@ -75,6 +75,14 @@ export class GameRenderer {
         this.coinsRenderer.setTurbo(isTurbo);
     }
 
+    public startIdleToss(): void {
+        this.coinsRenderer.startIdleToss();
+    }
+
+    public stopIdleToss(): void {
+        this.coinsRenderer.stopIdleToss();
+    }
+
     public gameLoop(): void {
     }
 

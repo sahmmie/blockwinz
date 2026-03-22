@@ -2,7 +2,10 @@ import { useBetAmount, useProfitAmount } from '@/hooks/useBetAmount';
 import { useGameState } from '@/hooks/useGameState';
 import useWalletState from '@/hooks/useWalletState';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
-import { getCoinFlipProfitOnWin } from '@/casinoGames/coinflip/utils/payoutMultiplier';
+import {
+    getCoinFlipFairGrossMultiplier,
+    getCoinFlipProfitOnWin,
+} from '@/casinoGames/coinflip/utils/payoutMultiplier';
 import { useSound } from './useSound';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettingsStore } from '@/hooks/useSettings';
@@ -17,6 +20,7 @@ import {
     type Preset,
 } from '@/casinoGames/coinflip/types';
 import { BetStatus } from '@/shared/types/core';
+import { getNewTagGroupItem } from '@/components/TagGroup';
 
 // type EP = CoinFlipGameState & CoinFlipBetRequest & CoinFlipBetResponse;
 
@@ -54,7 +58,6 @@ export const useGameControls = () => {
                 status: res.betResultStatus,
                 forceUpdater: Math.random().toString(),
             })
-            isSpinningRef.current = false
         },
         onAnimFinish: () => {
             getWalletData()
@@ -73,23 +76,18 @@ export const useGameControls = () => {
 
     const onResults = useCallback(
         (_results: number[], multiplier: number, status: BetStatus) => {
-            let clr = '#10101D';
-            if (status === BetStatus.WIN) {
-                const goldClr = '#ffce1d';
-                const silverClr = '#d4d4d4';
-                clr = coinTypeRef.current === 0 ? goldClr : silverClr;
-            }
+            const tag = getNewTagGroupItem(multiplier, status === BetStatus.WIN);
             const newResult = {
                 value: multiplier,
-                clr,
-                fontClr: multiplier > 0 ? 'black' : 'white',
-                uid: Math.random().toString(),
+                clr: tag.bgColor,
+                fontClr: tag.color,
+                uid: tag.id,
             };
             actions.updateState((prevState) => ({
                 prevResults: [newResult, ...(prevState.prevResults || [])].slice(0, 5),
             }));
         },
-        [actions, coinTypeRef]
+        [actions],
     );
 
     const [gameRendererInited, setGameRendererInited] = useState<boolean>(false);
@@ -117,6 +115,19 @@ export const useGameControls = () => {
     useEffect(() => {
         gameRendererRef.current?.setTurbo(!!settings.isTurbo);
     }, [settings.isTurbo]);
+
+    useEffect(() => {
+        if (!gameRendererInited || !gameRendererRef.current) return;
+        if (state.isPlacingBet) {
+            gameRendererRef.current.startIdleToss();
+        } else {
+            gameRendererRef.current.stopIdleToss();
+        }
+    }, [state.isPlacingBet, gameRendererInited]);
+
+    useEffect(() => {
+        isSpinningRef.current = state.isPlacingBet || state.isAnimating;
+    }, [state.isPlacingBet, state.isAnimating]);
 
     useEffect(() => {
         if (state.multiplier === -1) return;
@@ -147,7 +158,14 @@ export const useGameControls = () => {
     }, [settings.isMuted]);
 
     const { betAmount } = state;
-    const { maxProfitErrors } = useMaxProfit(parseFloat(betAmount), 10000);
+    const maxPayoutMultiplier = useMemo(
+        () => getCoinFlipFairGrossMultiplier(state.coins, state.min),
+        [state.coins, state.min],
+    );
+    const betAmountForMaxProfit = Number.isFinite(parseFloat(betAmount))
+        ? parseFloat(betAmount)
+        : 0;
+    const { maxProfitErrors } = useMaxProfit(betAmountForMaxProfit, maxPayoutMultiplier);
 
     const coinsOptions = useMemo(() =>
         Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: 'x' + (i + 1).toString() })),
@@ -220,7 +238,7 @@ export const useGameControls = () => {
     return {
         ...state,
         ...actions,
-        isSpinning: isSpinningRef.current,
+        isSpinning: state.isPlacingBet || state.isAnimating,
         betAmountErrors,
         ...profitAmountState,
         selectedPresetValue,

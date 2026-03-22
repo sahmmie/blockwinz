@@ -9,7 +9,7 @@ export const PreviousResults: React.FC = () => {
   const { prevResults } = useGameControlsContext()
 
   return (
-    <VStack position='absolute' top='0' right='0'>
+    <VStack position='absolute' top='0' right='12px' alignItems='center' gap='0.25rem'>
       <AnimatePresence initial={false} mode='popLayout'>
         {prevResults.map((result) => (
           <AnimatedTag
@@ -17,8 +17,8 @@ export const PreviousResults: React.FC = () => {
             bgColor={result.clr}
             size='md'
             borderRadius='md'
-            width={'4rem'}
-            justifyContent={'center'}
+            width='3rem'
+            justifyContent='center'
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
@@ -28,8 +28,8 @@ export const PreviousResults: React.FC = () => {
             }}
             layout
           >
-            <TagLabel color={result.fontClr} fontWeight={'bold'}>
-              {result.value.toFixed(2)}x
+            <TagLabel color={result.fontClr} fontWeight='bold'>
+              {`${result.value.toFixed(2)}x`}
             </TagLabel>
           </AnimatedTag>
         ))}

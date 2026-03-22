@@ -9,9 +9,12 @@ import { presetOptions } from '../../types';
 import ProfitOnWin from '@/components/ProfitOnWin/ProfitOnWin';
 import useWalletState from '@/hooks/useWalletState';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
+import { GameMode } from '@blockwinz/shared';
 
 const BetPanel: React.FC = () => {
   const {
+    mode,
+    isLoading,
     coins,
     min,
     coinType,
@@ -31,6 +34,9 @@ const BetPanel: React.FC = () => {
     selectedPresetValue,
     handlePresetChange,
   } = useGameControlsContext();
+
+  const betInputsDisabled =
+    mode === GameMode.Manual ? isPlacingBet : isLoading;
 
   const { selectedBalance } = useWalletState();
   const ROUNDING_DECIMALS =
@@ -65,30 +71,26 @@ const BetPanel: React.FC = () => {
 
   return (
     <Box
+      p={1}
+      display='flex'
+      flexDirection='column'
+      gap='24px'
       pt={{ base: '0px', md: '26px' }}
       pl={'16px'}
       pr={'20px'}
       pb={{ base: '38px', md: '0' }}>
-      <Box mt={'24px'} mb={'24px'} display={{ base: 'block', md: 'none' }}>
-        {renderBetButton()}
-      </Box>
-      <Box>
-        <BetAmount
-          disabled={isPlacingBet}
-          value={parseFloat(betAmount)}
-          onChange={(val) => handleBetAmountChange(val.toString())}
-          error={
-            betAmountErrors?.betAmount || maxProfitErrors?.betAmount
-          }
-        />
-      </Box>
-      <Box mt={'24px'}>
-        <ProfitOnWin
-          value={parseFloat(profitOnWin).toFixed(ROUNDING_DECIMALS)}
-          error={profitAmountErrors?.profit}
-        />
-      </Box>
-      <Box mt={'24px'} display='flex' flexDirection='column' gap='24px'>
+      <Box display={{ base: 'block', md: 'none' }}>{renderBetButton()}</Box>
+      <BetAmount
+        disabled={betInputsDisabled}
+        value={parseFloat(betAmount)}
+        onChange={e => handleBetAmountChange(e.toString())}
+        error={betAmountErrors?.betAmount || maxProfitErrors?.betAmount}
+      />
+      <ProfitOnWin
+        value={parseFloat(profitOnWin).toFixed(ROUNDING_DECIMALS)}
+        error={profitAmountErrors?.profit}
+      />
+      <Box display='flex' flexDirection='column' gap='24px'>
         <Dropdown
           label='Presets'
           placeholder='Custom'
@@ -125,11 +127,10 @@ const BetPanel: React.FC = () => {
         <CoinTypeToggle
           selectedCoinType={coinType}
           onChange={handleCoinTypeChange}
-          isDisabled={isPlacingBet}
+          isDisabled={betInputsDisabled}
         />
       </Box>
       <Box
-        mt={'38px'}
         mb={{ base: '38px', md: '0px' }}
         display={{ base: 'none', md: 'block' }}>
         {renderBetButton()}

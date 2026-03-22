@@ -19,14 +19,26 @@ function winProbability(coins: number, minRequired: number): number {
   return winProb;
 }
 
-/** Payout multiplier when the configured min matches are hit (0.99 RTP, rounded to 2 decimals). */
-export function getCoinFlipPayoutMultiplier(
+/**
+ * Gross payout multiplier on a winning round before RTP (1 / win probability).
+ * Matches API `checkTheoreticalProfit` so client max-profit validation aligns with the server.
+ */
+export function getCoinFlipFairGrossMultiplier(
   coins: number,
   minRequired: number,
 ): number {
   const winProb = winProbability(coins, minRequired);
   if (winProb <= 0) return 0;
-  const fairMultiplier = 1 / winProb;
+  return 1 / winProb;
+}
+
+/** Payout multiplier when the configured min matches are hit (0.99 RTP, rounded to 2 decimals). */
+export function getCoinFlipPayoutMultiplier(
+  coins: number,
+  minRequired: number,
+): number {
+  const fairMultiplier = getCoinFlipFairGrossMultiplier(coins, minRequired);
+  if (fairMultiplier <= 0) return 0;
   return Math.round(fairMultiplier * 0.99 * 100) / 100;
 }
 
