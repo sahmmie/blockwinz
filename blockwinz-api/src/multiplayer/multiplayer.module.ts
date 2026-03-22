@@ -10,6 +10,7 @@ import { PlayerSessionTrackerModule } from './players/player-session-tracker.mod
 import { RedisService } from 'src/shared/services/redis.service';
 import { AuthenticationModule } from 'src/authentication/authentication.module';
 import { GameEngineModule } from './game-engine/game-engine.module';
+import { MultiplayerOrchestratorModule } from './orchestrator/multiplayer-orchestrator.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { GameEngineModule } from './game-engine/game-engine.module';
     GameSessionModule,
     PlayerSessionTrackerModule,
     GameEngineModule,
+    MultiplayerOrchestratorModule,
     forwardRef(() => AuthenticationModule),
   ],
   controllers: [],

@@ -14,6 +14,8 @@ export interface MultiplayerTicTacToeMove {
 }
 
 export interface MultiplayerTicTacToeDto {
+  /** Drizzle row id for `multiplayer_tictactoe_games` when loaded from DB. */
+  id?: string;
   board: Array<Array<'X' | 'O' | ''>>;
   betResultStatus: TicTacToeStatus;
   players: MultiplayerTicTacToePlayer[];

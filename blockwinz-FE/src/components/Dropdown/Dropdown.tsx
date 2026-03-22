@@ -15,11 +15,14 @@ import {
   SelectValueText,
 } from '../ui/select';
 
+/** Chakra Select bridges to `target.value` for existing callers (wallet, mines, coinflip). */
+export type DropdownChangeEvent = { target: { value: string } };
+
 interface DropdownProps extends OptionProps {
   label?: string;
   placeholder?: string;
   options: any[];
-  handleChange?: (value: React.FormEvent<HTMLDivElement>) => void;
+  handleChange?: (e: DropdownChangeEvent) => void;
   selected: string | null;
   selectTriggerProps?: any;
   className?: string;
@@ -51,15 +54,16 @@ const Dropdown: FunctionComponent<DropdownProps> = ({
     }),
   );
 
+  const selectedStr = selected != null ? String(selected) : '';
   const selectedOption = dataList.items.find(
-    option => option.value === selected,
+    option => String(option.value) === selectedStr,
   );
 
   const convertToCollection = (list: unknown[]): ListCollection => {
     return createListCollection({
       items: list.map((option: any) => ({
         label: option[labelName],
-        value: option[keyName],
+        value: String(option[keyName]),
         icon: icon ? option[icon] : null,
       })),
     });
@@ -87,9 +91,12 @@ const Dropdown: FunctionComponent<DropdownProps> = ({
     }
   }, [options]);
 
+  const selectValue =
+    selectedStr !== '' ? [selectedStr] : ([] as string[]);
+
   return (
     <SelectRoot
-      readOnly={readOnly}
+      {...(readOnly ? { readOnly: true } : {})}
       className={className}
       collection={dataList}
       size='lg'
@@ -97,7 +104,12 @@ const Dropdown: FunctionComponent<DropdownProps> = ({
       variant='outline'
       borderRadius='8px'
       multiple={false}
-      onChange={handleChange}>
+      value={selectValue}
+      onValueChange={details => {
+        const raw = details.value?.[0];
+        if (raw === undefined || !handleChange) return;
+        handleChange({ target: { value: String(raw) } });
+      }}>
       <SelectLabel fontSize={'14px'} fontWeight={'500'}>
         {label}
       </SelectLabel>

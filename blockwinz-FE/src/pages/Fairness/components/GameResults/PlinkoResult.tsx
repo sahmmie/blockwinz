@@ -1,4 +1,5 @@
-import { FC, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import BaseInputs from '../BaseInputs';
 import { Box, Tag, TagLabel } from '@chakra-ui/react';
@@ -9,13 +10,29 @@ import { plinkoMuls } from '@/casinoGames/plinko/plinkoMuls';
 import RiskLevelCard from '@/components/RiskLevelCard/RiskLevelCard';
 import PlinkoSlider from '@/components/CustomSlider/CustomSlider';
 import { colors, PLINKO_OPTIONS } from '@/casinoGames/plinko/clrs';
+import {
+  parseFairnessUrlSearch,
+  patchFairnessUrlParams,
+  PF_KEYS,
+  type FairnessRisk,
+} from '../../fairnessUrlParams';
 
 const PlinkoResult: FC = () => {
   const { baseInputs } = useGameInputsContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsed = useMemo(
+    () => parseFairnessUrlSearch(searchParams),
+    [searchParams],
+  );
 
-  type RiskType = 'LOW' | 'MEDIUM' | 'HIGH';
+  type RiskType = FairnessRisk;
   const [rows, setRows] = useState(8);
   const [risk, setRisk] = useState<RiskType>('LOW');
+
+  useEffect(() => {
+    if (parsed.rows != null) setRows(parsed.rows);
+    if (parsed.risk != null) setRisk(parsed.risk);
+  }, [parsed.rows, parsed.risk]);
 
   const result = useGameResult(generatePlinkoResult, {
     ...baseInputs,
@@ -51,12 +68,32 @@ const PlinkoResult: FC = () => {
       <RiskLevelCard
         risks={PLINKO_OPTIONS}
         value={risk}
-        onChange={(value: string) => setRisk(value as RiskType)}
+        onChange={(value: string) => {
+          const next = value as RiskType;
+          setRisk(next);
+          setSearchParams(
+            prev =>
+              patchFairnessUrlParams(prev, { [PF_KEYS.RISK]: next }),
+            { replace: true },
+          );
+        }}
         defaultValue={PLINKO_OPTIONS[0].value}
       />
       </Box>
       <Box width='100%' pb={4} pt={4}>
-        <PlinkoSlider label='Rows' value={rows} onChange={val => setRows(val)} trackBg='#151832' />
+        <PlinkoSlider
+          label='Rows'
+          value={rows}
+          onChange={val => {
+            setRows(val);
+            setSearchParams(
+              prev =>
+                patchFairnessUrlParams(prev, { [PF_KEYS.ROWS]: val }),
+              { replace: true },
+            );
+          }}
+          trackBg='#151832'
+        />
       </Box>
     </>
   );

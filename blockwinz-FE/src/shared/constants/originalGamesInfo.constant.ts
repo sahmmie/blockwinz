@@ -85,7 +85,6 @@ export const originalGamesInfo: Record<GameTypeEnum, GameInfo> = {
         description: 'Coin Flip on Blockwinz is the ultimate 50/50 game of chance. Simply choose heads or tails, place your bet, and flip the coin. It’s fast, fair, and perfect for players who love quick rounds and instant results. With a clean design and provably fair outcomes, Coin Flip brings simplicity and excitement together for a classic gambling experience. Ready to take the flip and double your money? Try your luck now!',
         image: CoinFlipImage,
         link: '/originals/coin-flip',
-        comingSoon: true,
         id: GameTypeEnum.CoinFlipGame,
         category: GameCategoryEnum.ORIGINALS,
         icon: DiceIcon,

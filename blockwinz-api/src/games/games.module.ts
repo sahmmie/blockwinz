@@ -5,6 +5,7 @@ import { PlinkoModule } from './plinko/plinko.module';
 import { MinesModule } from './mines/mines.module';
 import { KenoModule } from './keno/keno.module';
 import { WheelModule } from './wheel/wheel.module';
+import { CoinFlipModule } from './coinflip/coinflip.module';
 
 const controllers = [];
 
@@ -15,6 +16,7 @@ const customModules = [
   MinesModule,
   KenoModule,
   WheelModule,
+  CoinFlipModule,
 ];
 
 @Module({

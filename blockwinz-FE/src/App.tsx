@@ -46,6 +46,7 @@ const Mines = lazy(() => import('@/casinoGames/mines/Mine'));
 const Keno = lazy(() => import('@/casinoGames/keno/Keno'));
 const Wheel = lazy(() => import('@/casinoGames/wheel/WheelGame'));
 const PlinkoGame = lazy(() => import('@/casinoGames/plinko/pages/PlinkoGame'));
+const CoinFlipGame = lazy(() => import('@/casinoGames/coinflip/CoinFlipGame'));
 
 function App() {
   const { title } = usePageData();
@@ -108,6 +109,7 @@ function App() {
                 <Route path='keno' element={<Keno />} />
                 <Route path='plinko' element={<PlinkoGame />} />
                 <Route path='wheel' element={<Wheel />} />
+                <Route path='coin-flip' element={<CoinFlipGame />} />
               </Route>
 
               <Route path='multiplayer' element={<CasinoGame />}>

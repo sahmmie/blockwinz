@@ -1,12 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { Box } from '@chakra-ui/react';
 import { FunctionComponent, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import CheckMarkIcon from '../../assets/icons/checkmark-icon.svg';
 import FavouriteIcon from '../../assets/icons/favourite-icon.svg';
 import FavouriteWhiteIcon from '../../assets/icons/favourite-white-icon.svg';
 import usePageData from '@/hooks/usePageData';
 import useModal, { ModalProps } from '@/hooks/useModal';
 import Fairness from '@/pages/Fairness/Fairness';
+import { patchFairnessUrlParams, PF_KEYS } from '@/pages/Fairness/fairnessUrlParams';
 import { useFavouritesStore } from '@/hooks/useFavourite';
 import SettingsPopover from '@/components/SettingsPopover/SettingsPopover';
 import { GameInfo } from '@/shared/types/types';
@@ -24,6 +26,7 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
 }) => {
   const { setCurrentGame } = usePageData();
   const { openModal } = useModal();
+  const [, setSearchParams] = useSearchParams();
 
   const { addFavourite, removeFavourite, isLoading, favourites } =
     useFavouritesStore();
@@ -34,7 +37,14 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
   }, [game]);
 
   const openFairnessModal = () => {
-    const props = {};
+    setSearchParams(
+      prev =>
+        patchFairnessUrlParams(prev, {
+          [PF_KEYS.TAB]: 'verify',
+          [PF_KEYS.GAME]: String(game.id),
+        }),
+      { replace: true },
+    );
     const modalConfig: ModalProps = {
       size: 'lg',
       hideCloseButton: false,
@@ -47,7 +57,11 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
       scrollBehavior: 'inside',
     };
 
-    openModal(<Fairness {...props} />, 'Fairness', modalConfig);
+    openModal(
+      <Fairness preSelectedSegment='verify' initialGameOverride={game} />,
+      'Fairness',
+      modalConfig,
+    );
   };
 
   const handleFavouriteGame = () => {

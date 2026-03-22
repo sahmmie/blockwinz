@@ -21,10 +21,15 @@ import BwzIcon from '@/assets/bw-icon-only.svg';
 import { formatDate } from '@/shared/utils/common';
 import CustomInput from '../CustomInput/CustomInput';
 import useAccount from '@/hooks/userAccount';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSeedPair } from '@/hooks/useSeedPair';
 import useModal, { ModalProps } from '@/hooks/useModal';
 import Fairness from '@/pages/Fairness/Fairness';
+import {
+  patchFairnessUrlParams,
+  PF_KEYS,
+  stripPfGameConfigParams,
+} from '@/pages/Fairness/fairnessUrlParams';
 import axiosInstance from '@/lib/axios';
 import { toaster } from '../ui/toaster';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
@@ -43,6 +48,7 @@ function getBettorUserId(user: BetHistoryT['user']): string | undefined {
 const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   const { userData } = useAccount();
   const { openModal } = useModal();
+  const [, setSearchParams] = useSearchParams();
   const { rotateSeedPair, seedPairLoading, activeSeedPair, getActiveSeedPair } =
     useSeedPair();
   const navigate = useNavigate();
@@ -183,6 +189,29 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
   const placedAt = detail.createdAt ?? legacyGame?.createdAt;
 
   const openFairnessModal = (betHistory: BetHistoryT) => {
+    const legacy = isPopulatedGame(betHistory.gameId) ? betHistory.gameId : null;
+    const mul =
+      betHistory.multiplier ??
+      (legacy?.multiplier != null && !Number.isNaN(Number(legacy.multiplier))
+        ? Number(legacy.multiplier)
+        : undefined);
+
+    setSearchParams(
+      prev => {
+        const cleared = stripPfGameConfigParams(prev);
+        return patchFairnessUrlParams(cleared, {
+          [PF_KEYS.TAB]: 'verify',
+          [PF_KEYS.GAME]: betHistory.gameType,
+          [PF_KEYS.CLIENT]: betHistory.clientSeed ?? null,
+          [PF_KEYS.SERVER]: betHistory.serverSeed ?? null,
+          [PF_KEYS.NONCE]: betHistory.nonce ?? legacy?.nonce ?? null,
+          [PF_KEYS.MULTIPLIER]:
+            mul != null && !Number.isNaN(mul) ? mul : null,
+        });
+      },
+      { replace: true },
+    );
+
     const modalConfig: ModalProps = {
       size: 'lg',
       hideCloseButton: false,

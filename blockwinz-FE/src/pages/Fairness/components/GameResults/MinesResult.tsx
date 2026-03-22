@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Grid, Box, GridItem } from '@chakra-ui/react';
 
 import bombImg from 'assets/icons/mines-images/mine-bomb.png';
@@ -10,6 +11,11 @@ import { minesOptions } from '../../constants';
 import { useGameInputsContext } from '../../hooks/useGameInputsContext';
 import { generateMinesResult } from '@/shared/utils/fairLogic';
 import DropdownAlt from '@/components/Dropdown/DropdownAlt';
+import {
+  parseFairnessUrlSearch,
+  patchFairnessUrlParams,
+  PF_KEYS,
+} from '../../fairnessUrlParams';
 
 const getTileImage = (isMine: boolean) => (isMine ? bombImg : diamondImg);
 
@@ -35,12 +41,26 @@ const MineTile: React.FC<{
 
 const MinesResult: React.FC = () => {
   const { baseInputs } = useGameInputsContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsed = useMemo(
+    () => parseFairnessUrlSearch(searchParams),
+    [searchParams],
+  );
   const [mines, setMines] = useState(3);
+
+  useEffect(() => {
+    if (parsed.mines != null) setMines(parsed.mines);
+  }, [parsed.mines]);
 
   const result = useGameResult(generateMinesResult, { ...baseInputs, mines });
 
   const handleMineDropdownChange = (value: string) => {
-    setMines(Number(value));
+    const n = Number(value);
+    setMines(n);
+    setSearchParams(
+      prev => patchFairnessUrlParams(prev, { [PF_KEYS.MINES]: n }),
+      { replace: true },
+    );
   };
 
   const tiles: Tile[] = Array(25)

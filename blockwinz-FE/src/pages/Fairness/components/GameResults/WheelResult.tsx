@@ -1,4 +1,5 @@
-import { FC, useEffect, useRef, useState } from 'react';
+import { FC, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import BaseInputs from '../BaseInputs';
 import { Box } from '@chakra-ui/react';
@@ -10,13 +11,29 @@ import RiskLevelCard from '@/components/RiskLevelCard/RiskLevelCard';
 import WheelBuckets from '../Buckets/Buckets';
 import { MulData } from '@/casinoGames/wheel/types';
 import { wheelMuls } from '@/casinoGames/wheel/wheelMuls';
+import {
+  parseFairnessUrlSearch,
+  patchFairnessUrlParams,
+  PF_KEYS,
+  type FairnessRisk,
+} from '../../fairnessUrlParams';
 
 const WheelResult: FC = () => {
   const { baseInputs } = useGameInputsContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsed = useMemo(
+    () => parseFairnessUrlSearch(searchParams),
+    [searchParams],
+  );
 
-  type RiskType = 'LOW' | 'MEDIUM' | 'HIGH';
+  type RiskType = FairnessRisk;
   const [segments, setSegments] = useState(10);
   const [risk, setRisk] = useState<RiskType>('LOW');
+
+  useEffect(() => {
+    if (parsed.segments != null) setSegments(parsed.segments);
+    if (parsed.risk != null) setRisk(parsed.risk);
+  }, [parsed.segments, parsed.risk]);
 
   const result = useGameResult(generateWheelResult, {
     ...baseInputs,
@@ -71,7 +88,15 @@ const WheelResult: FC = () => {
         <RiskLevelCard
           risks={WHEEL_OPTIONS}
           value={risk}
-          onChange={(value: string) => setRisk(value as RiskType)}
+          onChange={(value: string) => {
+            const next = value as RiskType;
+            setRisk(next);
+            setSearchParams(
+              prev =>
+                patchFairnessUrlParams(prev, { [PF_KEYS.RISK]: next }),
+              { replace: true },
+            );
+          }}
           defaultValue={WHEEL_OPTIONS[0].value}
         />
       </Box>
@@ -82,7 +107,14 @@ const WheelResult: FC = () => {
           max={50}
           step={10}
           value={segments}
-          onChange={val => setSegments(val)}
+          onChange={val => {
+            setSegments(val);
+            setSearchParams(
+              prev =>
+                patchFairnessUrlParams(prev, { [PF_KEYS.SEGMENTS]: val }),
+              { replace: true },
+            );
+          }}
         />
       </Box>
     </>

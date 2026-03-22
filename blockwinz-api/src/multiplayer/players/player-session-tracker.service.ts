@@ -57,4 +57,11 @@ export class PlayerSessionTrackerService {
       (s) => s.sessionId === sessionId,
     );
   }
+
+  /**
+   * Returns all tracked player/socket states (for AFK heuristics).
+   */
+  getAllSessionStates(): PlayerSessionState[] {
+    return Array.from(this.sessionStates.values());
+  }
 }

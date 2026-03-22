@@ -1,45 +1,93 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { DbGameSchema } from '@blockwinz/shared';
+import { RedisService } from 'src/shared/services/redis.service';
 import { MatchRequest } from './match-request.interface';
 
+const QUEUE_TTL_SEC = 600;
+
+/**
+ * Redis-backed FIFO pairing for quick match (horizontal scaling safe vs in-memory pools).
+ */
 @Injectable()
 export class MatchmakingService {
   private readonly logger = new Logger(MatchmakingService.name);
-  private readonly pools: Map<string, MatchRequest[]> = new Map();
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly redisService: RedisService,
+  ) {}
 
   /**
-   * Request a match for a player. Tries to find a compatible match or queues the request.
-   * Emits 'match.found' event if a match is found.
-   * @param request MatchRequest
+   * Enqueues the player or immediately pairs with another waiter and emits `match.found`.
+   *
+   * @returns `'waiting'` if queued, or `'matched'` if this call created the pair.
    */
-  requestMatch(request: MatchRequest): void {
-    const key = this.getPoolKey(request.gameId, request.betAmount);
-    const pool = this.pools.get(key) || [];
+  async requestMatch(request: MatchRequest): Promise<'waiting' | 'matched'> {
+    const key = this.poolKey(request);
+    const encoded = JSON.stringify(request);
 
-    // Try to find a compatible match (for now, just any other player in the pool)
-    if (pool.length > 0) {
-      const opponent = pool.shift();
-      this.pools.set(key, pool); // update pool
-      this.logger.log(`Match found: ${request.userId} vs ${opponent.userId}`);
+    const tail = await this.redisService.rPop(key);
+    if (tail) {
+      let peer: MatchRequest;
+      try {
+        peer = JSON.parse(tail) as MatchRequest;
+      } catch {
+        this.logger.warn(`Corrupt match queue entry on ${key}; dropping`);
+        await this.redisService.lPush(key, encoded);
+        await this.redisService.expire(key, QUEUE_TTL_SEC);
+        return 'waiting';
+      }
+
+      if (peer.userId === request.userId) {
+        await this.redisService.rPush(key, tail);
+        await this.redisService.lPush(key, encoded);
+        await this.redisService.expire(key, QUEUE_TTL_SEC);
+        return 'waiting';
+      }
+
+      this.logger.log(
+        `Match found: ${peer.userId} vs ${request.userId} (${request.gameId})`,
+      );
       this.eventEmitter.emit('match.found', {
-        player1: opponent,
+        player1: peer,
         player2: request,
       });
-    } else {
-      pool.push(request);
-      this.pools.set(key, pool);
-      this.logger.log(
-        `Player queued: ${request.userId} for game ${request.gameId} (${request.betAmount})`,
-      );
+      return 'matched';
     }
+
+    await this.redisService.lPush(key, encoded);
+    await this.redisService.expire(key, QUEUE_TTL_SEC);
+    this.logger.log(
+      `Player queued: ${request.userId} for ${request.gameId} (${request.betAmount} ${request.currency})`,
+    );
+    return 'waiting';
   }
 
   /**
-   * Helper to generate a pool key based on gameId and betAmount
+   * Removes a user from all quick-match queues (best-effort; scans known pool keys for this user).
    */
-  private getPoolKey(gameId: string, betAmount: number): string {
-    return `${gameId}:${betAmount}`;
+  async cancelForUser(userId: string, gameId: DbGameSchema): Promise<void> {
+    const pattern = `mp:queue:${gameId}:*`;
+    const keys = await this.redisService.getAllKeys(pattern);
+    for (const key of keys) {
+      const len = await this.redisService.lLen(key);
+      for (let i = 0; i < len; i++) {
+        const raw = await this.redisService.rPop(key);
+        if (!raw) break;
+        try {
+          const req = JSON.parse(raw) as MatchRequest;
+          if (req.userId !== userId) {
+            await this.redisService.lPush(key, raw);
+          }
+        } catch {
+          /* drop corrupt */
+        }
+      }
+    }
+  }
+
+  private poolKey(request: MatchRequest): string {
+    return `mp:queue:${request.gameId}:${request.betAmount}:${request.currency}`;
   }
 }

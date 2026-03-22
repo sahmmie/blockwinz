@@ -6,6 +6,8 @@ export enum GameGatewaySocketEvent {
   JOIN_GAME = 'joinGame',
   DISCONNECT = 'disconnect',
   LEAVE_GAME = 'leaveGame',
+  QUICK_MATCH = 'quickMatch',
+  LIST_PUBLIC_LOBBIES = 'listPublicLobbies',
 }
 
 export enum GameGatewayError {

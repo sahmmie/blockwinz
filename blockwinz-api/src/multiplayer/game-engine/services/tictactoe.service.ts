@@ -14,8 +14,13 @@ import type {
 export class TicTacToeService {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDb) {}
 
+  private getDb(tx?: DrizzleDb): DrizzleDb {
+    return tx ?? this.db;
+  }
+
   public async CreateGame(
     gameObj: MultiplayerTicTacToeDto,
+    tx?: DrizzleDb,
   ): Promise<MultiplayerTicTacToeDto> {
     const board: Array<Array<'X' | 'O' | ''>> = [
       ['', '', ''],
@@ -29,11 +34,12 @@ export class TicTacToeService {
     }));
     const sessionId = String(gameObj.sessionId);
 
-    const [row] = await this.db
+    const db = this.getDb(tx);
+    const [row] = await db
       .insert(multiplayerTictactoeGames)
       .values({
         board,
-        betResultStatus: TicTacToeStatus.NOT_STARTED,
+        betResultStatus: gameObj.betResultStatus ?? TicTacToeStatus.NOT_STARTED,
         players,
         currentTurn: gameObj.players[0]?.userIs ?? null,
         winner: null,
@@ -51,6 +57,7 @@ export class TicTacToeService {
   public async updateGame(
     gameId: string,
     gameObj: MultiplayerTicTacToeDto,
+    tx?: DrizzleDb,
   ): Promise<MultiplayerTicTacToeDto> {
     const updatePayload: Partial<MultiplayerTictactoeGameSelect> = {
       board: gameObj.board as Array<Array<'X' | 'O' | ''>>,
@@ -76,12 +83,13 @@ export class TicTacToeService {
       updatedAt: new Date(),
     };
 
-    await this.db
+    const db = this.getDb(tx);
+    await db
       .update(multiplayerTictactoeGames)
       .set(updatePayload)
       .where(eq(multiplayerTictactoeGames.id, gameId));
 
-    const [row] = await this.db
+    const [row] = await db
       .select()
       .from(multiplayerTictactoeGames)
       .where(eq(multiplayerTictactoeGames.id, gameId))
@@ -123,8 +131,10 @@ export class TicTacToeService {
 
   public async GetGameBySessionId(
     sessionId: string,
+    tx?: DrizzleDb,
   ): Promise<MultiplayerTicTacToeDto | null> {
-    const [row] = await this.db
+    const db = this.getDb(tx);
+    const [row] = await db
       .select()
       .from(multiplayerTictactoeGames)
       .where(eq(multiplayerTictactoeGames.sessionId, sessionId))
@@ -157,6 +167,7 @@ export class TicTacToeService {
       timestamp: string;
     }>;
     return {
+      id: row.id,
       board: (row.board ?? []) as Array<Array<'X' | 'O' | ''>>,
       betResultStatus: row.betResultStatus as TicTacToeStatus,
       players: players.map((p) => ({

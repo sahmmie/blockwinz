@@ -1,16 +1,25 @@
 import { Button } from '@/components/ui/button';
 import { Box, Heading, Text, VStack, Code } from '@chakra-ui/react';
 import { FunctionComponent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ProvablyFairIcon from '@/assets/icons/checkmark-icon.svg';
 import useModal, { ModalProps } from '@/hooks/useModal';
 import Fairness from '../Fairness/Fairness';
+import { patchFairnessUrlParams, PF_KEYS } from '../Fairness/fairnessUrlParams';
 
 interface ProvablyFairProps {}
 
 const ProvablyFair: FunctionComponent<ProvablyFairProps> = () => {
   const { openModal } = useModal();
+  const [, setSearchParams] = useSearchParams();
   const openFairnessModal = () => {
-    const props = {};
+    setSearchParams(
+      prev =>
+        patchFairnessUrlParams(prev, {
+          [PF_KEYS.TAB]: 'verify',
+        }),
+      { replace: true },
+    );
     const modalConfig: ModalProps = {
       size: 'lg',
       hideCloseButton: false,
@@ -23,7 +32,11 @@ const ProvablyFair: FunctionComponent<ProvablyFairProps> = () => {
       scrollBehavior: 'inside',
     };
 
-    openModal(<Fairness {...props} />, 'Fairness', modalConfig);
+    openModal(
+      <Fairness preSelectedSegment='verify' />,
+      'Fairness',
+      modalConfig,
+    );
   };
 
   return (

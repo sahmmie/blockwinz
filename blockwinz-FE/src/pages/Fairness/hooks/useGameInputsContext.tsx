@@ -9,6 +9,8 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 
@@ -24,34 +26,76 @@ const GameInputsContext = createContext<GameInputsContextProps | undefined>(
 interface GameInputsProviderProps {
   children: ReactNode;
   betHistory?: BetHistoryT;
+  /** Merged after bet/legacy seeds (e.g. from URL). */
+  seedDefaultsFromUrl?: Partial<BaseFairLogicGenerateForGameDto> | null;
+  /** Debounced sync when user edits seeds/nonce (optional). */
+  onBaseInputsCommit?: (inputs: BaseFairLogicGenerateForGameDto) => void;
 }
 
-const GameInputsProvider: React.FC<GameInputsProviderProps> = ({
-  children,
-  betHistory,
-}) => {
+function buildInitialBaseInputs(
+  betHistory: BetHistoryT | undefined,
+  url: Partial<BaseFairLogicGenerateForGameDto> | null | undefined,
+): BaseFairLogicGenerateForGameDto {
   const legacyGame =
     betHistory && isPopulatedGame(betHistory.gameId)
       ? betHistory.gameId
       : null;
   const seed = legacyGame?.seed as SeedT | undefined;
+  return {
+    clientSeed:
+      seed?.clientSeed ||
+      betHistory?.clientSeed ||
+      url?.clientSeed ||
+      '',
+    serverSeed:
+      seed?.serverSeed ||
+      betHistory?.serverSeed ||
+      url?.serverSeed ||
+      '',
+    nonce:
+      legacyGame?.nonce ??
+      betHistory?.nonce ??
+      url?.nonce ??
+      0,
+  };
+}
+
+const GameInputsProvider: React.FC<GameInputsProviderProps> = ({
+  children,
+  betHistory,
+  seedDefaultsFromUrl,
+  onBaseInputsCommit,
+}) => {
   const [baseInputs, setBaseInputs] = useState<BaseFairLogicGenerateForGameDto>(
-    {
-      clientSeed:
-        seed?.clientSeed || betHistory?.clientSeed || '',
-      serverSeed:
-        seed?.serverSeed || betHistory?.serverSeed || '',
-      nonce: legacyGame?.nonce ?? betHistory?.nonce ?? 0,
-    },
+    () => buildInitialBaseInputs(betHistory, seedDefaultsFromUrl),
   );
+
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
-      setBaseInputs(prev => ({
-        ...prev,
-        [name]: name === 'nonce' ? Number(value) : value,
-      }));
+      setBaseInputs(prev => {
+        const next = {
+          ...prev,
+          [name]: name === 'nonce' ? Number(value) : value,
+        };
+        if (onBaseInputsCommit) {
+          if (commitTimer.current) clearTimeout(commitTimer.current);
+          commitTimer.current = setTimeout(() => {
+            onBaseInputsCommit(next);
+            commitTimer.current = null;
+          }, 350);
+        }
+        return next;
+      });
+    },
+    [onBaseInputsCommit],
+  );
+
+  useEffect(
+    () => () => {
+      if (commitTimer.current) clearTimeout(commitTimer.current);
     },
     [],
   );

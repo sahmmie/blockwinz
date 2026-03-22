@@ -115,7 +115,11 @@ export const originalGamesSidebarLinks: SideBarLink[] = [
     label: originalGamesInfo.DiceGame.name,
     link: originalGamesInfo.DiceGame.link,
   },
-
+  {
+    icon: originalGamesInfo.CoinFlipGame.icon,
+    label: originalGamesInfo.CoinFlipGame.name,
+    link: originalGamesInfo.CoinFlipGame.link,
+  },
   {
     icon: originalGamesInfo.MinesGame.icon,
     label: originalGamesInfo.MinesGame.name,

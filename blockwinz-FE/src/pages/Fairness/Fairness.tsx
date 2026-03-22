@@ -1,41 +1,114 @@
 import { Button } from '@/components/ui/button';
 import { Box, Text } from '@chakra-ui/react';
-import { FunctionComponent, useMemo, useState } from 'react';
+import { FunctionComponent, useCallback, useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import SeedsTab from './components/Tabs/SeedsTab';
 import VerifyTab from './components/Tabs/VerifyTab';
 import usePageData from '@/hooks/usePageData';
 import { GameInputsProvider } from './hooks/useGameInputsContext';
 import { BetHistoryT } from '../BetHistory/BetHistory.type';
 import { originalGamesInfo } from '@/shared/constants/originalGamesInfo.constant';
+import { GameInfo } from '@/shared/types/types';
+import {
+  parseFairnessUrlSearch,
+  patchFairnessUrlParams,
+  PF_KEYS,
+} from './fairnessUrlParams';
+import { BaseFairLogicGenerateForGameDto } from '@/shared/types/core';
 
 interface FairnessProps {
   preSelectedSegment?: 'seeds' | 'verify';
   betHistory?: BetHistoryT;
+  /** e.g. game dashboard — ensures correct game if URL has not updated yet */
+  initialGameOverride?: GameInfo | null;
 }
 
 const Fairness: FunctionComponent<FairnessProps> = ({
   preSelectedSegment,
   betHistory,
+  initialGameOverride,
 }) => {
-  const [segment, setSegment] = useState<'seeds' | 'verify'>(
-    preSelectedSegment || 'seeds',
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsed = useMemo(
+    () => parseFairnessUrlSearch(searchParams),
+    [searchParams],
   );
+
+  const initialSegment =
+    preSelectedSegment ?? parsed.tab ?? 'seeds';
+  const [segment, setSegment] = useState<'seeds' | 'verify'>(initialSegment);
+
+  useEffect(() => {
+    const t = parsed.tab;
+    if (t) setSegment(t);
+  }, [parsed.tab]);
 
   const segments: { label: string; path: 'seeds' | 'verify' }[] = [
     { label: 'Seeds', path: 'seeds' },
-    { label: 'Verfiy', path: 'verify' },
+    { label: 'Verify', path: 'verify' },
   ];
 
   const { currentGame } = usePageData();
 
-  /** Bet-specific verify flow must use the row's game, not Zustand `currentGame` (stale off game routes, e.g. bet history). */
   const verifyInitialGame = useMemo(() => {
     if (betHistory?.gameType != null) {
       const fromBet = originalGamesInfo[betHistory.gameType];
       if (fromBet) return fromBet;
     }
+    if (parsed.game) {
+      const fromUrl = originalGamesInfo[parsed.game];
+      if (fromUrl) return fromUrl;
+    }
+    if (initialGameOverride) return initialGameOverride;
     return currentGame;
-  }, [betHistory?.gameType, currentGame]);
+  }, [
+    betHistory?.gameType,
+    parsed.game,
+    initialGameOverride,
+    currentGame,
+  ]);
+
+  const seedDefaultsFromUrl = useMemo(
+    (): Partial<BaseFairLogicGenerateForGameDto> | null => ({
+      ...(parsed.clientSeed != null && parsed.clientSeed !== ''
+        ? { clientSeed: parsed.clientSeed }
+        : {}),
+      ...(parsed.serverSeed != null && parsed.serverSeed !== ''
+        ? { serverSeed: parsed.serverSeed }
+        : {}),
+      ...(parsed.nonce != null ? { nonce: parsed.nonce } : {}),
+    }),
+    [parsed.clientSeed, parsed.serverSeed, parsed.nonce],
+  );
+
+  const commitSeedsToUrl = useCallback(
+    (inputs: BaseFairLogicGenerateForGameDto) => {
+      setSearchParams(
+        prev =>
+          patchFairnessUrlParams(prev, {
+            [PF_KEYS.CLIENT]: inputs.clientSeed || null,
+            [PF_KEYS.SERVER]: inputs.serverSeed || null,
+            [PF_KEYS.NONCE]: inputs.nonce,
+          }),
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const goSegment = useCallback(
+    (path: 'seeds' | 'verify') => {
+      setSegment(path);
+      setSearchParams(
+        prev =>
+          patchFairnessUrlParams(prev, {
+            [PF_KEYS.TAB]: path,
+          }),
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const renderSegments = () => {
     return (
@@ -51,7 +124,7 @@ const Fairness: FunctionComponent<FairnessProps> = ({
           return (
             <Button
               cursor={'pointer'}
-              onClick={() => setSegment(tab.path)}
+              onClick={() => goSegment(tab.path)}
               unstyled
               display={'flex'}
               flexDir={'column'}
@@ -101,9 +174,22 @@ const Fairness: FunctionComponent<FairnessProps> = ({
         borderBottomRightRadius={'8px'}>
         {segment === 'seeds' && <SeedsTab />}
         {segment === 'verify' && (
-          <GameInputsProvider betHistory={betHistory}>
-            <VerifyTab initialGameValue={verifyInitialGame} />
-          </GameInputsProvider>
+          <>
+            {parsed.multiplier != null && !Number.isNaN(parsed.multiplier) && (
+              <Text fontSize='sm' color='#CBCCD1'>
+                Round multiplier (reference):{' '}
+                <Text as='span' color='#ECF0F1' fontWeight={600}>
+                  {parsed.multiplier.toFixed(2)}×
+                </Text>
+              </Text>
+            )}
+            <GameInputsProvider
+              betHistory={betHistory}
+              seedDefaultsFromUrl={seedDefaultsFromUrl}
+              onBaseInputsCommit={commitSeedsToUrl}>
+              <VerifyTab initialGameValue={verifyInitialGame} />
+            </GameInputsProvider>
+          </>
         )}
       </Box>
     </Box>

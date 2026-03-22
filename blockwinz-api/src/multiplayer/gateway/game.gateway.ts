@@ -7,7 +7,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards, UseFilters } from '@nestjs/common';
+import { getUserId } from 'src/shared/helpers/user.helper';
 import { GameSessionService } from '../game-session/game-session.service';
+import { MatchmakingService } from '../matchmaking/matchmaking.service';
 import { PlayerSessionTrackerService } from '../players/player-session-tracker.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WsAuthGuard } from 'src/shared/guards/ws-auth.guard';
@@ -35,6 +37,7 @@ export class GameGateway extends BaseGateway {
 
   constructor(
     private readonly gameSessionService: GameSessionService,
+    private readonly matchmakingService: MatchmakingService,
     private readonly playerSessionTracker: PlayerSessionTrackerService,
     protected readonly eventEmitter: EventEmitter2,
     protected jwtService: JwtService,
@@ -138,7 +141,11 @@ export class GameGateway extends BaseGateway {
     @WsUser() user: UserDto,
   ) {
     try {
-      return this.gameSessionService.handleGameAction(data.message, user);
+      const result = await this.gameSessionService.handleGameAction(
+        data.message,
+        user,
+      );
+      return WsResponse.success(result);
     } catch (error) {
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
         message: error.message,
@@ -147,14 +154,64 @@ export class GameGateway extends BaseGateway {
     }
   }
 
-  @SubscribeMessage(GameGatewaySocketEvent.JOIN_GAME)
-  async joinGame(
+  @SubscribeMessage(GameGatewaySocketEvent.QUICK_MATCH)
+  async quickMatch(
     @ConnectedSocket() client: Socket,
-    @MessageBody(new WsValidationPipe()) data: { gameId: string },
+    @MessageBody(new WsValidationPipe())
+    data: { gameId: DbGameSchema; betAmount: number; currency: string },
     @WsUser() user: UserDto,
   ) {
     try {
-      return this.gameSessionService.joinGame(data.gameId, user);
+      const status = await this.matchmakingService.requestMatch({
+        userId: getUserId(user),
+        gameId: data.gameId,
+        betAmount: data.betAmount,
+        currency: data.currency,
+        mode: 'RANDOM_PUBLIC',
+      });
+      return WsResponse.success({ status });
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: error.message,
+      });
+      return WsResponse.error(error.message);
+    }
+  }
+
+  @SubscribeMessage(GameGatewaySocketEvent.LIST_PUBLIC_LOBBIES)
+  async listPublicLobbies(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { gameType: DbGameSchema },
+  ) {
+    try {
+      const rows = await this.gameSessionService.listPublicLobbies(
+        data.gameType,
+      );
+      return WsResponse.success(rows);
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: error.message,
+      });
+      return WsResponse.error(error.message);
+    }
+  }
+
+  @SubscribeMessage(GameGatewaySocketEvent.JOIN_GAME)
+  async joinGame(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe())
+    data: { gameId: string; joinCode?: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      const session = data.joinCode
+        ? await this.gameSessionService.joinGameWithCode(
+            data.gameId,
+            data.joinCode,
+            user,
+          )
+        : await this.gameSessionService.joinGame(data.gameId, user);
+      return WsResponse.success(session);
     } catch (error) {
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
         message: error.message,
@@ -170,7 +227,11 @@ export class GameGateway extends BaseGateway {
     @WsUser() user: UserDto,
   ) {
     try {
-      return this.gameSessionService.leaveGame(data.gameId, user);
+      const session = await this.gameSessionService.leaveGame(
+        data.gameId,
+        user,
+      );
+      return WsResponse.success(session);
     } catch (error) {
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
         message: error.message,
@@ -179,14 +240,16 @@ export class GameGateway extends BaseGateway {
     }
   }
 
-  async handleDisconnect(@ConnectedSocket() client: Socket) {
+  async handleDisconnect(client: Socket) {
     try {
+      const userId = client.data?.userId as string | undefined;
+      await super.handleDisconnect(client);
+      if (userId) {
+        await this.gameSessionService.handleUserDisconnect(userId);
+      }
       this.gameSessionService.handleDisconnect(client.id);
     } catch (error) {
-      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
-        message: error.message,
-      });
-      throw error;
+      this.logger.error('Game gateway disconnect error', error);
     }
   }
 }

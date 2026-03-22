@@ -159,4 +159,61 @@ export class RedisService {
   async hExists(key: string, field: string): Promise<number> {
     return await this.redis.hexists(key, field);
   }
+
+  /**
+   * FIFO queue: push on the left head (newest); pop from the right tail (oldest waiting player).
+   */
+  async lPush(key: string, value: string): Promise<number> {
+    try {
+      return await this.redis.lpush(key, value);
+    } catch (error) {
+      this.logger.error(`Error LPUSH ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async rPush(key: string, value: string): Promise<number> {
+    try {
+      return await this.redis.rpush(key, value);
+    } catch (error) {
+      this.logger.error(`Error RPUSH ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Non-blocking pop from the right tail of a list.
+   */
+  async rPop(key: string): Promise<string | null> {
+    try {
+      const v = await this.redis.rpop(key);
+      return v;
+    } catch (error) {
+      this.logger.error(`Error RPOP ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Returns list length or 0.
+   */
+  async lLen(key: string): Promise<number> {
+    return await this.redis.llen(key);
+  }
+
+  /**
+   * Remove matching elements from a list (e.g. dequeue a user on cancel).
+   */
+  async lRem(key: string, count: number, value: string): Promise<number> {
+    try {
+      return await this.redis.lrem(key, count, value);
+    } catch (error) {
+      this.logger.error(`Error LREM ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async expire(key: string, seconds: number): Promise<number> {
+    return await this.redis.expire(key, seconds);
+  }
 }
