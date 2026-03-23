@@ -3,6 +3,7 @@ import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { Logger } from '@nestjs/common';
+import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
 
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
@@ -29,22 +30,7 @@ export class RedisIoAdapter extends IoAdapter {
   createIOServer(port: number, options?: ServerOptions): any {
     const server = super.createIOServer(port, {
       ...options,
-      cors: {
-        origin: [
-          'https://staging.blockwinz.com',
-          'https://blockwinz.com',
-          'http://localhost:5173',
-          'https://bwzfunding.netlify.app',
-        ],
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: [
-          'Content-Type',
-          'Authorization',
-          'X-Requested-With',
-          'withdrawal-key',
-        ],
-      },
+      cors: SOCKET_IO_CORS,
       allowEIO3: true,
     });
     server.adapter(this.adapterConstructor);

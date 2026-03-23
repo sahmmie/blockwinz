@@ -167,7 +167,10 @@ export class WithdrawalRepository {
     });
   }
 
-  async getWithdrawalStatus(requestId: string): Promise<WithdrawalDto> {
+  /**
+   * Load withdrawal by idempotency / client request id. For queues and internal use (no ownership check).
+   */
+  async requireWithdrawalByRequestId(requestId: string): Promise<WithdrawalDto> {
     const [row] = await this.db
       .select()
       .from(withdrawals)
@@ -177,6 +180,23 @@ export class WithdrawalRepository {
       throw new NotFoundException('Withdrawal not found');
     }
     return this.rowToDto(row);
+  }
+
+  /**
+   * Status for the authenticated user; admins may read any. Others get 404 if not owner (no existence leak).
+   */
+  async getWithdrawalStatusForRequester(
+    requestId: string,
+    requester: { userId: string; isAdmin: boolean },
+  ): Promise<WithdrawalDto> {
+    const dto = await this.requireWithdrawalByRequestId(requestId);
+    if (
+      !requester.isAdmin &&
+      String(dto.userId) !== String(requester.userId)
+    ) {
+      throw new NotFoundException('Withdrawal not found');
+    }
+    return dto;
   }
 
   async getUserWithdrawals(userId: string): Promise<WithdrawalDto[]> {

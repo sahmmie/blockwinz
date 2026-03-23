@@ -28,7 +28,7 @@ export class WithdrawalQueueProcessor {
           getTransactionId(transaction),
         );
       const withdrawalFound =
-        await this.withdrawalRepository.getWithdrawalStatus(
+        await this.withdrawalRepository.requireWithdrawalByRequestId(
           withdrawal.requestId,
         );
       if (!withdrawalFound || !transactionFound) {
@@ -70,7 +70,7 @@ export class WithdrawalQueueProcessor {
           getTransactionId(transaction),
         );
       const withdrawalFound =
-        await this.withdrawalRepository.getWithdrawalStatus(
+        await this.withdrawalRepository.requireWithdrawalByRequestId(
           withdrawal.requestId,
         );
       if (transactionFound) {

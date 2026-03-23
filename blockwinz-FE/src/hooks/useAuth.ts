@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { TOKEN_NAME } from '../shared/constants/app.constant';
 
+/**
+ * Auth tokens are stored in localStorage for SPA simplicity. XSS on this origin
+ * can steal sessions; prefer httpOnly cookies + refresh flow when feasible.
+ * See repo root SECURITY.md.
+ */
 interface AuthState {
   token: string | null;
   setToken: (token: string | null) => void;

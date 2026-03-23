@@ -13,16 +13,12 @@ import { RedisIoAdapter } from './shared/adaptors/redisAdapter';
 // Import version from package.json (requires resolveJsonModule in tsconfig.json)
 import packageJson from '../package.json';
 import { WsExceptionFilter } from './shared/filters/ws-exception.filter';
+import { CORS_ORIGIN_WHITELIST } from './shared/constants/cors-origins.constant';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: [
-        'https://staging.blockwinz.com',
-        'https://blockwinz.com',
-        'http://localhost:5173',
-        'https://bwzfunding.netlify.app',
-      ],
+      origin: CORS_ORIGIN_WHITELIST,
       credentials: true,
       preflightContinue: false,
       maxAge: 60,
@@ -56,28 +52,34 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  const config = new DocumentBuilder()
-    .setTitle('BlockWinz API')
-    .setDescription('BlockWinz API description V-' + appVersion)
-    .setVersion(appVersion)
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
+  const enableSwagger =
+    process.env.ENABLE_SWAGGER === 'true' ||
+    process.env.NODE_ENV !== 'production';
+
+  if (enableSwagger) {
+    const config = new DocumentBuilder()
+      .setTitle('BlockWinz API')
+      .setDescription('BlockWinz API description V-' + appVersion)
+      .setVersion(appVersion)
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
       },
-      'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controller!
-    )
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true, // this
-    },
-  });
+    });
+  }
 
   const port = process.env.PORT || 3000;
   console.warn(`[debug] Initializing server on port: ${port}`);

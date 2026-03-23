@@ -26,9 +26,10 @@ import { DbGameSchema } from '@blockwinz/shared';
 import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WsResponse } from 'src/shared/helpers/wsResponse.helper';
+import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
 
 @UseFilters(new WsExceptionFilter())
-@WebSocketGateway({ namespace: 'game', cors: true })
+@WebSocketGateway({ namespace: 'game', cors: SOCKET_IO_CORS })
 @UseGuards(WsAuthGuard)
 export class GameGateway extends BaseGateway {
   @WebSocketServer()

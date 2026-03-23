@@ -461,6 +461,12 @@ export class WalletRepository {
   ): Promise<{ success: boolean; signature: string }> {
     const MAX_BWZ = 10000;
 
+    if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException(
+        'This endpoint is not available in production',
+      );
+    }
+
     if (this.config.get('SOLANA_NETWORK') !== 'testnet') {
       throw new BadRequestException(
         'This endpoint is only available on testnet',
@@ -475,6 +481,25 @@ export class WalletRepository {
 
     if (!userRow) {
       throw new NotFoundException('User not found');
+    }
+
+    const requestedAddr = sendBwzDto.walletAddress.trim();
+    const [bwzWallet] = await this.db
+      .select({ address: wallets.address })
+      .from(wallets)
+      .where(
+        and(
+          eq(wallets.userId, userRow.id),
+          eq(wallets.currency, Currency.BWZ),
+          eq(wallets.chain, CHAIN.SOLANA),
+        ),
+      )
+      .limit(1);
+
+    if (!bwzWallet || bwzWallet.address.trim() !== requestedAddr) {
+      throw new BadRequestException(
+        'walletAddress must match the user’s registered BWZ wallet address',
+      );
     }
 
     const [existing] = await this.db

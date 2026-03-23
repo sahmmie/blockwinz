@@ -7,7 +7,9 @@ import {
   HttpCode,
   Headers,
   Put,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { WithdrawalRepository } from '../repositories/withdrawal.repository';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import {
@@ -23,18 +25,19 @@ import {
 import { RateLimit } from 'src/shared/decorators/rateLimit.decorator';
 import { WithdrawalDto, WithdrawalDtoRequest } from '../dtos/withdrawal.dto';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
-import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
+import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
+import { getUserId } from 'src/shared/helpers/user.helper';
 
 @ApiTags('Withdrawals')
 @Controller('withdrawals')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthenticationGuard)
+@UseGuards(RateLimitGuard)
 export class WithdrawalController {
   constructor(private readonly withdrawalRepository: WithdrawalRepository) {}
 
   @Put('request')
   @HttpCode(201)
-  @RateLimit({ ttl: 60, limit: 2 }) // 5 requests per minute
+  @RateLimit({ ttl: 60, limit: 2 })
   @IdempotencyKey()
   @ApiOperation({ summary: 'Create a new withdrawal request' })
   @ApiResponse({
@@ -68,8 +71,16 @@ export class WithdrawalController {
   @ApiResponse({ status: 404, description: 'Withdrawal not found' })
   async getWithdrawalStatus(
     @Param('requestId') requestId: string,
+    @CurrentUser() user: UserRequestI,
+    @Req() req: Request,
   ): Promise<WithdrawalDto> {
-    return this.withdrawalRepository.getWithdrawalStatus(requestId);
+    return this.withdrawalRepository.getWithdrawalStatusForRequester(
+      requestId,
+      {
+        userId: getUserId(user),
+        isAdmin: req['isAdmin'] === true,
+      },
+    );
   }
 
   @Get('history')

@@ -8,6 +8,7 @@ import { AuthenticationRepository } from 'src/authentication/repositories/authen
 import { RedisService } from '../shared/services/redis.service';
 import { RedisKey } from '../shared/enums/redisKey.enum';
 import { WsAuthGuard } from 'src/shared/guards/ws-auth.guard';
+import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
 
 export interface GatewayConfig {
   maxConnectionsPerUser?: number;
@@ -44,11 +45,7 @@ export interface UserDisconnectionEvent {
 }
 
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
-  },
+  cors: SOCKET_IO_CORS,
   transports: ['websocket'],
   allowEIO3: true,
   pingTimeout: 60000, // Disconnect if no pong in 60s

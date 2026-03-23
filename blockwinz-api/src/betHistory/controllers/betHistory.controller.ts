@@ -4,8 +4,11 @@ import {
   HttpCode,
   Param,
   Query,
+  Req,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { BetHistoryService } from '../betHistory.service';
 import {
   ApiBearerAuth,
@@ -20,15 +23,19 @@ import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
 import { BetHistoryDto } from '../dtos/betHistory.dto';
 import { Cache as CacheDecorator } from 'src/shared/decorators/cache.decorator';
 import { CustomCacheInterceptor } from 'src/shared/interceptors/cache.interceptor';
+import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
+import { RateLimit } from 'src/shared/decorators/rateLimit.decorator';
 
 @ApiTags('Bet History')
 @Controller('bet-history')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(RateLimitGuard)
 @UseInterceptors(CustomCacheInterceptor)
 export class BetHistoryController {
   constructor(private readonly betHistoryService: BetHistoryService) {}
 
   @Public()
+  @RateLimit({ ttl: 60, limit: 60 })
   @ApiResponse({
     type: [BetHistoryDto],
     status: 200,
@@ -55,8 +62,12 @@ export class BetHistoryController {
   @ApiOperation({ summary: 'Get Bet History By ID' })
   @Get(':betId')
   @HttpCode(200)
-  getBetHistoryById(@Param('betId') betId: string): Promise<BetHistoryDto> {
-    return this.betHistoryService.getBetHistoryById(betId);
+  getBetHistoryById(
+    @Param('betId') betId: string,
+    @CurrentUser() user: UserRequestI,
+    @Req() req: Request,
+  ): Promise<BetHistoryDto> {
+    return this.betHistoryService.getBetHistoryById(betId, user, req['isAdmin'] === true);
   }
 
   @ApiResponse({

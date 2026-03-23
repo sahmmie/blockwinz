@@ -23,8 +23,9 @@ import { WsValidationPipe } from 'src/shared/pipes/ws-validation.pipe';
 import { AuthenticationRepository } from 'src/authentication/repositories/authentication.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getUserId, getRoomId } from 'src/shared/helpers/user.helper';
+import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
 
-@WebSocketGateway({ namespace: 'chat', cors: { origin: '*' } })
+@WebSocketGateway({ namespace: 'chat', cors: SOCKET_IO_CORS })
 @UseGuards(WsAuthGuard)
 export class ChatGateway extends BaseGateway {
   @WebSocketServer()

@@ -12,6 +12,7 @@ import {
 } from '../decorators/rateLimit.decorator';
 import { Redis } from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
+import { getUserId } from '../helpers/user.helper';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -30,9 +31,19 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const ip = request.ip;
-    const key = `rate_limit:${ip}`;
+    const request = context.switchToHttp().getRequest<{
+      ip?: string;
+      method?: string;
+      route?: { path?: string };
+      path?: string;
+      user?: unknown;
+    }>();
+    const ip = request.ip ?? 'unknown';
+    const routePath = request.route?.path ?? request.path ?? 'unknown';
+    const method = request.method ?? 'unknown';
+    const userId = getUserId(request.user as Parameters<typeof getUserId>[0]);
+    const identity = userId || 'anon';
+    const key = `rate_limit:${method}:${routePath}:${identity}:${ip}`;
 
     const current = await this.redis.incr(key);
     if (current === 1) {

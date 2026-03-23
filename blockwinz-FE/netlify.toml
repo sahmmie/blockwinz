@@ -2,3 +2,11 @@
   from = "/*"
   to = "/"
   status = 200
+
+# Baseline hardening; tighten Content-Security-Policy once inline scripts are nonced/hashed.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

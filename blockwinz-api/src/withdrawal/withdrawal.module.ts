@@ -26,6 +26,9 @@ export class WithdrawalModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(IdempotencyMiddleware)
-      .forRoutes({ path: 'withdrawals', method: RequestMethod.POST });
+      .forRoutes({
+        path: 'withdrawals/request',
+        method: RequestMethod.PUT,
+      });
   }
 }

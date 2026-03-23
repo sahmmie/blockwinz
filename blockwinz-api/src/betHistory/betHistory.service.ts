@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { BetHistoryRepository } from './repositories/betHistory.repository';
 import { BetHistoryDto } from './dtos/betHistory.dto';
+import { getUserId } from 'src/shared/helpers/user.helper';
+import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -61,9 +63,17 @@ export class BetHistoryService {
    * @returns Bet history DTO
    * @throws NotFoundException when the row does not exist
    */
-  async getBetHistoryById(betId: string): Promise<BetHistoryDto> {
+  async getBetHistoryById(
+    betId: string,
+    requester: UserRequestI,
+    isAdmin: boolean,
+  ): Promise<BetHistoryDto> {
     const row = await this.betHistoryRepository.findBetHistoryById(betId);
     if (!row) {
+      throw new NotFoundException('Bet not found');
+    }
+    const requesterId = getUserId(requester);
+    if (!isAdmin && String(row.user) !== String(requesterId)) {
       throw new NotFoundException('Bet not found');
     }
     return this.attachFairnessFields(row);
