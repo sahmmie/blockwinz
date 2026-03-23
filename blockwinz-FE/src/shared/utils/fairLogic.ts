@@ -2,7 +2,17 @@ import * as _ from 'lodash'
 import { HOUSE_EDGE, MINES_GAME_TILES_COUNT } from '../constants/validation'
 import { plinkoMuls } from '../../casinoGames/plinko/plinkoMuls'
 import { wheelMuls } from '../../casinoGames/wheel/wheelMuls'
-import { BaseFairLogicGenerateForGameDto, FairLogicByteGeneratorDto, FairLogicBytesToFloatsDto, FairLogicGenerateFloatsDto, GenerateFairLogicResultMinesDto, GenerateFairLogicResultPlinkoDto, GenerateFairLogicResultWheelDto } from '../types/core'
+import {
+  BaseFairLogicGenerateForGameDto,
+  FairLogicByteGeneratorDto,
+  FairLogicBytesToFloatsDto,
+  FairLogicGenerateFloatsDto,
+  GenerateFairLogicResultCoinFlipDto,
+  GenerateFairLogicResultMinesDto,
+  GenerateFairLogicResultPlinkoDto,
+  GenerateFairLogicResultWheelDto,
+} from '../types/core'
+import { getCoinFlipPayoutMultiplier } from '@/casinoGames/coinflip/utils/payoutMultiplier'
 
 /* <---------------------- Create HMAC using the Web Crypto API --------------------------> */
 async function createHmac(key: string, message: string): Promise<Uint8Array> {
@@ -168,14 +178,56 @@ async function generateCrashResult(request: BaseFairLogicGenerateForGameDto): Pr
   return 1 / (1 - floats[0]) // Example crash point calculation
 }
 
-async function generateCoinFlipResult(request: BaseFairLogicGenerateForGameDto): Promise<boolean> {
-  const coinFlipDataToGenerateFloats = {
-    ...request,
-    cursor: 0,
-    count: 1,
+/** Outcome of recomputing a Coin Flip round (matches API `CoinFlipService` float mapping and win rule). */
+export interface CoinFlipVerifyResult {
+  floats: number[]
+  results: number[]
+  coins: number
+  min: number
+  coinType: number
+  matchCount: number
+  isWin: boolean
+  multiplier: number
+}
+
+/**
+ * Recomputes Coin Flip from seeds + nonce: `coins` floats, each flip is 1 if float > 0.5 else 0 (same as server).
+ * Win when at least `min` results equal `coinType`; multiplier uses 0.99 RTP via `getCoinFlipPayoutMultiplier`.
+ */
+async function verifyCoinFlipRound(
+  request: GenerateFairLogicResultCoinFlipDto,
+): Promise<CoinFlipVerifyResult | undefined> {
+  if (!request.serverSeed || !request.clientSeed) {
+    return undefined
   }
-  const floats = await generateFloatsForGame(coinFlipDataToGenerateFloats)
-  return floats[0] >= 0.5 // True for heads, false for tails
+  const coins = Math.max(1, Math.min(10, Math.floor(Number(request.coins)) || 1))
+  let min = Math.max(1, Math.min(coins, Math.floor(Number(request.min)) || 1))
+  if (coins >= 6 && coins <= 8 && min < 2) min = 2
+  if (coins >= 9 && coins <= 10 && min < 3) min = 3
+  const coinType = request.coinType === 0 ? 0 : 1
+
+  const floats = await generateFloatsForGame({
+    serverSeed: request.serverSeed,
+    clientSeed: request.clientSeed,
+    nonce: request.nonce,
+    cursor: 0,
+    count: coins,
+  })
+  const results = floats.map((num) => (num > 0.5 ? 1 : 0))
+  const matchCount = results.filter((r) => r === coinType).length
+  const isWin = matchCount >= min
+  const multiplier = isWin ? getCoinFlipPayoutMultiplier(coins, min) : 0
+
+  return {
+    floats,
+    results,
+    coins,
+    min,
+    coinType,
+    matchCount,
+    isWin,
+    multiplier,
+  }
 }
 
 async function generateBlackjackResult(
@@ -271,7 +323,7 @@ function calculateWinMultiplier(openedMines: number, minesCount: number) {
 export {
   generateBaccaratResult,
   generateBlackjackResult,
-  generateCoinFlipResult,
+  verifyCoinFlipRound,
   generateCrashResult,
   generateDiceResult,
   generateKenoResult,

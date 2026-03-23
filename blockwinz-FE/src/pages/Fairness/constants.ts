@@ -16,4 +16,5 @@ export const gameOptions: {
     { value: originalGamesInfo.KenoGame.id, label: originalGamesInfo.KenoGame.name },
     { value: originalGamesInfo.PlinkoGame.id, label: originalGamesInfo.PlinkoGame.name },
     { value: originalGamesInfo.WheelGame.id, label: originalGamesInfo.WheelGame.name },
+    { value: originalGamesInfo.CoinFlipGame.id, label: originalGamesInfo.CoinFlipGame.name },
   ]

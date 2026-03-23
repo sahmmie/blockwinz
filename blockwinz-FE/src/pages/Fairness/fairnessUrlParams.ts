@@ -11,6 +11,9 @@ export const PF_KEYS = {
   MINES: 'pfMines',
   SEGMENTS: 'pfSegments',
   MULTIPLIER: 'pfMul',
+  COINS: 'pfCoins',
+  COIN_MIN: 'pfCoinMin',
+  SIDE: 'pfSide',
 } as const;
 
 export type FairnessRisk = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -26,6 +29,9 @@ export type ParsedFairnessUrl = {
   mines: number | null;
   segments: number | null;
   multiplier: number | null;
+  coinflipCoins: number | null;
+  coinflipMin: number | null;
+  coinflipSide: number | null;
 };
 
 function parseIntStrict(s: string | null): number | null {
@@ -63,6 +69,9 @@ export function parseFairnessUrlSearch(sp: URLSearchParams): ParsedFairnessUrl {
       mul != null && mul !== '' && !Number.isNaN(Number(mul))
         ? Number(mul)
         : null,
+    coinflipCoins: parseIntStrict(sp.get(PF_KEYS.COINS)),
+    coinflipMin: parseIntStrict(sp.get(PF_KEYS.COIN_MIN)),
+    coinflipSide: parseIntStrict(sp.get(PF_KEYS.SIDE)),
   };
 }
 
@@ -73,6 +82,9 @@ export function stripPfGameConfigParams(prev: URLSearchParams): URLSearchParams 
   n.delete(PF_KEYS.ROWS);
   n.delete(PF_KEYS.MINES);
   n.delete(PF_KEYS.SEGMENTS);
+  n.delete(PF_KEYS.COINS);
+  n.delete(PF_KEYS.COIN_MIN);
+  n.delete(PF_KEYS.SIDE);
   return n;
 }
 

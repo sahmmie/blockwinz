@@ -37,6 +37,11 @@ export type BetHistoryT = {
     serverSeedHash?: string;
     serverSeed?: string;
     seedStatus?: string;
+    /** From GET /bet-history/:id for Coin Flip — provably fair verify prefill */
+    coinflipCoins?: number;
+    coinflipMin?: number;
+    coinflipSide?: number;
+    coinflipResults?: number[];
     createdAt: Date | string;
     updatedAt?: Date;
     __v?: number;

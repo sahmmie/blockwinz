@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsArray,
 } from '@nestjs/class-validator';
 import { DbGameSchema } from '@blockwinz/shared';
 
@@ -61,6 +62,24 @@ export class BetHistoryDto {
   @IsOptional()
   @IsString()
   seedStatus?: string;
+
+  /** Coin Flip round params for Provably Fair verify UI (from `coinflip_games`). */
+  @IsOptional()
+  @IsNumber()
+  coinflipCoins?: number;
+
+  @IsOptional()
+  @IsNumber()
+  coinflipMin?: number;
+
+  @IsOptional()
+  @IsNumber()
+  coinflipSide?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coinflipResults?: number[];
 
   @IsDate()
   createdAt?: Date;

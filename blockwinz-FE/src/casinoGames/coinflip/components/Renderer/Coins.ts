@@ -23,6 +23,8 @@ export class Coins {
     private scl = 0.5;
     /** GSAP tweens for the in-flight bet idle toss only (killed separately from reveal flips). */
     private idleTossTweens: gsap.core.Tween[] = [];
+    /** `flipCoins` defers `onResults`; cleared on teardown so callbacks don’t run after destroy. */
+    private flipCoinsTimeoutId: ReturnType<typeof setTimeout> | null = null;
     public onResults: (results: number[], multiplier: number, status: BetStatus) => void;
 
     constructor(maxCoins: number, coins: number, min: number, coinType: number) {
@@ -254,6 +256,10 @@ export class Coins {
 
     public flipCoins(newStates: number[], multiplier: number, status: BetStatus) {
         this.stopIdleToss();
+        if (this.flipCoinsTimeoutId != null) {
+            clearTimeout(this.flipCoinsTimeoutId);
+            this.flipCoinsTimeoutId = null;
+        }
 
         // Update coinStates with new results
         const oldCoinStates = [...this.coinStates];
@@ -277,9 +283,28 @@ export class Coins {
             }
         });
 
-        setTimeout(() => {
-            this.onResults(newStates, multiplier, status)
-        }, this.flipSpeed * this.flipSpeedMul * 2)
+        this.flipCoinsTimeoutId = setTimeout(() => {
+            this.flipCoinsTimeoutId = null;
+            this.onResults(newStates, multiplier, status);
+        }, this.flipSpeed * this.flipSpeedMul * 2);
+    }
+
+    /**
+     * Stop all GSAP motion on sprites before Pixi tears them down.
+     * Otherwise tweens keep running → "Cannot set properties of null (setting 'y')".
+     */
+    public killAnimations(): void {
+        this.stopIdleToss();
+        if (this.flipCoinsTimeoutId != null) {
+            clearTimeout(this.flipCoinsTimeoutId);
+            this.flipCoinsTimeoutId = null;
+        }
+        for (const [goldCoin, silverCoin] of this.coins) {
+            gsap.killTweensOf(goldCoin);
+            gsap.killTweensOf(goldCoin.scale);
+            gsap.killTweensOf(silverCoin);
+            gsap.killTweensOf(silverCoin.scale);
+        }
     }
 
     public getContainer(): Container {

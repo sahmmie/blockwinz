@@ -88,10 +88,34 @@ export class GameRenderer {
 
     public destroy(): void {
         window.removeEventListener('resize', this.resizeCallback);
-        this.app?.destroy(true, {
-            children: true,
-            texture: true,
-        });
+        const app = this.app;
+        this.app = undefined;
+        if (!app) return;
+
+        this.coinsRenderer.killAnimations();
+
+        // Pixi v8 ResizePlugin: detach resize target first or destroy() can throw
+        // ("this._cancelResize is not a function").
+        try {
+            (app as { resizeTo: Window | HTMLElement | null }).resizeTo = null;
+        } catch {
+            /* noop */
+        }
+
+        try {
+            app.cancelResize();
+        } catch {
+            /* ResizePlugin may be partially torn down */
+        }
+
+        try {
+            app.destroy(true, {
+                children: true,
+                texture: true,
+            });
+        } catch {
+            /* e.g. init still in flight on unmount */
+        }
     }
 }
 

@@ -150,6 +150,13 @@ export interface GenerateFairLogicResultMinesDto extends BaseFairLogicGenerateFo
   mines: number
 }
 
+/** Coin Flip verify: same `coinType` as API `side` (0 = gold, 1 = silver). */
+export interface GenerateFairLogicResultCoinFlipDto extends BaseFairLogicGenerateForGameDto {
+  coins: number
+  min: number
+  coinType: number
+}
+
 export interface FairLogicGenerateFloatsDto extends BaseFairLogicGenerateForGameDto {
   count: number
   cursor: number

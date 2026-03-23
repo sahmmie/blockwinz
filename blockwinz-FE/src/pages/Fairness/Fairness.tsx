@@ -81,13 +81,14 @@ const Fairness: FunctionComponent<FairnessProps> = ({
     [parsed.clientSeed, parsed.serverSeed, parsed.nonce],
   );
 
+  /** Keep seeds out of the address bar; nonce still syncs for shareable verify links. */
   const commitSeedsToUrl = useCallback(
     (inputs: BaseFairLogicGenerateForGameDto) => {
       setSearchParams(
         prev =>
           patchFairnessUrlParams(prev, {
-            [PF_KEYS.CLIENT]: inputs.clientSeed || null,
-            [PF_KEYS.SERVER]: inputs.serverSeed || null,
+            [PF_KEYS.CLIENT]: null,
+            [PF_KEYS.SERVER]: null,
             [PF_KEYS.NONCE]: inputs.nonce,
           }),
         { replace: true },
@@ -174,22 +175,12 @@ const Fairness: FunctionComponent<FairnessProps> = ({
         borderBottomRightRadius={'8px'}>
         {segment === 'seeds' && <SeedsTab />}
         {segment === 'verify' && (
-          <>
-            {parsed.multiplier != null && !Number.isNaN(parsed.multiplier) && (
-              <Text fontSize='sm' color='#CBCCD1'>
-                Round multiplier (reference):{' '}
-                <Text as='span' color='#ECF0F1' fontWeight={600}>
-                  {parsed.multiplier.toFixed(2)}×
-                </Text>
-              </Text>
-            )}
-            <GameInputsProvider
-              betHistory={betHistory}
-              seedDefaultsFromUrl={seedDefaultsFromUrl}
-              onBaseInputsCommit={commitSeedsToUrl}>
-              <VerifyTab initialGameValue={verifyInitialGame} />
-            </GameInputsProvider>
-          </>
+          <GameInputsProvider
+            betHistory={betHistory}
+            seedDefaultsFromUrl={seedDefaultsFromUrl}
+            onBaseInputsCommit={commitSeedsToUrl}>
+            <VerifyTab initialGameValue={verifyInitialGame} />
+          </GameInputsProvider>
         )}
       </Box>
     </Box>

@@ -49,6 +49,11 @@ const componentMapping: Partial<
       default: module.default as FunctionComponent<GameComponentProps>,
     }))
   ),
+  [GameTypeEnum.CoinFlipGame]: lazy(() =>
+    import('./CoinFlipResult').then(module => ({
+      default: module.default as FunctionComponent<GameComponentProps>,
+    })),
+  ),
 };
 
 interface GameComponentLoaderProps {

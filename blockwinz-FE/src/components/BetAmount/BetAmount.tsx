@@ -181,27 +181,7 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
             </Text>
             {showToggle ? (
               <Box display="flex" gap="4px" flexShrink={0}>
-                <Button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    setStakeDenomination(StakeDenomination.Native);
-                    setSolStakeUsdInput(null);
-                  }}
-                  px="8px"
-                  py="2px"
-                  h="24px"
-                  fontSize="11px"
-                  bg={
-                    stakeDenomination === StakeDenomination.Native
-                      ? 'rgba(120, 119, 150, 0.9)'
-                      : 'rgba(78, 77, 101, 0.64)'
-                  }
-                  color="#FFFFFF"
-                  borderRadius="6px">
-                  SOL
-                </Button>
-                <Button
+                 <Button
                   type="button"
                   disabled={disabled}
                   onClick={() => {
@@ -222,6 +202,26 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
                   color="#FFFFFF"
                   borderRadius="6px">
                   USD
+                </Button>
+                <Button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    setStakeDenomination(StakeDenomination.Native);
+                    setSolStakeUsdInput(null);
+                  }}
+                  px="8px"
+                  py="2px"
+                  h="24px"
+                  fontSize="11px"
+                  bg={
+                    stakeDenomination === StakeDenomination.Native
+                      ? 'rgba(120, 119, 150, 0.9)'
+                      : 'rgba(78, 77, 101, 0.64)'
+                  }
+                  color="#FFFFFF"
+                  borderRadius="6px">
+                  SOL
                 </Button>
               </Box>
             ) : null}

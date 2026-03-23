@@ -4,7 +4,7 @@ import {
   SeedStatus,
   SeedT,
 } from '@/pages/BetHistory/BetHistory.type';
-import { Currency } from '@blockwinz/shared';
+import { Currency, GameTypeEnum } from '@blockwinz/shared';
 import { Box, Image, Text } from '@chakra-ui/react';
 import {
   FunctionComponent,
@@ -202,11 +202,25 @@ const BetDetails: FunctionComponent<BetDetailsProps> = ({ betDetails }) => {
         return patchFairnessUrlParams(cleared, {
           [PF_KEYS.TAB]: 'verify',
           [PF_KEYS.GAME]: betHistory.gameType,
-          [PF_KEYS.CLIENT]: betHistory.clientSeed ?? null,
-          [PF_KEYS.SERVER]: betHistory.serverSeed ?? null,
+          [PF_KEYS.CLIENT]: null,
+          [PF_KEYS.SERVER]: null,
           [PF_KEYS.NONCE]: betHistory.nonce ?? legacy?.nonce ?? null,
           [PF_KEYS.MULTIPLIER]:
             mul != null && !Number.isNaN(mul) ? mul : null,
+          ...(betHistory.gameType === GameTypeEnum.CoinFlipGame &&
+          betHistory.coinflipCoins != null
+            ? {
+                [PF_KEYS.COINS]: betHistory.coinflipCoins,
+                [PF_KEYS.COIN_MIN]:
+                  betHistory.coinflipMin != null
+                    ? betHistory.coinflipMin
+                    : null,
+                [PF_KEYS.SIDE]:
+                  betHistory.coinflipSide === 0 || betHistory.coinflipSide === 1
+                    ? betHistory.coinflipSide
+                    : null,
+              }
+            : {}),
         });
       },
       { replace: true },

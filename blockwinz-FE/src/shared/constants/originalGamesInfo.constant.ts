@@ -20,6 +20,7 @@ import KenoIcon from '@/assets/icons/keno-icon.svg';
 import LimboIcon from '@/assets/icons/limbo-icon.svg';
 import MinesIcon from '@/assets/icons/mines-icon.svg';
 import PlinkoIcon from '@/assets/icons/plinko-icon.svg';
+import CoinFlipIcon from '@/assets/icons/coin-flip-icon.png';
 
 export const originalGamesInfo: Record<GameTypeEnum, GameInfo> = {
     [GameTypeEnum.DiceGame]: {
@@ -87,7 +88,7 @@ export const originalGamesInfo: Record<GameTypeEnum, GameInfo> = {
         link: '/originals/coin-flip',
         id: GameTypeEnum.CoinFlipGame,
         category: GameCategoryEnum.ORIGINALS,
-        icon: DiceIcon,
+        icon: CoinFlipIcon,
     },
     [GameTypeEnum.CrashGame]: {
         name: 'Crash',

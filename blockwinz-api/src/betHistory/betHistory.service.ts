@@ -54,6 +54,13 @@ export class BetHistoryService {
     return this.toPaginatedResponse(result, total, page, limit);
   }
 
+  /**
+   * Loads one bet history row with provably fair fields (and Coin Flip round params when applicable).
+   *
+   * @param betId - Bet history UUID
+   * @returns Bet history DTO
+   * @throws NotFoundException when the row does not exist
+   */
   async getBetHistoryById(betId: string): Promise<BetHistoryDto> {
     const row = await this.betHistoryRepository.findBetHistoryById(betId);
     if (!row) {
@@ -64,6 +71,10 @@ export class BetHistoryService {
 
   /**
    * Join game row (nonce + seed_id) and seeds row for provably-fair verification UI.
+   * For Coin Flip, also attaches `coins` / `min` / `side` / `results` from `coinflip_games`.
+   *
+   * @param dto - Bet history row
+   * @returns Dto with optional seed fields and game-specific verify fields
    */
   private async attachFairnessFields(dto: BetHistoryDto): Promise<BetHistoryDto> {
     const pair = await this.findGameSeedNoncePair(dto.gameId, dto.gameType);
@@ -78,7 +89,7 @@ export class BetHistoryService {
     if (!seedRow) {
       return dto;
     }
-    return {
+    let out: BetHistoryDto = {
       ...dto,
       nonce: pair.nonce,
       clientSeed: seedRow.clientSeed,
@@ -89,6 +100,30 @@ export class BetHistoryService {
           : undefined,
       seedStatus: seedRow.status,
     };
+
+    if (dto.gameType === DbGameSchema.CoinFlipGame) {
+      const [cf] = await this.db
+        .select({
+          coins: coinflipGames.coins,
+          min: coinflipGames.min,
+          side: coinflipGames.side,
+          results: coinflipGames.results,
+        })
+        .from(coinflipGames)
+        .where(eq(coinflipGames.id, dto.gameId))
+        .limit(1);
+      if (cf) {
+        out = {
+          ...out,
+          coinflipCoins: cf.coins,
+          coinflipMin: cf.min,
+          coinflipSide: cf.side,
+          coinflipResults: cf.results ?? undefined,
+        };
+      }
+    }
+
+    return out;
   }
 
   private async findGameSeedNoncePair(
