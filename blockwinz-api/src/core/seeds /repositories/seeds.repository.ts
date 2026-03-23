@@ -86,11 +86,15 @@ export class SeedsRepository {
     return null;
   }
 
-  async createSeed(request: CreateSeedRequestDto): Promise<SeedDto> {
+  async createSeed(
+    request: CreateSeedRequestDto,
+    tx?: DrizzleDb,
+  ): Promise<SeedDto> {
     this.logger.log(`Creating seed with request: ${JSON.stringify(request)}`);
+    const db = tx ?? this.db;
     const userId =
       typeof request.user === 'string' ? request.user : getUserId(request.user);
-    const [row] = await this.db
+    const [row] = await db
       .insert(seeds)
       .values({
         serverSeed: request.serverSeed,

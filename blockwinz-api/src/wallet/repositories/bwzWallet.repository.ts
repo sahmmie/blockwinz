@@ -55,9 +55,13 @@ export class BwzWalletRepository {
     };
   }
 
-  public async generateBwzWalletAddress(user: UserDto): Promise<WalletDto> {
+  public async generateBwzWalletAddress(
+    user: UserDto,
+    tx?: DrizzleDb,
+  ): Promise<WalletDto> {
+    const db = tx ?? this.db;
     const userId = getUserId(user);
-    const [existing] = await this.db
+    const [existing] = await db
       .select()
       .from(wallets)
       .where(
@@ -72,7 +76,7 @@ export class BwzWalletRepository {
       throw new NotAcceptableException('Wallet already exists');
     }
 
-    const [sameChainWallet] = await this.db
+    const [sameChainWallet] = await db
       .select()
       .from(wallets)
       .where(and(eq(wallets.userId, userId), eq(wallets.chain, CHAIN.SOLANA)))
@@ -93,7 +97,7 @@ export class BwzWalletRepository {
       publicKey = newAccount.publicKey;
     }
 
-    const [inserted] = await this.db
+    const [inserted] = await db
       .insert(wallets)
       .values({
         userId,

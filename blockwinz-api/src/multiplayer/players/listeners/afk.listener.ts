@@ -57,6 +57,35 @@ export class AfkListener {
   }
 
   /**
+   * Ends or refunds games when disconnect grace has expired (see `handleUserDisconnect`).
+   */
+  @Interval(5000)
+  async checkReconnectGraceExpiry(): Promise<void> {
+    const now = new Date();
+    const rows = await this.db
+      .select({ id: gameSessions.id })
+      .from(gameSessions)
+      .where(
+        and(
+          eq(gameSessions.gameStatus, MultiplayerSessionStatus.IN_PROGRESS),
+          isNotNull(gameSessions.reconnectGraceUntil),
+          lt(gameSessions.reconnectGraceUntil, now),
+        ),
+      );
+
+    for (const row of rows) {
+      try {
+        await this.orchestrator.applyReconnectGraceResolution(
+          row.id,
+          this.tracker,
+        );
+      } catch (e) {
+        this.logger.error(`Reconnect grace handling failed for ${row.id}`, e);
+      }
+    }
+  }
+
+  /**
    * Emits `player.afk` when socket tracker shows extended inactivity (hint only; authoritative timer is DB).
    */
   @Interval(10000)

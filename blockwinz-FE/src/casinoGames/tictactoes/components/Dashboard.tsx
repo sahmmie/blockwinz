@@ -1,12 +1,8 @@
 import BetAmount from '@/components/BetAmount/BetAmount';
 import ProfitOnWin from '@/components/ProfitOnWin/ProfitOnWin';
-import Segment from '@/components/Segment/Segment';
-import { Box } from '@chakra-ui/react';
-import { FunctionComponent, useState } from 'react';
-import { GameMode } from '@blockwinz/shared';
+import { Box, Button, Text, VStack } from '@chakra-ui/react';
+import { FunctionComponent } from 'react';
 import { useTictactoeGameContext } from '../context/TictactoeGameContext';
-import RiskLevelCard from '@/components/RiskLevelCard/RiskLevelCard';
-import { RiskLevel } from '../types';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import useWalletState from '@/hooks/useWalletState';
 import BetButton from '@/components/BetButton/BetButton';
@@ -14,11 +10,6 @@ import BetButton from '@/components/BetButton/BetButton';
 interface DashboardProps {}
 
 const Dashboard: FunctionComponent<DashboardProps> = () => {
-  const options = [
-    { label: 'Manual', value: 'manual' },
-    { label: 'Auto', value: 'auto' },
-  ];
-  const [selected, setSelected] = useState(options[0].value);
   const { state, actions } = useTictactoeGameContext();
 
   const {
@@ -26,39 +17,24 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     betAmountErrors,
     isLoading,
     profitOnWin,
-    mode,
     isActiveGame,
     hasEnded,
-    multiplier,
     isAnimating,
     isLoadingStart,
     currency,
+    matchQueued,
+    mpPhase,
+    publicLobbies,
   } = state;
   const { balances } = useWalletState();
 
   const ROUNDING_DECIMALS =
-    balances.find(c => c.currency === currency)?.decimals ||
+    balances.find((c) => c.currency === currency)?.decimals ||
     DEFAULT_ROUNDING_DECIMALS;
 
-  const { handleOnBet, handleBetAmountChange, setMultiplier } = actions;
-
-  const risks = [
-    { value: RiskLevel.LOW, title: 'Low' },
-    { value: RiskLevel.MEDIUM, title: 'Medium' },
-    { value: RiskLevel.HIGH, title: 'High' },
-  ];
-
-  const handleBetClick = () => {
-    if (mode === GameMode.Manual) {
-      handleOnBet();
-    } else {
-      //  TODO: Implement auto bet
-    }
-  };
+  const { handleOnBet, handleBetAmountChange } = actions;
 
   const showBetButton = !isActiveGame() || hasEnded();
-
-  const showAutoSegment = false;
 
   const renderBetButton = () => {
     return (
@@ -66,7 +42,7 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
         <BetButton
           disabled={isLoading || !!betAmountErrors.betAmount}
           loading={isLoading || isAnimating || isLoadingStart}
-          onClick={handleBetClick}
+          onClick={() => handleOnBet()}
         />
       )
     );
@@ -75,24 +51,53 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
   return (
     <>
       <Box pt={{ base: '0px', md: '26px' }} pl={'16px'} pr={'20px'}>
+        {matchQueued && (
+          <Text fontSize='sm' color='gray.400' mb={2}>
+            Finding an opponent…
+          </Text>
+        )}
+        {mpPhase === 'lobby' && (
+          <Button
+            size='sm'
+            variant='outline'
+            mb={3}
+            onClick={() => actions.leavePendingLobby()}>
+            Leave lobby
+          </Button>
+        )}
+        <VStack align='stretch' gap={2} mb={4}>
+          <Button
+            size='sm'
+            variant='surface'
+            onClick={() => void actions.hostPublicLobby()}>
+            Host public lobby
+          </Button>
+          <Button
+            size='sm'
+            variant='ghost'
+            onClick={() => void actions.refreshPublicLobbies()}>
+            Refresh public lobbies
+          </Button>
+          {publicLobbies?.map((lobby) => (
+            <Button
+              key={lobby._id}
+              size='xs'
+              variant='outline'
+              onClick={() => void actions.joinLobbyById(lobby._id)}>
+              Join — {lobby.betAmount} {lobby.currency} ({lobby.players?.length ?? 0}/
+              2)
+            </Button>
+          ))}
+        </VStack>
         <Box mt={'26px'} mb={'24px'} display={{ base: 'block', md: 'none' }}>
           {renderBetButton()}
         </Box>
-        {showAutoSegment && (
-          <Box mb={'24px'}>
-            <Segment
-              options={options}
-              selected={selected}
-              setSelected={setSelected}
-            />
-          </Box>
-        )}
         <Box>
           <BetAmount
             currency={currency}
             disabled={isLoading || !showBetButton}
             value={parseFloat(betAmount.toFixed(ROUNDING_DECIMALS))}
-            onChange={e => handleBetAmountChange(e)}
+            onChange={(e) => handleBetAmountChange(e)}
             error={betAmountErrors.betAmount}
           />
         </Box>
@@ -100,16 +105,6 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
           <ProfitOnWin
             value={profitOnWin.toFixed(ROUNDING_DECIMALS)}
             currency={currency}
-          />
-        </Box>
-
-        <Box mt={'24px'}>
-          <RiskLevelCard
-            risks={risks}
-            value={multiplier}
-            onChange={e => setMultiplier(e as RiskLevel)}
-            disabled={isLoading || !showBetButton}
-            defaultValue={risks[0].value}
           />
         </Box>
 

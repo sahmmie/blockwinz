@@ -63,11 +63,14 @@ export class WalletRepository {
     };
   }
 
-  public async generateWalletAddresses(user: UserDto): Promise<WalletDto[]> {
+  public async generateWalletAddresses(
+    user: UserDto,
+    tx?: DrizzleDb,
+  ): Promise<WalletDto[]> {
     const solWallet =
-      await this.solWalletRepository.generateSolWalletAddress(user);
+      await this.solWalletRepository.generateSolWalletAddress(user, tx);
     const bwzWallet =
-      await this.bwzWalletRepository.generateBwzWalletAddress(user);
+      await this.bwzWalletRepository.generateBwzWalletAddress(user, tx);
     return [solWallet, bwzWallet];
   }
 

@@ -145,93 +145,111 @@ export class AuthenticationRepository {
 
     const newUserId = randomUUID();
 
-    const [newProfileRow] = await this.db
-      .insert(profiles)
-      .values({
-        userId: newUserId,
-        canWithdraw: true,
-        isMuted: false,
-        isBanned: false,
-        isTurbo: false,
-      } as typeof profiles.$inferInsert)
-      .returning();
-    if (!newProfileRow) throw new Error('Failed to create profile');
+    const { newUserRow, newProfileRow, profileForUser, newSeed } =
+      await this.db.transaction(async (rawTx) => {
+        const tx = rawTx as unknown as DrizzleDb;
 
-    if (user.referralCode) {
-      const [referrerProfile] = await this.db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.referralCode, user.referralCode))
-        .limit(1);
-      if (referrerProfile) {
-        await this.db
-          .update(profiles)
+        const [createdProfile] = await tx
+          .insert(profiles)
+          .values({
+            userId: newUserId,
+            canWithdraw: true,
+            isMuted: false,
+            isBanned: false,
+            isTurbo: false,
+          } as typeof profiles.$inferInsert)
+          .returning();
+        if (!createdProfile) throw new Error('Failed to create profile');
+
+        if (user.referralCode) {
+          const [referrerProfile] = await tx
+            .select()
+            .from(profiles)
+            .where(eq(profiles.referralCode, user.referralCode))
+            .limit(1);
+          if (referrerProfile) {
+            await tx
+              .update(profiles)
+              .set({
+                referredBy: referrerProfile.userId,
+                updatedAt: new Date(),
+              } as Record<string, unknown>)
+              .where(eq(profiles.id, createdProfile.id));
+            await tx
+              .update(profiles)
+              .set({
+                referralCount: (referrerProfile.referralCount ?? 0) + 1,
+                updatedAt: new Date(),
+              } as Record<string, unknown>)
+              .where(eq(profiles.id, referrerProfile.id));
+          }
+        }
+        const [profileForUserRow] = await tx
+          .select()
+          .from(profiles)
+          .where(eq(profiles.id, createdProfile.id))
+          .limit(1);
+
+        const [createdUser] = await tx
+          .insert(users)
+          .values({
+            id: newUserId,
+            username: user.username,
+            email: user.email ?? null,
+            password: hashedPassword,
+            profileId: createdProfile.id,
+            lastLogin: new Date(),
+            futureClientSeed,
+            futureServerSeed,
+            futureServerSeedHash,
+            nonce: 0,
+            emailVerificationToken,
+            emailVerificationTokenExpires,
+            emailVerificationResendCount: 0,
+            emailVerified: false,
+          } as typeof users.$inferInsert)
+          .returning();
+        if (!createdUser) throw new Error('Failed to create user');
+
+        const seed = await this.seedsService.createSeed(
+          {
+            serverSeed,
+            serverSeedHash: serverHash,
+            clientSeed,
+            status: SeedStatus.ACTIVE,
+            user: newUserId,
+            deactivatedAt: null,
+          } as CreateSeedRequestDto,
+          tx,
+        );
+
+        await tx
+          .update(users)
           .set({
-            referredBy: referrerProfile.userId,
+            activeSeedId: seed._id ?? seed.id,
             updatedAt: new Date(),
           } as Record<string, unknown>)
-          .where(eq(profiles.id, newProfileRow.id));
-        await this.db
-          .update(profiles)
-          .set({
-            referralCount: (referrerProfile.referralCount ?? 0) + 1,
-            updatedAt: new Date(),
-          } as Record<string, unknown>)
-          .where(eq(profiles.id, referrerProfile.id));
-      }
-    }
-    const [profileForUser] = await this.db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.id, newProfileRow.id))
-      .limit(1);
+          .where(eq(users.id, newUserId));
 
-    const [newUserRow] = await this.db
-      .insert(users)
-      .values({
-        id: newUserId,
-        username: user.username,
-        email: user.email ?? null,
-        password: hashedPassword,
-        profileId: newProfileRow.id,
-        lastLogin: new Date(),
-        futureClientSeed,
-        futureServerSeed,
-        futureServerSeedHash,
-        nonce: 0,
-        emailVerificationToken,
-        emailVerificationTokenExpires,
-        emailVerificationResendCount: 0,
-        emailVerified: false,
-      } as typeof users.$inferInsert)
-      .returning();
-    if (!newUserRow) throw new Error('Failed to create user');
+        await this.walletRepository.generateWalletAddresses(
+          {
+            _id: newUserId,
+            id: newUserId,
+            username: createdUser.username,
+            email: createdUser.email ?? '',
+            password: '',
+            userAccounts: [UserAccountEnum.USER],
+          } as UserDto,
+          tx,
+        );
 
-    const newSeed = await this.seedsService.createSeed({
-      serverSeed,
-      serverSeedHash: serverHash,
-      clientSeed,
-      status: SeedStatus.ACTIVE,
-      user: newUserId,
-      deactivatedAt: null,
-    } as CreateSeedRequestDto);
-
-    await this.db
-      .update(users)
-      .set({
-        activeSeedId: newSeed._id ?? newSeed.id,
-        updatedAt: new Date(),
-      } as Record<string, unknown>)
-      .where(eq(users.id, newUserId));
-
-    await this.walletRepository.generateWalletAddresses({
-      _id: newUserId,
-      id: newUserId,
-      username: newUserRow.username,
-      email: newUserRow.email ?? '',
-      password: '',
-      userAccounts: [UserAccountEnum.USER],
-    } as UserDto);
+        return {
+          newUserRow: createdUser,
+          newProfileRow: createdProfile,
+          profileForUser: profileForUserRow ?? createdProfile,
+          newSeed: seed,
+        };
+      });
 
     if (user.email) {
       try {

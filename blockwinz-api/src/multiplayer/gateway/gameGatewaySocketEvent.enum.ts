@@ -8,6 +8,10 @@ export enum GameGatewaySocketEvent {
   LEAVE_GAME = 'leaveGame',
   QUICK_MATCH = 'quickMatch',
   LIST_PUBLIC_LOBBIES = 'listPublicLobbies',
+  /** Join Socket.IO room `room:{sessionId}` for realtime `game.*` events. */
+  JOIN_SESSION_ROOM = 'joinSessionRoom',
+  /** Leave the session room (socket stays connected). */
+  LEAVE_SESSION_ROOM = 'leaveSessionRoom',
 }
 
 export enum GameGatewayError {

@@ -5,19 +5,21 @@ import Dashboard from './components/Dashboard';
 import GameBoard from './components/GameBoard';
 import { MultiplayerGameTypeEnum } from '@blockwinz/shared';
 import { multiplayerGamesInfo } from '@/shared/constants/multiplayerGamesInfo.constant';
+import { SocketProvider } from '@/context/socketContext';
 
 interface TictactoeProps {}
 
 const Tictactoe: FunctionComponent<TictactoeProps> = () => {
   return (
-    <>
+    <SocketProvider namespace='game'>
       <TictactoeGameProvider>
         <GameDashboard
           game={multiplayerGamesInfo[MultiplayerGameTypeEnum.TicTacToeGame]}
           renderConfig={<Dashboard />}
-          renderGame={<GameBoard />}></GameDashboard>
+          renderGame={<GameBoard />}
+        />
       </TictactoeGameProvider>
-    </>
+    </SocketProvider>
   );
 };
 

@@ -55,9 +55,13 @@ export class SolWalletRepository {
     };
   }
 
-  public async generateSolWalletAddress(user: UserDto): Promise<WalletDto> {
+  public async generateSolWalletAddress(
+    user: UserDto,
+    tx?: DrizzleDb,
+  ): Promise<WalletDto> {
+    const db = tx ?? this.db;
     const userId = getUserId(user);
-    const [existing] = await this.db
+    const [existing] = await db
       .select()
       .from(wallets)
       .where(
@@ -76,7 +80,7 @@ export class SolWalletRepository {
       newAccount.privateKey,
       this.config,
     );
-    const [inserted] = await this.db
+    const [inserted] = await db
       .insert(wallets)
       .values({
         userId,

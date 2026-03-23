@@ -1,27 +1,75 @@
+/* eslint-disable react-refresh/only-export-components -- provider shares hook + types */
 import React, { createContext, useContext } from 'react';
-import { useTictactoeState } from '../hooks/useTictactoeState';
+import { useMultiplayerTictactoe } from '../hooks/useMultiplayerTictactoe';
+import { toaster } from '@/components/ui/toaster';
 
-const TictactoeGameContext = createContext<
-  ReturnType<typeof useTictactoeState> | undefined
->(undefined);
+type MpReturn = ReturnType<typeof useMultiplayerTictactoe>;
+
+export type TictactoeGameContextValue = {
+  opponentLabel: string;
+  state: MpReturn['state'];
+  actions: MpReturn['actions'] & {
+    handleSelectCell: (cellIndex: number) => void;
+    handleOnBet: () => void;
+  };
+};
+
+const TictactoeGameContext = createContext<TictactoeGameContextValue | undefined>(
+  undefined,
+);
 
 export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const gameControls = useTictactoeState();
+  const mp = useMultiplayerTictactoe();
+
+  const handleSelectCell = (cellIndex: number) => {
+    if (mp.state.mpPhase !== 'playing') {
+      if (mp.state.mpPhase === 'lobby') {
+        toaster.create({
+          title: 'Waiting for opponent',
+          type: 'info',
+        });
+      }
+      return;
+    }
+    if (mp.state.currentTurn !== mp.state.userIs) {
+      toaster.create({
+        title: "Opponent's turn",
+        type: 'info',
+      });
+      return;
+    }
+    if (mp.state.cells[cellIndex]) return;
+    void mp.actions.sendMove(cellIndex);
+  };
+
+  const handleOnBet = () => {
+    void mp.actions.quickMatch();
+  };
+
+  const value: TictactoeGameContextValue = {
+    opponentLabel: 'Opponent',
+    state: mp.state,
+    actions: {
+      ...mp.actions,
+      handleSelectCell,
+      handleOnBet,
+    },
+  };
 
   return (
-    <TictactoeGameContext.Provider value={gameControls}>
+    <TictactoeGameContext.Provider value={value}>
       {children}
     </TictactoeGameContext.Provider>
   );
 };
 
-export const useTictactoeGameContext = (): ReturnType<typeof useTictactoeState> => {
+export const useTictactoeGameContext = (): TictactoeGameContextValue => {
   const context = useContext(TictactoeGameContext);
   if (!context) {
     throw new Error(
-      'useTictactoeGameContext must be used within a GameControlsProvider',
+      'useTictactoeGameContext must be used within a TictactoeGameProvider',
     );
   }
   return context;

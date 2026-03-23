@@ -15,6 +15,6 @@ import { MultiplayerOrchestratorModule } from '../orchestrator/multiplayer-orche
     forwardRef(() => MultiplayerOrchestratorModule),
   ],
   providers: [PlayerSessionTrackerService, DisconnectionListener, AfkListener],
-  exports: [PlayerSessionTrackerService],
+  exports: [PlayerSessionTrackerService, DisconnectionListener],
 })
 export class PlayerSessionTrackerModule {}

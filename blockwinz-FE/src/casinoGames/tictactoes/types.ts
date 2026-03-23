@@ -1,6 +1,8 @@
 import { Currency } from "@blockwinz/shared"
 import { BetType } from "@/shared/types/core"
 
+export type MpPhase = 'idle' | 'queued' | 'lobby' | 'playing' | 'ended'
+
 export interface TicTacToeMove {
     move: Move
 }
@@ -108,4 +110,10 @@ export interface TictactoeState {
     tokenHash: string
     isTurboMode: boolean
     isAnimating: boolean
+    /** Multiplayer only */
+    mpPhase?: MpPhase
+    matchQueued?: boolean
+    publicLobbies?: Array<{ _id: string; betAmount: number; currency: string; players: string[] }>
+    turnDeadlineAt?: string | null
+    reconnectGraceUntil?: string | null
 }

@@ -9,14 +9,18 @@ interface TictactoeBoxProps {}
 const TictactoeBox: FunctionComponent<TictactoeBoxProps> = () => {
   const animSpeed = 500;
   const { state, actions } = useTictactoeGameContext();
-  const { cells, hasEnded, isActiveGame } = state;
+  const { cells, hasEnded, isActiveGame, mpPhase } = state;
   const { handleSelectCell } = actions;
 
   const selectCell = (cell: string, index: number) => {
     if (!isActiveGame()) {
+      const title =
+        mpPhase === 'lobby'
+          ? 'Waiting for an opponent to join'
+          : 'Use Quick match or join a lobby from the panel';
       return toaster.create({
-        title: 'Click bet button to start the game',
-        type: 'error',
+        title,
+        type: 'info',
       });
     }
     if (hasEnded() && isActiveGame()) {

@@ -62,6 +62,11 @@ export type CreateSessionPayload = {
   joinCode?: string;
 };
 
+/** Active session row plus hydrated per-game public state when `IN_PROGRESS`. */
+export type ActiveMultiplayerSessionDocument = GameSessionDocument & {
+  gameState?: unknown;
+};
+
 @Injectable()
 export class GameSessionService {
   private readonly logger = new Logger(GameSessionService.name);
@@ -200,11 +205,12 @@ export class GameSessionService {
 
   /**
    * Returns the current user's pending or in-progress session for a game type.
+   * When the session is `IN_PROGRESS`, attaches `gameState` from the multiplayer plugin public view.
    */
   async getActiveGame(
     user: UserDto,
     gameType: DbGameSchema,
-  ): Promise<GameSessionDocument | null> {
+  ): Promise<ActiveMultiplayerSessionDocument | null> {
     if (!gameType) throw new WsExceptionWithCode('Game type is required', 400);
     this.logger.log(`Getting active game for user ${user.username}`);
     const userId = getUserId(user);
@@ -224,7 +230,26 @@ export class GameSessionService {
       );
 
     const row = rows[0] ?? null;
-    return row ? this.rowToDocument(row) : null;
+    if (!row) {
+      return null;
+    }
+    const doc = this.rowToDocument(row);
+    if (
+      doc.gameStatus === MultiplayerSessionStatus.IN_PROGRESS &&
+      doc.gameId
+    ) {
+      const plugin = this.orchestrator.getPluginOrNull(gameType);
+      if (plugin) {
+        const state = await plugin.loadStateBySessionId(doc._id);
+        if (state) {
+          return {
+            ...doc,
+            gameState: plugin.toPublicView(state, userId),
+          };
+        }
+      }
+    }
+    return doc;
   }
 
   /**
@@ -413,9 +438,13 @@ export class GameSessionService {
       if (!sessionId) {
         throw new WsExceptionWithCode('sessionId is required', 400);
       }
+      let move = body.move as Record<string, unknown> | undefined;
+      if (move && 'column' in move && !('col' in move)) {
+        move = { ...move, col: move.column };
+      }
       return this.orchestrator.submitMove(user, {
         sessionId,
-        move: body.move,
+        move: move ?? body.move,
       });
     }
 
@@ -456,6 +485,24 @@ export class GameSessionService {
         updatedAt: new Date(),
       } as Record<string, unknown>)
       .where(eq(gameSessions.id, session.id));
+  }
+
+  /**
+   * Clears `reconnect_grace_until` when a player re-joins the session room or submits a move.
+   */
+  async clearReconnectGrace(sessionId: string): Promise<void> {
+    await this.db
+      .update(gameSessions)
+      .set({
+        reconnectGraceUntil: null,
+        updatedAt: new Date(),
+      } as Record<string, unknown>)
+      .where(
+        and(
+          eq(gameSessions.id, sessionId),
+          eq(gameSessions.gameStatus, MultiplayerSessionStatus.IN_PROGRESS),
+        ),
+      );
   }
 
   /**

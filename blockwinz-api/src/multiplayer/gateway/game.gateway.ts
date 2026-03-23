@@ -27,6 +27,7 @@ import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WsResponse } from 'src/shared/helpers/wsResponse.helper';
 import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
+import { DisconnectionListener } from '../players/listeners/disconnection.listener';
 
 @UseFilters(new WsExceptionFilter())
 @WebSocketGateway({ namespace: 'game', cors: SOCKET_IO_CORS })
@@ -40,6 +41,7 @@ export class GameGateway extends BaseGateway {
     private readonly gameSessionService: GameSessionService,
     private readonly matchmakingService: MatchmakingService,
     private readonly playerSessionTracker: PlayerSessionTrackerService,
+    private readonly disconnectionListener: DisconnectionListener,
     protected readonly eventEmitter: EventEmitter2,
     protected jwtService: JwtService,
     protected readonly redisService: RedisService,
@@ -241,11 +243,71 @@ export class GameGateway extends BaseGateway {
     }
   }
 
+  /**
+   * Joins the Socket.IO room for a session so `game.started`, `game.move`, and `game.finished` reach this client.
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.JOIN_SESSION_ROOM)
+  async joinSessionRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { sessionId: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      const session = await this.gameSessionService.getSessionById(
+        data.sessionId,
+      );
+      if (!session) {
+        throw new WsExceptionWithCode('Session not found', 404);
+      }
+      const userId = getUserId(user);
+      if (!session.players.map(String).includes(userId)) {
+        throw new WsExceptionWithCode('Not a player in this session', 403);
+      }
+      const room = `room:${data.sessionId}`;
+      await client.join(room);
+      (client.data as { multiplayerSessionId?: string }).multiplayerSessionId =
+        data.sessionId;
+      this.playerSessionTracker.markConnected(userId, data.sessionId);
+      this.disconnectionListener.clearTimeoutForPlayer(userId);
+      await this.gameSessionService.clearReconnectGrace(data.sessionId);
+      return WsResponse.success({ joined: true, sessionId: data.sessionId });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Join session room failed';
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: msg,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Leaves the session Socket.IO room (e.g. UI navigated away) without ending the match.
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.LEAVE_SESSION_ROOM)
+  async leaveSessionRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { sessionId: string },
+  ) {
+    try {
+      const room = `room:${data.sessionId}`;
+      await client.leave(room);
+      delete (client.data as { multiplayerSessionId?: string })
+        .multiplayerSessionId;
+      return WsResponse.success({ left: true, sessionId: data.sessionId });
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: (error as Error).message,
+      });
+      return WsResponse.error((error as Error).message);
+    }
+  }
+
   async handleDisconnect(client: Socket) {
     try {
       const userId = client.data?.userId as string | undefined;
       await super.handleDisconnect(client);
       if (userId) {
+        this.playerSessionTracker.markDisconnected(userId);
         await this.gameSessionService.handleUserDisconnect(userId);
       }
       this.gameSessionService.handleDisconnect(client.id);

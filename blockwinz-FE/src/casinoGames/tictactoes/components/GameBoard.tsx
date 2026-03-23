@@ -8,6 +8,7 @@ interface GameBoardProps {}
 const GameBoard: FunctionComponent<GameBoardProps> = () => {
   const {
     state: { userIs, aiIs },
+    opponentLabel,
   } = useTictactoeGameContext();
 
   const usersList = [
@@ -19,7 +20,7 @@ const GameBoard: FunctionComponent<GameBoardProps> = () => {
       userIs: userIs,
     },
     {
-      label: 'Opponent',
+      label: opponentLabel,
       value: 'opponent',
       color: '#FFFFFF',
       bg: '#5454638C',
