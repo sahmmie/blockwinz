@@ -11,12 +11,16 @@ export class GameRenderer {
     public min: number;
     public coinType: number;
     private coinsRenderer: Coins;
+    private readonly gameLoopBound: () => void;
+    /** Set as soon as teardown begins so async `setContainer` can bail without racing renders. */
+    private destroyed = false;
 
     constructor(coins: number, min: number, coinType: number) {
         this.coins = coins;
         this.min = min;
         this.coinType = coinType;
         this.coinsRenderer = new Coins(10, coins, min, coinType); // Assuming max coins is 10
+        this.gameLoopBound = this.gameLoop.bind(this);
     }
 
     public async setContainer(container: HTMLDivElement): Promise<void> {
@@ -30,12 +34,21 @@ export class GameRenderer {
                 resizeTo: container,
                 width: container.clientWidth,
                 height: container.clientHeight,
+                /** Dedicated ticker so verify-modal teardown never stops the main game’s loop. */
+                sharedTicker: false,
             });
-            this.app.ticker.add(this.gameLoop.bind(this));
+            if (this.destroyed) {
+                this.tearDownPixiApplication();
+                return;
+            }
+            this.app.ticker.add(this.gameLoopBound);
             this.app.stage.addChild(this.coinsRenderer.getContainer());
         } else {
             this.app.resizeTo = container;
         }
+
+        await this.coinsRenderer.ready;
+        if (this.destroyed) return;
 
         this.resizeCallback = () => {
             setAspectR(container);
@@ -64,7 +77,9 @@ export class GameRenderer {
         this.coins = coins;
         this.min = min;
         this.coinType = coinType;
-        this.coinsRenderer.updateCoins(coins, min, coinType);
+        void this.coinsRenderer.ready.then(() => {
+            this.coinsRenderer.updateCoins(coins, min, coinType);
+        });
     }
 
     public get(results: number[], multiplier: number, status: BetStatus) {
@@ -86,13 +101,38 @@ export class GameRenderer {
     public gameLoop(): void {
     }
 
-    public destroy(): void {
-        window.removeEventListener('resize', this.resizeCallback);
+    /**
+     * Stops rendering, removes the coin scene from the stage, then destroys the app.
+     * Order matters: the WebGL batcher must not run another frame while children are mid-teardown.
+     */
+    private tearDownPixiApplication(): void {
         const app = this.app;
         this.app = undefined;
         if (!app) return;
 
-        this.coinsRenderer.killAnimations();
+        try {
+            app.ticker.stop();
+        } catch {
+            /* noop */
+        }
+
+        try {
+            app.ticker.remove(this.gameLoopBound);
+        } catch {
+            /* noop */
+        }
+
+        const coinsRoot = this.coinsRenderer.getContainer();
+        try {
+            coinsRoot.parent?.removeChild(coinsRoot);
+            coinsRoot.destroy({
+                children: true,
+                texture: false,
+                textureSource: false,
+            });
+        } catch {
+            /* noop */
+        }
 
         // Pixi v8 ResizePlugin: detach resize target first or destroy() can throw
         // ("this._cancelResize is not a function").
@@ -111,11 +151,20 @@ export class GameRenderer {
         try {
             app.destroy(true, {
                 children: true,
-                texture: true,
+                texture: false,
+                textureSource: false,
             });
         } catch {
             /* e.g. init still in flight on unmount */
         }
+    }
+
+    public destroy(): void {
+        if (this.destroyed) return;
+        this.destroyed = true;
+        window.removeEventListener('resize', this.resizeCallback);
+        this.coinsRenderer.dispose();
+        this.tearDownPixiApplication();
     }
 }
 

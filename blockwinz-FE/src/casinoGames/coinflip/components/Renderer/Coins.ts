@@ -25,6 +25,11 @@ export class Coins {
     private idleTossTweens: gsap.core.Tween[] = [];
     /** `flipCoins` defers `onResults`; cleared on teardown so callbacks don’t run after destroy. */
     private flipCoinsTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    /** Set when disposing so late texture load does not run init over a torn-down renderer. */
+    private destroyed = false;
+    private _readyResolve!: () => void;
+    /** Resolves after textures load, sprites exist, and initial `updateCoins` has run. */
+    readonly ready: Promise<void>;
     public onResults: (results: number[], multiplier: number, status: BetStatus) => void;
 
     constructor(maxCoins: number, coins: number, min: number, coinType: number) {
@@ -37,11 +42,20 @@ export class Coins {
         this.coinType = coinType;
         this.onResults = () => { };
 
-        (async () => {
-            this.goldTexture = await Assets.load(goldTexture);
-            this.silverTexture = await Assets.load(silverTexture);
-            this.initializeCoins();
-            this.updateCoins(coins, min, coinType);
+        this.ready = new Promise<void>(resolve => {
+            this._readyResolve = resolve;
+        });
+
+        void (async () => {
+            try {
+                this.goldTexture = await Assets.load(goldTexture);
+                this.silverTexture = await Assets.load(silverTexture);
+                if (this.destroyed) return;
+                this.initializeCoins();
+                this.updateCoins(coins, min, coinType);
+            } finally {
+                this._readyResolve();
+            }
         })();
     }
 
@@ -112,6 +126,8 @@ export class Coins {
     }
 
     public updateCoins(count: number, min: number, coinType: number) {
+        if (this.destroyed) return;
+        if (this.coins.length === 0) return;
         const oldCoinStates = [...this.coinStates];
         const oldCurrentCoins = this.currentCoins;
         this.currentCoins = Math.min(count, this.maxCoins);
@@ -241,6 +257,7 @@ export class Coins {
             duration: this.flipSpeed * this.flipSpeedMul,
             ease: 'power2.in',
             onComplete: () => {
+                if (this.destroyed) return;
                 hiddenCoin.visible = false;
                 hiddenCoin.scale.set(this.scl, this.scl); // Reset scale
                 gsap.to(targetCoin.scale, {
@@ -255,6 +272,7 @@ export class Coins {
     }
 
     public flipCoins(newStates: number[], multiplier: number, status: BetStatus) {
+        if (this.destroyed) return;
         this.stopIdleToss();
         if (this.flipCoinsTimeoutId != null) {
             clearTimeout(this.flipCoinsTimeoutId);
@@ -305,6 +323,12 @@ export class Coins {
             gsap.killTweensOf(silverCoin);
             gsap.killTweensOf(silverCoin.scale);
         }
+    }
+
+    /** Call before `Application.destroy` so async init and the ticker cannot race the teardown. */
+    public dispose(): void {
+        this.destroyed = true;
+        this.killAnimations();
     }
 
     public getContainer(): Container {

@@ -38,6 +38,9 @@ export function CoinFlipOutcomeGameCanvas(props: CoinFlipOutcomeGameCanvasProps)
     const el = containerRef.current;
     if (!el) return;
 
+    /** Avoid overlapping Pixi apps: async `destroy()` can lag behind the next effect run. */
+    el.replaceChildren();
+
     const renderer = new GameRenderer(coins, min, coinType);
     renderer.setTurbo(true);
     let cancelled = false;
@@ -60,8 +63,9 @@ export function CoinFlipOutcomeGameCanvas(props: CoinFlipOutcomeGameCanvasProps)
 
     return () => {
       cancelled = true;
-      void ready.finally(() => {
-        renderer.destroy();
+      renderer.destroy();
+      void ready.catch(() => {
+        /* teardown errors are handled inside GameRenderer */
       });
     };
   }, [
