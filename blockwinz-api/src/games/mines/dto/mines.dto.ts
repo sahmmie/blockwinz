@@ -9,6 +9,7 @@ import {
   IsEnum,
   IsArray,
   IsString,
+  IsUUID,
 } from '@nestjs/class-validator';
 import { MinesGameStatus } from '../enums/mines.enums';
 import { SpecificGameRequestDto } from 'src/shared/dtos/gameRequest.dto';
@@ -102,6 +103,15 @@ export class MinesResponseDto {
 
 export class RevealMineDto {
   @ApiProperty({
+    format: 'uuid',
+    required: true,
+    description: 'Open mines game id',
+    example: '19cba1db-54f2-4e8c-9fae-ece2ae1787b1',
+  })
+  @IsUUID('4', { message: 'gameId must be a valid UUID' })
+  gameId: string;
+
+  @ApiProperty({
     type: 'number',
     required: true,
     description: 'Mine position',
@@ -111,6 +121,17 @@ export class RevealMineDto {
   @Min(0, { message: 'Mine position must be greater than or equal to 0' })
   @Max(24, { message: 'Mine position must be less than 25' })
   position: number;
+}
+
+export class MinesCashoutDto {
+  @ApiProperty({
+    format: 'uuid',
+    required: true,
+    description: 'Open mines game id to cash out',
+    example: '19cba1db-54f2-4e8c-9fae-ece2ae1787b1',
+  })
+  @IsUUID('4', { message: 'gameId must be a valid UUID' })
+  gameId: string;
 }
 
 export class MinesAutoBetDto extends SpecificGameRequestDto {

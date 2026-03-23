@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { MinesService } from '../mines.service';
 import {
+  MinesCashoutDto,
   MinesResponseDto,
   RevealMineDto,
   StartMineDto,
@@ -71,13 +72,17 @@ export class MinesController {
 
   @Post('cashout')
   @ApiOperation({ summary: 'Cashout current active mines game' })
+  @ApiBody({ type: MinesCashoutDto })
   @ApiOkResponse({
     status: 201,
     description: 'Game cashed out successfully',
     type: MinesResponseDto,
   })
-  async cashout(@CurrentUser() user: UserRequestI): Promise<MinesResponseDto> {
-    return await this.minesService.cashout(user);
+  async cashout(
+    @CurrentUser() user: UserRequestI,
+    @Body() request: MinesCashoutDto,
+  ): Promise<MinesResponseDto> {
+    return await this.minesService.cashout(user, request);
   }
 
   @Get('active-game')

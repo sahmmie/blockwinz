@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { stringify } from 'flatted';
 import {
+  MinesCashoutDto,
   MinesResponseDto,
   RevealMineDto,
   StartMineDto,
@@ -196,10 +197,12 @@ export class MinesService {
       .transaction(async (tx) => {
         const txDb = tx as unknown as DrizzleDb;
 
-        const gameRow = await this.minesGameRepository.findOpenGameByUserId(
-          txDb,
-          String(player._id),
-        );
+        const gameRow =
+          await this.minesGameRepository.findOpenGameByIdAndUserId(
+            txDb,
+            data.gameId,
+            String(player._id),
+          );
 
         if (!gameRow) {
           throw new NotFoundException('Game not found');
@@ -312,15 +315,20 @@ export class MinesService {
       });
   }
 
-  async cashout(player: UserRequestI): Promise<MinesResponseDto> {
+  async cashout(
+    player: UserRequestI,
+    data: MinesCashoutDto,
+  ): Promise<MinesResponseDto> {
     return await this.db
       .transaction(async (tx) => {
         const txDb = tx as unknown as DrizzleDb;
 
-        const gameRow = await this.minesGameRepository.findOpenGameByUserId(
-          txDb,
-          String(player._id),
-        );
+        const gameRow =
+          await this.minesGameRepository.findOpenGameByIdAndUserId(
+            txDb,
+            data.gameId,
+            String(player._id),
+          );
 
         if (!gameRow) {
           throw new NotFoundException('Game not found');

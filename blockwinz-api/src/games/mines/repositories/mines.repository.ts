@@ -84,4 +84,23 @@ export class MinesRepository {
       .limit(1);
     return row;
   }
+
+  async findOpenGameByIdAndUserId(
+    db: DrizzleDb,
+    gameId: string,
+    userId: string,
+  ): Promise<MinesGameSelect | undefined> {
+    const [row] = await db
+      .select()
+      .from(minesGames)
+      .where(
+        and(
+          eq(minesGames.id, gameId),
+          eq(minesGames.userId, userId),
+          eq(minesGames.betResultStatus, MinesGameStatus.OPEN),
+        ),
+      )
+      .limit(1);
+    return row;
+  }
 }
