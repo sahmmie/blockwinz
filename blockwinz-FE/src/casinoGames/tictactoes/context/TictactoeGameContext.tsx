@@ -25,14 +25,33 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
   const { joinLobbyById } = mp.actions;
   const location = useLocation();
   const navigate = useNavigate();
-  const hubJoinProcessed = useRef<string | null>(null);
+  /** Prevents duplicate `joinGame` from URL + hub state in the same visit. */
+  const processedJoinKey = useRef<string | null>(null);
+
+  /** Deep link: `/multiplayer/tictactoe?session=…&code=…` (optional code for private). */
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const session = params.get('session')?.trim();
+    if (!session) return;
+    const code = params.get('code')?.trim();
+    const key = `join:url:${session}:${code ?? ''}`;
+    if (processedJoinKey.current === key) return;
+    processedJoinKey.current = key;
+    navigate(
+      { pathname: location.pathname, search: '' },
+      { replace: true, state: {} },
+    );
+    void joinLobbyById(session, code || undefined);
+  }, [location.search, location.pathname, navigate, joinLobbyById]);
 
   /** Join flow from `/lobbies` hub (`navigate(..., { state: { pendingJoinLobbyId } })`). */
   useEffect(() => {
     const joinId = (location.state as { pendingJoinLobbyId?: string } | null)
       ?.pendingJoinLobbyId;
-    if (!joinId || hubJoinProcessed.current === joinId) return;
-    hubJoinProcessed.current = joinId;
+    if (!joinId) return;
+    const key = `join:state:${joinId}`;
+    if (processedJoinKey.current === key) return;
+    processedJoinKey.current = key;
     navigate(
       { pathname: location.pathname, search: location.search },
       { replace: true, state: {} },

@@ -59,7 +59,7 @@ const REFRESH_MS = 8000;
  * Pass `null` when the selected tab has no live title yet (empty list).
  */
 export function useLobbyHubList(gameType: MultiplayerGameTypeEnum | null) {
-  const { emit } = useSocketContext();
+  const { emit, on, off } = useSocketContext();
   const [lobbies, setLobbies] = useState<MultiplayerSessionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
@@ -121,6 +121,27 @@ export function useLobbyHubList(gameType: MultiplayerGameTypeEnum | null) {
     }, REFRESH_MS);
     return () => window.clearInterval(id);
   }, [refresh]);
+
+  /** Live updates on `/lobbies` when the hub is not static/mock. */
+  useEffect(() => {
+    if (isLobbyHubStatic() || isMultiplayerLobbyMock()) return;
+    if (gameType === null) return;
+    const schema = dbGameSchemaForLobbyList(gameType);
+    if (schema === null) return;
+
+    const bump = () => {
+      void refresh({ silent: true });
+    };
+    on('lobby.updated', bump);
+    on('lobby.expired', bump);
+    void emitAck(emit, 'joinLobbyRoom', { gameType: schema }).catch(() => {});
+
+    return () => {
+      off('lobby.updated', bump);
+      off('lobby.expired', bump);
+      void emitAck(emit, 'leaveLobbyRoom', { gameType: schema }).catch(() => {});
+    };
+  }, [emit, on, off, gameType, refresh]);
 
   return { lobbies, isLoading, lastFetchedAt, refresh };
 }

@@ -1,4 +1,4 @@
-import { Box, HStack, Text } from '@chakra-ui/react';
+import { Box, HStack } from '@chakra-ui/react';
 import { FunctionComponent, useEffect, useState } from 'react';
 import { Currency } from '@blockwinz/shared';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ export interface MultiplayerPanelProps {
 }
 
 /**
- * Unified multiplayer controls: stake, tab bar (match / browse / host / code).
+ * Unified multiplayer controls: stake, tab bar (host / browse / invite / match).
  * Game title lives in `GameInfo` below the board, not repeated here.
  */
 const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
@@ -60,7 +60,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   onJoinLobby,
   onLeaveLobby,
 }) => {
-  const [tab, setTab] = useState<MultiplayerPanelTab>('quick');
+  const [tab, setTab] = useState<MultiplayerPanelTab>('create');
 
   useEffect(() => {
     if (tab !== 'lobbies') return;

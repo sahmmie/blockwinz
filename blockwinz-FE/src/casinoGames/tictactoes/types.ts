@@ -1,6 +1,9 @@
 import { Currency } from "@blockwinz/shared"
 import { BetType } from "@/shared/types/core"
-import type { MultiplayerSessionRow } from "@/casinoGames/multiplayer/types"
+import type {
+  HostInviteInfo,
+  MultiplayerSessionRow,
+} from "@/casinoGames/multiplayer/types"
 
 export type MpPhase = 'idle' | 'queued' | 'lobby' | 'playing' | 'ended'
 
@@ -119,4 +122,6 @@ export interface TictactoeState {
     userId?: string | null
     turnDeadlineAt?: string | null
     reconnectGraceUntil?: string | null
+    /** Populated after hosting a lobby until dismissed. */
+    hostInvite?: HostInviteInfo | null
 }

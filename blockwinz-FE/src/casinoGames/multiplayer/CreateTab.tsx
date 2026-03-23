@@ -133,20 +133,21 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
       )}
 
       <Box
+      display='flex'
+      justifyContent='space-between'
         borderRadius='md'
         borderWidth='1px'
         borderColor='whiteAlpha.150'
         bg='blackAlpha.400'
         px={3}
         py={3}>
+           <Text as='span' fontSize='sm' color='gray.200'>
+            Exact stake only
+          </Text>
         <Switch
           labelDirection='right'
           checked={exactStake}
-          onCheckedChange={({ checked }) => setExactStake(checked)}>
-          <Text as='span' fontSize='sm' color='gray.200'>
-            Exact stake only (joiners must match this amount)
-          </Text>
-        </Switch>
+          onCheckedChange={({ checked }) => setExactStake(checked)}/>
       </Box>
 
       <Button

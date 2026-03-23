@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import type { MultiplayerPanelTab } from './types';
 
 const OPTIONS: { label: string; value: MultiplayerPanelTab }[] = [
-  { label: 'Match', value: 'quick' },
-  { label: 'Browse', value: 'lobbies' },
   { label: 'Host', value: 'create' },
-  { label: 'Code', value: 'join' },
+  { label: 'Browse', value: 'lobbies' },
+  { label: 'Join', value: 'join' },
+  { label: 'Match', value: 'quick' },
 ];
 
 /**

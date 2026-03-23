@@ -4,6 +4,7 @@ import { useTictactoeGameContext } from '../context/TictactoeGameContext';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import useWalletState from '@/hooks/useWalletState';
 import MultiplayerPanel from '@/casinoGames/multiplayer/MultiplayerPanel';
+import HostInviteModal from '@/casinoGames/multiplayer/HostInviteModal';
 interface DashboardProps {}
 
 const Dashboard: FunctionComponent<DashboardProps> = () => {
@@ -21,6 +22,7 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     matchQueued,
     mpPhase,
     publicLobbies,
+    hostInvite,
   } = state;
   const { balances } = useWalletState();
 
@@ -28,13 +30,18 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     balances.find((c) => c.currency === currency)?.decimals ||
     DEFAULT_ROUNDING_DECIMALS;
 
-  const { handleBetAmountChange } = actions;
+  const { handleBetAmountChange, dismissHostInvite } = actions;
 
   const showBetButton = !isActiveGame() || hasEnded();
   const betDisabled = isLoading || !showBetButton;
 
   return (
     <>
+      <HostInviteModal
+        open={Boolean(hostInvite)}
+        onClose={() => dismissHostInvite()}
+        invite={hostInvite ?? null}
+      />
       <Box
         pt={{ base: '0px', md: '16px' }}
         pl={'16px'}

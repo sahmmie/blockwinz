@@ -21,6 +21,7 @@ import useModal, { ModalProps } from '@/hooks/useModal';
 import GameStatusModal from '../components/modals/GameStatusModal';
 import type {
   CreateLobbyParams,
+  HostInviteInfo,
   MultiplayerSessionRow,
 } from '@/casinoGames/multiplayer/types';
 import { MOCK_MULTIPLAYER_LOBBIES } from '@/casinoGames/multiplayer/multiplayerLobbyMock';
@@ -95,6 +96,7 @@ export function useMultiplayerTictactoe() {
   const [publicLobbies, setPublicLobbies] = useState<MultiplayerSessionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [matchQueued, setMatchQueued] = useState(false);
+  const [hostInvite, setHostInvite] = useState<HostInviteInfo | null>(null);
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<IErrorMsg>({
     title: '',
@@ -442,6 +444,16 @@ export function useMultiplayerTictactoe() {
         setSessionId(row._id);
         setSessionRow(row);
         setPhase('lobby');
+        setHostInvite({
+          sessionId: row._id,
+          visibility: params.visibility,
+          plaintextJoinCode:
+            params.visibility === 'private'
+              ? params.joinCode?.trim()
+              : undefined,
+          betAmount: stake,
+          currency: cur,
+        });
         await joinSessionRoom(row._id);
       } catch (e) {
         toaster.create({
@@ -474,6 +486,48 @@ export function useMultiplayerTictactoe() {
       setPublicLobbies([]);
     }
   }, [emit]);
+
+  /** Subscribe to lobby list updates for this game type (Browse tab + hub). */
+  useEffect(() => {
+    if (isMultiplayerLobbyMock()) return;
+
+    const onLobbyUpdated = () => {
+      void refreshPublicLobbies();
+    };
+    const onLobbyExpired = () => {
+      void refreshPublicLobbies();
+    };
+
+    on('lobby.updated', onLobbyUpdated);
+    on('lobby.expired', onLobbyExpired);
+
+    void emitAck(emit, 'joinLobbyRoom', { gameType: GAME_TYPE }).catch(() => {
+      /* socket may still be connecting */
+    });
+
+    return () => {
+      off('lobby.updated', onLobbyUpdated);
+      off('lobby.expired', onLobbyExpired);
+      void emitAck(emit, 'leaveLobbyRoom', { gameType: GAME_TYPE }).catch(
+        () => {},
+      );
+    };
+  }, [emit, on, off, refreshPublicLobbies]);
+
+  /** Quick match: server notifies this client when a pairing is ready. */
+  useEffect(() => {
+    if (isMultiplayerLobbyMock()) return;
+
+    const onMatchReady = () => {
+      stopPolling();
+      setMatchQueued(false);
+      void syncActiveSession();
+    };
+    on('match.ready', onMatchReady);
+    return () => {
+      off('match.ready', onMatchReady);
+    };
+  }, [on, off, syncActiveSession, stopPolling]);
 
   const joinLobbyById = useCallback(
     async (gameId: string, joinCode?: string) => {
@@ -525,7 +579,12 @@ export function useMultiplayerTictactoe() {
     setPhase('idle');
     stopPolling();
     setMatchQueued(false);
+    setHostInvite(null);
   }, [emit, sessionId, leaveSessionRoom, stopPolling]);
+
+  const dismissHostInvite = useCallback(() => {
+    setHostInvite(null);
+  }, []);
 
   const sendMove = useCallback(
     async (cellIndex: number) => {
@@ -558,6 +617,7 @@ export function useMultiplayerTictactoe() {
     setGameState(null);
     setPhase('idle');
     setMatchQueued(false);
+    setHostInvite(null);
   }, [sessionId, leaveSessionRoom, stopPolling]);
 
   const { userIs, opponentIs } = userSymbols();
@@ -667,6 +727,7 @@ export function useMultiplayerTictactoe() {
     turnDeadlineAt: sessionRow?.turnDeadlineAt ?? null,
     reconnectGraceUntil: sessionRow?.reconnectGraceUntil ?? null,
     userId,
+    hostInvite,
   };
 
   return {
@@ -686,6 +747,7 @@ export function useMultiplayerTictactoe() {
       resetMultiplayer,
       handleBetAmountChange,
       syncActiveSession,
+      dismissHostInvite,
     },
   };
 }

@@ -30,3 +30,12 @@ export type CreateLobbyParams = {
 };
 
 export type MultiplayerPanelTab = 'quick' | 'lobbies' | 'create' | 'join';
+
+/** Shown after `newGame`; join code is only available client-side for private lobbies. */
+export type HostInviteInfo = {
+  sessionId: string;
+  visibility: 'public' | 'private';
+  plaintextJoinCode?: string;
+  betAmount: number;
+  currency: string;
+};
