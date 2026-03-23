@@ -10,7 +10,6 @@ export type TictactoeGameContextValue = {
   state: MpReturn['state'];
   actions: MpReturn['actions'] & {
     handleSelectCell: (cellIndex: number) => void;
-    handleOnBet: () => void;
   };
 };
 
@@ -44,17 +43,12 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
     void mp.actions.sendMove(cellIndex);
   };
 
-  const handleOnBet = () => {
-    void mp.actions.quickMatch();
-  };
-
   const value: TictactoeGameContextValue = {
     opponentLabel: 'Opponent',
     state: mp.state,
     actions: {
       ...mp.actions,
       handleSelectCell,
-      handleOnBet,
     },
   };
 

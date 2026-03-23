@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { eq } from 'drizzle-orm';
 import { Currency } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
@@ -34,6 +35,7 @@ export class MultiplayerSettlementService {
     private readonly walletRepository: WalletRepository,
     private readonly gameHistoryService: GameHistoryService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -107,9 +109,33 @@ export class MultiplayerSettlementService {
             currency,
             txDb,
           );
+          const pot = bet * 2;
+          const rakeBps = Math.min(
+            10_000,
+            Math.max(
+              0,
+              Number(this.config.get('MULTIPLAYER_RAKE_BPS', 0)),
+            ),
+          );
+          const rakeReceiver = this.config.get<string>(
+            'MULTIPLAYER_RAKE_RECEIVER_USER_ID',
+          );
+          let winnerCredit = pot;
+          if (rakeBps > 0 && rakeReceiver) {
+            const rakeAmount = Math.floor((pot * rakeBps) / 10_000);
+            winnerCredit = pot - rakeAmount;
+            if (rakeAmount > 0) {
+              await this.walletRepository.creditPlayer(
+                asUser(rakeReceiver),
+                rakeAmount,
+                currency,
+                txDb,
+              );
+            }
+          }
           await this.walletRepository.creditPlayer(
             asUser(winnerId),
-            bet * 2,
+            winnerCredit,
             currency,
             txDb,
           );

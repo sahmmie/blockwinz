@@ -21,8 +21,6 @@ import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
-import { TicTacToeStatus } from 'src/games/tictactoe/enums/tictactoe.enums';
-import type { MultiplayerTicTacToeDto } from '../game-engine/types/multiplayer-tictactoe.types';
 import type { PlayerSessionTrackerService } from '../players/player-session-tracker.service';
 
 function asUser(id: string): UserDto {
@@ -187,50 +185,70 @@ export class MultiplayerSessionOrchestrator {
   }
 
   /**
-   * Forfeits the current turn holder when the turn deadline passes (if policy is `forfeit`).
+   * When `turn_deadline_at` has passed: delegates to plugin (`forfeit` or `auto_move`).
    */
-  async applyTurnTimeoutForfeit(sessionId: string): Promise<void> {
+  async handleTurnDeadline(sessionId: string): Promise<void> {
     const session = await this.gameSessionService.getSessionById(sessionId);
-    if (!session?.gameId || session.gameStatus !== MultiplayerSessionStatus.IN_PROGRESS) {
+    if (
+      !session?.gameId ||
+      session.gameStatus !== MultiplayerSessionStatus.IN_PROGRESS
+    ) {
       return;
     }
 
     const plugin = this.registry.tryGet(session.gameType as DbGameSchema);
-    if (!plugin || plugin.turnPolicy.onTurnTimeout !== 'forfeit') return;
+    if (!plugin) {
+      return;
+    }
 
     const state = await plugin.loadStateBySessionId(sessionId);
-    if (!state) return;
+    if (!state) {
+      return;
+    }
 
-    const players = session.players;
-    const forfeitOutcome = this.resolveForfeitWinners(players, state, plugin);
-    if (!forfeitOutcome) return;
+    const ctx = this.toCtx(session);
+    const result = await plugin.resolveTurnTimeout(ctx, state);
+    if (!result) {
+      return;
+    }
 
-    const persisted =
-      plugin.gameType === DbGameSchema.TicTacToeGame
-        ? await this.buildAndPersistTicTacToeForfeitWin(
-            plugin,
-            sessionId,
-            state as MultiplayerTicTacToeDto,
-            forfeitOutcome.winnerUserIds[0] ?? null,
-            'turn_timeout',
-          )
-        : state;
+    const saved = await plugin.persistState(sessionId, result.newState);
 
+    const nextDeadline = result.terminal
+      ? null
+      : new Date(Date.now() + plugin.turnPolicy.turnMs);
     await this.gameSessionService.updateSessionFields(this.db, sessionId, {
-      turnDeadlineAt: null,
+      turnDeadlineAt: nextDeadline,
       reconnectGraceUntil: null,
     });
 
-    await this.settlement.settleSession(session, forfeitOutcome, persisted);
+    if (!result.terminal) {
+      const lastMove = (
+        saved as { moveHistory?: Array<{ userId: string }> }
+      )?.moveHistory?.at(-1);
+      const moverId = lastMove?.userId ?? 'system';
+      this.eventEmitter.emit('game.move', {
+        sessionId,
+        playerId: moverId,
+        move: { auto: true },
+        gameState: plugin.toPublicView(saved, moverId),
+      });
+      return;
+    }
+
+    if (result.outcome) {
+      await this.settlement.settleSession(session, result.outcome, saved);
+    }
+
     this.eventEmitter.emit('game.finished', {
       sessionId,
-      winner: forfeitOutcome.winnerUserIds[0] ?? null,
-      finalState: persisted,
+      winner: result.outcome?.winnerUserIds?.[0] ?? null,
+      finalState: saved,
     });
   }
 
   /**
-   * Applies draw or win when `reconnect_grace_until` has passed: both offline → refund draw; one offline → other wins.
+   * Applies draw or win when `reconnect_grace_until` has passed (plugin-driven).
    */
   async applyReconnectGraceResolution(
     sessionId: string,
@@ -247,178 +265,57 @@ export class MultiplayerSessionOrchestrator {
     }
 
     const plugin = this.registry.tryGet(session.gameType as DbGameSchema);
-    if (!plugin || session.gameType !== DbGameSchema.TicTacToeGame) {
+    if (!plugin) {
       await this.gameSessionService.updateSessionFields(this.db, sessionId, {
         reconnectGraceUntil: null,
       });
       return;
     }
 
-    const [p1, p2] = session.players;
-    if (!p1 || !p2) {
-      return;
-    }
-
-    const s1 = tracker.getPlayerStatus(p1);
-    const s2 = tracker.getPlayerStatus(p2);
-    const disc1 = !!s1 && !s1.connected;
-    const disc2 = !!s2 && !s2.connected;
-
-    const state = (await plugin.loadStateBySessionId(
-      sessionId,
-    )) as MultiplayerTicTacToeDto | null;
+    const state = await plugin.loadStateBySessionId(sessionId);
     if (!state) {
       return;
     }
 
-    if (disc1 && disc2) {
-      const drawState = await this.buildAndPersistTicTacToeDraw(plugin, sessionId, state);
+    const ctx = this.toCtx(session);
+    const snapshots = await Promise.all(
+      session.players.map(async (pid) => {
+        const s = await tracker.getPlayerStatus(pid);
+        return {
+          userId: pid,
+          connected: s ? s.connected : true,
+        };
+      }),
+    );
+
+    const result = await plugin.resolveReconnectGraceTimeout(
+      ctx,
+      state,
+      snapshots,
+    );
+
+    if (!result) {
       await this.gameSessionService.updateSessionFields(this.db, sessionId, {
-        turnDeadlineAt: null,
         reconnectGraceUntil: null,
       });
-      const drawOutcome = {
-        winnerUserIds: [] as string[],
-        isDraw: true,
-        metadata: { reason: 'disconnect_both' },
-      };
-      await this.settlement.settleSession(session, drawOutcome, drawState);
-      this.eventEmitter.emit('game.finished', {
-        sessionId,
-        winner: null,
-        finalState: drawState,
-      });
       return;
     }
 
-    if (disc1) {
-      await this.applyMidgameDisconnectForfeit(
-        session,
-        plugin,
-        state,
-        p1,
-      );
-      return;
-    }
-
-    if (disc2) {
-      await this.applyMidgameDisconnectForfeit(
-        session,
-        plugin,
-        state,
-        p2,
-      );
-      return;
-    }
-
-    await this.gameSessionService.updateSessionFields(this.db, sessionId, {
-      reconnectGraceUntil: null,
-    });
-  }
-
-  /**
-   * Declares the other player winner after mid-game disconnect once grace has expired.
-   */
-  private async applyMidgameDisconnectForfeit(
-    session: GameSessionDocument,
-    plugin: MultiplayerGamePlugin,
-    state: MultiplayerTicTacToeDto,
-    forfeitingUserId: string,
-  ): Promise<void> {
-    const sessionId = session._id;
-    const winnerId = session.players.find((p) => p !== forfeitingUserId);
-    if (!winnerId) {
-      return;
-    }
-    const outcome = {
-      winnerUserIds: [winnerId],
-      isDraw: false,
-      metadata: { reason: 'disconnect' },
-    };
-    const persisted = await this.buildAndPersistTicTacToeForfeitWin(
-      plugin,
-      sessionId,
-      state,
-      winnerId,
-      'disconnect',
-    );
+    const saved = await plugin.persistState(sessionId, result.newState);
     await this.gameSessionService.updateSessionFields(this.db, sessionId, {
       turnDeadlineAt: null,
       reconnectGraceUntil: null,
     });
-    await this.settlement.settleSession(session, outcome, persisted);
+
+    if (result.outcome) {
+      await this.settlement.settleSession(session, result.outcome, saved);
+    }
+
     this.eventEmitter.emit('game.finished', {
       sessionId,
-      winner: winnerId,
-      finalState: persisted,
+      winner: result.outcome?.winnerUserIds?.[0] ?? null,
+      finalState: saved,
     });
-  }
-
-  private async buildAndPersistTicTacToeForfeitWin(
-    plugin: MultiplayerGamePlugin,
-    sessionId: string,
-    state: MultiplayerTicTacToeDto,
-    winnerUserId: string | null,
-    _reason: string,
-  ): Promise<MultiplayerTicTacToeDto> {
-    if (!winnerUserId) {
-      return state;
-    }
-    const winnerPlayer = state.players.find((p) => p.userId === winnerUserId);
-    const winnerSym = (winnerPlayer?.userIs as 'X' | 'O') ?? null;
-    const terminal: MultiplayerTicTacToeDto = {
-      ...state,
-      betResultStatus: TicTacToeStatus.WIN,
-      currentTurn: null,
-      winner: winnerSym,
-      winnerId: winnerUserId,
-      players: state.players.map((p) => ({
-        ...p,
-        playerIsNext: false,
-      })),
-    };
-    return plugin.persistState(sessionId, terminal) as Promise<MultiplayerTicTacToeDto>;
-  }
-
-  private async buildAndPersistTicTacToeDraw(
-    plugin: MultiplayerGamePlugin,
-    sessionId: string,
-    state: MultiplayerTicTacToeDto,
-  ): Promise<MultiplayerTicTacToeDto> {
-    const terminal: MultiplayerTicTacToeDto = {
-      ...state,
-      betResultStatus: TicTacToeStatus.TIE,
-      currentTurn: null,
-      winner: null,
-      winnerId: null,
-      players: state.players.map((p) => ({
-        ...p,
-        playerIsNext: false,
-      })),
-    };
-    return plugin.persistState(sessionId, terminal) as Promise<MultiplayerTicTacToeDto>;
-  }
-
-  private resolveForfeitWinners(
-    players: string[],
-    state: unknown,
-    plugin: MultiplayerGamePlugin,
-  ) {
-    if (plugin.gameType === DbGameSchema.TicTacToeGame) {
-      const s = state as { currentTurn?: string; players?: Array<{ userId: string; userIs: string }> };
-      const sym = s.currentTurn as 'X' | 'O' | undefined;
-      if (!sym || !s.players) return null;
-      const timedOut = s.players.find((p) => p.userIs === sym);
-      if (!timedOut) return null;
-      const winnerId = players.find((p) => p !== timedOut.userId);
-      if (!winnerId) return null;
-      return {
-        winnerUserIds: [winnerId],
-        isDraw: false,
-        metadata: { reason: 'turn_timeout' },
-      };
-    }
-    return null;
   }
 
   private toCtx(session: GameSessionDocument) {

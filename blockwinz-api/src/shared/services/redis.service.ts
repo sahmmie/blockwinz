@@ -216,4 +216,24 @@ export class RedisService {
   async expire(key: string, seconds: number): Promise<number> {
     return await this.redis.expire(key, seconds);
   }
+
+  /** JSON value with TTL (multiplayer presence, etc.). */
+  async setJsonEx(key: string, value: unknown, ttlSec: number): Promise<void> {
+    try {
+      await this.redis.set(key, JSON.stringify(value), 'EX', ttlSec);
+    } catch (error) {
+      this.logger.error(`Error setJsonEx ${key}:`, error);
+    }
+  }
+
+  async getJson(key: string): Promise<unknown | null> {
+    try {
+      const raw = await this.redis.get(key);
+      if (raw === null) return null;
+      return JSON.parse(raw) as unknown;
+    } catch (error) {
+      this.logger.error(`Error getJson ${key}:`, error);
+      return null;
+    }
+  }
 }

@@ -34,7 +34,7 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
 
   useEffect(() => {
     setCurrentGame(game);
-  }, [game]);
+  }, [game, setCurrentGame]);
 
   const openFairnessModal = () => {
     setSearchParams(

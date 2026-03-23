@@ -14,6 +14,7 @@ import type {
   MultiplayerSessionContext,
 } from './multiplayer-game-plugin.interface';
 import type { MultiplayerEntryMode } from './multiplayer-entry-modes';
+import type { MultiplayerTurnTimeoutPolicy } from './multiplayer-game-plugin.interface';
 
 export type TicTacToeMultiplayerMove = { row: number; col: number };
 
@@ -79,11 +80,11 @@ export class TicTacToeMultiplayerPlugin
     'public_lobby',
     'private_invite',
   ];
-  readonly turnPolicy = {
+  readonly turnPolicy: MultiplayerTurnTimeoutPolicy = {
     turnMs: 60_000,
     lobbyWaitMs: 600_000,
     reconnectGraceMs: 120_000,
-    onTurnTimeout: 'forfeit' as const,
+    onTurnTimeout: 'forfeit',
   };
 
   constructor(private readonly ticTacToeService: TicTacToeService) {}
@@ -263,5 +264,164 @@ export class TicTacToeMultiplayerPlugin
   toPublicView(state: MultiplayerTicTacToeDto, viewerUserId?: string | null): unknown {
     void viewerUserId;
     return state;
+  }
+
+  async resolveReconnectGraceTimeout(
+    ctx: MultiplayerSessionContext,
+    state: MultiplayerTicTacToeDto,
+    connectionSnapshots: {
+      userId: string;
+      connected: boolean;
+    }[],
+  ): Promise<MultiplayerMoveResult<MultiplayerTicTacToeDto> | null> {
+    if (ctx.players.length !== 2) {
+      return null;
+    }
+    const [p1, p2] = ctx.players;
+    const s1 = connectionSnapshots.find((s) => s.userId === p1);
+    const s2 = connectionSnapshots.find((s) => s.userId === p2);
+    const disc1 = !!s1 && !s1.connected;
+    const disc2 = !!s2 && !s2.connected;
+
+    if (!disc1 && !disc2) {
+      return null;
+    }
+
+    if (disc1 && disc2) {
+      const terminal: MultiplayerTicTacToeDto = {
+        ...state,
+        betResultStatus: TicTacToeStatus.TIE,
+        currentTurn: null,
+        winner: null,
+        winnerId: null,
+        players: state.players.map((p) => ({
+          ...p,
+          playerIsNext: false,
+        })),
+      };
+      return {
+        newState: terminal,
+        terminal: true,
+        outcome: {
+          winnerUserIds: [],
+          isDraw: true,
+          metadata: { reason: 'disconnect_both' },
+        },
+      };
+    }
+
+    const forfeitingUserId = disc1 ? p1 : p2;
+    const winnerId = ctx.players.find((p) => p !== forfeitingUserId);
+    if (!winnerId) {
+      return null;
+    }
+    const winnerPlayer = state.players.find((p) => p.userId === winnerId);
+    const winnerSym = (winnerPlayer?.userIs as 'X' | 'O') ?? null;
+    const terminal: MultiplayerTicTacToeDto = {
+      ...state,
+      betResultStatus: TicTacToeStatus.WIN,
+      currentTurn: null,
+      winner: winnerSym,
+      winnerId,
+      players: state.players.map((p) => ({
+        ...p,
+        playerIsNext: false,
+      })),
+    };
+    return {
+      newState: terminal,
+      terminal: true,
+      outcome: {
+        winnerUserIds: [winnerId],
+        isDraw: false,
+        metadata: { reason: 'disconnect' },
+      },
+    };
+  }
+
+  async resolveTurnTimeout(
+    ctx: MultiplayerSessionContext,
+    state: MultiplayerTicTacToeDto,
+  ): Promise<MultiplayerMoveResult<MultiplayerTicTacToeDto> | null> {
+    if (state.betResultStatus !== TicTacToeStatus.IN_PROGRESS) {
+      return null;
+    }
+
+    if (this.turnPolicy.onTurnTimeout === 'auto_move') {
+      const { row, col, userId } = this.findFirstAutoMove(state);
+      if (row === null || col === null || !userId) {
+        return null;
+      }
+      return this.applyMove(ctx, state, userId, { row, col });
+    }
+
+    const forfeit = this.forfeitOutcomeFromTimedOutPlayer(ctx.players, state);
+    if (!forfeit) {
+      return null;
+    }
+    const winnerId = forfeit.winnerUserIds[0] ?? null;
+    const winnerPlayer = state.players.find((p) => p.userId === winnerId);
+    const winnerSym = (winnerPlayer?.userIs as 'X' | 'O') ?? null;
+    const terminal: MultiplayerTicTacToeDto = {
+      ...state,
+      betResultStatus: TicTacToeStatus.WIN,
+      currentTurn: null,
+      winner: winnerSym,
+      winnerId,
+      players: state.players.map((p) => ({
+        ...p,
+        playerIsNext: false,
+      })),
+    };
+    return {
+      newState: terminal,
+      terminal: true,
+      outcome: forfeit,
+    };
+  }
+
+  private forfeitOutcomeFromTimedOutPlayer(
+    players: string[],
+    state: MultiplayerTicTacToeDto,
+  ): MultiplayerGameOutcome | null {
+    const sym = state.currentTurn as 'X' | 'O' | undefined;
+    if (!sym || !state.players) {
+      return null;
+    }
+    const timedOut = state.players.find((p) => p.userIs === sym);
+    if (!timedOut) {
+      return null;
+    }
+    const winnerId = players.find((p) => p !== timedOut.userId);
+    if (!winnerId) {
+      return null;
+    }
+    return {
+      winnerUserIds: [winnerId],
+      isDraw: false,
+      metadata: { reason: 'turn_timeout' },
+    };
+  }
+
+  private findFirstAutoMove(state: MultiplayerTicTacToeDto): {
+    row: number | null;
+    col: number | null;
+    userId: string | null;
+  } {
+    const board = state.board;
+    const sym = state.currentTurn as 'X' | 'O' | undefined;
+    if (!sym) {
+      return { row: null, col: null, userId: null };
+    }
+    const me = state.players.find((p) => p.userIs === sym);
+    const userId = me ? String(me.userId) : null;
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        if (board[r][c] === '') {
+          return { row: r, col: c, userId };
+        }
+      }
+    }
+    return { row: null, col: null, userId: null };
   }
 }

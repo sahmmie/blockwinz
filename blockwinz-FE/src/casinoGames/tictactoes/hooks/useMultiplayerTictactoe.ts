@@ -19,22 +19,20 @@ import { useBetAmount } from '@/hooks/useBetAmount';
 import { toaster } from '@/components/ui/toaster';
 import useModal, { ModalProps } from '@/hooks/useModal';
 import GameStatusModal from '../components/modals/GameStatusModal';
+import type {
+  CreateLobbyParams,
+  MultiplayerSessionRow,
+} from '@/casinoGames/multiplayer/types';
+import { MOCK_MULTIPLAYER_LOBBIES } from '@/casinoGames/multiplayer/multiplayerLobbyMock';
+import { isMultiplayerLobbyMock } from '@/casinoGames/multiplayer/isMultiplayerLobbyMock';
+
+export type { MultiplayerSessionRow } from '@/casinoGames/multiplayer/types';
 
 type WsAck<T = unknown> = {
   success: boolean;
   data: T;
   message?: string;
   code?: number;
-};
-
-export type MultiplayerSessionRow = {
-  _id: string;
-  gameStatus: string;
-  players: string[];
-  betAmount: number;
-  currency: string;
-  turnDeadlineAt?: string | null;
-  reconnectGraceUntil?: string | null;
 };
 
 type GameStatePayload = {
@@ -337,6 +335,14 @@ export function useMultiplayerTictactoe() {
   }, [emit, stopPolling, joinSessionRoom, applyGameStateToBoard]);
 
   const quickMatch = useCallback(async () => {
+    if (isMultiplayerLobbyMock()) {
+      toaster.create({
+        title: 'Mock mode',
+        description: 'Turn off VITE_MULTIPLAYER_LOBBY_MOCK to use live matchmaking.',
+        type: 'info',
+      });
+      return;
+    }
     if (!currency || localBetAmount <= 0) {
       toaster.create({
         title: 'Invalid bet',
@@ -384,41 +390,77 @@ export function useMultiplayerTictactoe() {
     stopPolling,
   ]);
 
-  const hostPublicLobby = useCallback(async () => {
-    if (!currency || localBetAmount <= 0) {
-      toaster.create({
-        title: 'Invalid bet',
-        description: 'Choose amount and currency',
-        type: 'error',
-      });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const res = await emitAck<MultiplayerSessionRow>(emit, 'newGame', {
-        gameType: GAME_TYPE,
-        betAmount: localBetAmount,
-        currency,
-        visibility: 'public',
-        maxPlayers: 2,
-      });
-      const row = res.data;
-      setSessionId(row._id);
-      setSessionRow(row);
-      setPhase('lobby');
-      await joinSessionRoom(row._id);
-    } catch (e) {
-      toaster.create({
-        title: 'Could not create lobby',
-        description: e instanceof Error ? e.message : 'Try again',
-        type: 'error',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currency, localBetAmount, emit, joinSessionRoom]);
+  /**
+   * Creates a public or private lobby (`newGame`).
+   */
+  const createLobby = useCallback(
+    async (params: CreateLobbyParams) => {
+      if (isMultiplayerLobbyMock()) {
+        toaster.create({
+          title: 'Mock mode',
+          description: 'Turn off VITE_MULTIPLAYER_LOBBY_MOCK to create a real lobby.',
+          type: 'info',
+        });
+        return;
+      }
+      const stake = params.betAmount;
+      const cur = params.currency;
+      if (!cur || stake <= 0) {
+        toaster.create({
+          title: 'Invalid bet',
+          description: 'Choose amount and currency',
+          type: 'error',
+        });
+        return;
+      }
+      if (params.visibility === 'private') {
+        const code = params.joinCode?.trim();
+        if (!code) {
+          toaster.create({
+            title: 'Join code required',
+            description: 'Generate or enter a code for a private lobby.',
+            type: 'error',
+          });
+          return;
+        }
+      }
+      setIsLoading(true);
+      try {
+        const res = await emitAck<MultiplayerSessionRow>(emit, 'newGame', {
+          gameType: GAME_TYPE,
+          betAmount: stake,
+          currency: cur,
+          visibility: params.visibility,
+          maxPlayers: params.maxPlayers ?? 2,
+          joinCode:
+            params.visibility === 'private'
+              ? params.joinCode?.trim()
+              : undefined,
+          betAmountMustEqual: params.betAmountMustEqual ?? false,
+        });
+        const row = res.data;
+        setSessionId(row._id);
+        setSessionRow(row);
+        setPhase('lobby');
+        await joinSessionRoom(row._id);
+      } catch (e) {
+        toaster.create({
+          title: 'Could not create lobby',
+          description: e instanceof Error ? e.message : 'Try again',
+          type: 'error',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [emit, joinSessionRoom],
+  );
 
   const refreshPublicLobbies = useCallback(async () => {
+    if (isMultiplayerLobbyMock()) {
+      setPublicLobbies(MOCK_MULTIPLAYER_LOBBIES);
+      return;
+    }
     try {
       const res = await emitAck<MultiplayerSessionRow[]>(
         emit,
@@ -435,6 +477,14 @@ export function useMultiplayerTictactoe() {
 
   const joinLobbyById = useCallback(
     async (gameId: string, joinCode?: string) => {
+      if (isMultiplayerLobbyMock()) {
+        toaster.create({
+          title: 'Mock mode',
+          description: 'Turn off VITE_MULTIPLAYER_LOBBY_MOCK to join a real lobby.',
+          type: 'info',
+        });
+        return;
+      }
       setIsLoading(true);
       try {
         const res = await emitAck<MultiplayerSessionRow>(emit, 'joinGame', {
@@ -616,6 +666,7 @@ export function useMultiplayerTictactoe() {
     publicLobbies,
     turnDeadlineAt: sessionRow?.turnDeadlineAt ?? null,
     reconnectGraceUntil: sessionRow?.reconnectGraceUntil ?? null,
+    userId,
   };
 
   return {
@@ -627,7 +678,7 @@ export function useMultiplayerTictactoe() {
     },
     actions: {
       quickMatch,
-      hostPublicLobby,
+      createLobby,
       refreshPublicLobbies,
       joinLobbyById,
       leavePendingLobby,

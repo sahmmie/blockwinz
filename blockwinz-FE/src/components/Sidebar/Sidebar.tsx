@@ -53,10 +53,13 @@ const Sidebar: FunctionComponent<SidebarProps> = ({
     if (location.pathname.includes(GameCategoryEnum.ORIGINALS)) {
       setSelectedSegment(GameCategoryEnum.ORIGINALS);
     }
-    if (location.pathname.includes(GameCategoryEnum.MULTIPLAYER)) {
+    if (
+      location.pathname.includes(GameCategoryEnum.MULTIPLAYER) ||
+      location.pathname === '/lobbies'
+    ) {
       setSelectedSegment(GameCategoryEnum.MULTIPLAYER);
     }
-  }, [location.pathname]);
+  }, [location.pathname, setSelectedSegment]);
 
   const menuItemUI = (item: SideBarLink) => {
     return (
@@ -119,6 +122,18 @@ const Sidebar: FunctionComponent<SidebarProps> = ({
       });
   };
 
+  const visibleMainSidebarLinks: SideBarLink[] = mainSidebarLinks
+    .filter(
+      item =>
+        (item.authOnly ? isAuthenticated : true) &&
+        (!item.multiplayerOnly ||
+          selectedSegment === GameCategoryEnum.MULTIPLAYER),
+    )
+    .map((item, index, arr) => ({
+      ...item,
+      showDivider: index === arr.length - 1,
+    }));
+
   return (
     <Box
       fontWeight={'500'}
@@ -179,7 +194,7 @@ const Sidebar: FunctionComponent<SidebarProps> = ({
         borderBottomRightRadius={'8px'}
         borderTopRightRadius={'8px'}
         bg={'#151832'}>
-        {prepSideBarData(mainSidebarLinks)}
+        {prepSideBarData(visibleMainSidebarLinks)}
         {selectedSegment === GameCategoryEnum.ORIGINALS &&
           prepSideBarData(originalGamesSidebarLinks)}
         {selectedSegment === GameCategoryEnum.MULTIPLAYER &&

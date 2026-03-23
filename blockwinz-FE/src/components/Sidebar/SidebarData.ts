@@ -11,6 +11,7 @@ import LogoutIcon from '@/assets/icons/log-out-icon.svg';
 import MenuIcon from '@/assets/icons/menu-icon.svg';
 import MultiplayerBlackIcon from '@/assets/icons/multiplayer-black-icon.svg';
 import MultiplayerIcon from '@/assets/icons/multiplayer-icon.svg';
+import WaitingRoomIcon from '@/assets/icons/waiting-room-icon.svg';
 import MyBetsIcon from '@/assets/icons/my-bets-icon.svg';
 import NewReleasesIcon from '@/assets/icons/new-releases-icon.svg';
 import CasinoWhiteIcon from '@/assets/icons/outline-casino-white.svg';
@@ -29,6 +30,8 @@ export type SideBarLink = {
   link: string | null;
   subMenuTitle?: string;
   showDivider?: boolean;
+  /** Only shown when the sidebar Multiplayer tab is selected. */
+  multiplayerOnly?: boolean;
   clickOnly?: string;
   authOnly?: boolean;
 }
@@ -100,7 +103,12 @@ export const mainSidebarLinks: SideBarLink[] = [
     icon: NewReleasesIcon,
     label: 'New Releases',
     link: '/new-releases',
-    showDivider: true,
+  },
+  {
+    icon: WaitingRoomIcon,
+    label: 'Lobbies',
+    link: '/lobbies',
+    multiplayerOnly: true,
   },
 ]
 
@@ -150,7 +158,7 @@ export const multiplayerGamesSidebarLinks: SideBarLink[] = [
     link: multiplayerGamesInfo.TicTacToeGame.link,
     showDivider: true,
   },
-]
+];
 
 export const BottomNavData: SideBarLink[] = [
   {

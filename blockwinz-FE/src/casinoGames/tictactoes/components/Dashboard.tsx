@@ -1,12 +1,9 @@
-import BetAmount from '@/components/BetAmount/BetAmount';
-import ProfitOnWin from '@/components/ProfitOnWin/ProfitOnWin';
-import { Box, Button, Text, VStack } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import { FunctionComponent } from 'react';
 import { useTictactoeGameContext } from '../context/TictactoeGameContext';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import useWalletState from '@/hooks/useWalletState';
-import BetButton from '@/components/BetButton/BetButton';
-
+import MultiplayerPanel from '@/casinoGames/multiplayer/MultiplayerPanel';
 interface DashboardProps {}
 
 const Dashboard: FunctionComponent<DashboardProps> = () => {
@@ -19,7 +16,6 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     profitOnWin,
     isActiveGame,
     hasEnded,
-    isAnimating,
     isLoadingStart,
     currency,
     matchQueued,
@@ -32,88 +28,37 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     balances.find((c) => c.currency === currency)?.decimals ||
     DEFAULT_ROUNDING_DECIMALS;
 
-  const { handleOnBet, handleBetAmountChange } = actions;
+  const { handleBetAmountChange } = actions;
 
   const showBetButton = !isActiveGame() || hasEnded();
-
-  const renderBetButton = () => {
-    return (
-      showBetButton && (
-        <BetButton
-          disabled={isLoading || !!betAmountErrors.betAmount}
-          loading={isLoading || isAnimating || isLoadingStart}
-          onClick={() => handleOnBet()}
-        />
-      )
-    );
-  };
+  const betDisabled = isLoading || !showBetButton;
 
   return (
     <>
-      <Box pt={{ base: '0px', md: '26px' }} pl={'16px'} pr={'20px'}>
-        {matchQueued && (
-          <Text fontSize='sm' color='gray.400' mb={2}>
-            Finding an opponent…
-          </Text>
-        )}
-        {mpPhase === 'lobby' && (
-          <Button
-            size='sm'
-            variant='outline'
-            mb={3}
-            onClick={() => actions.leavePendingLobby()}>
-            Leave lobby
-          </Button>
-        )}
-        <VStack align='stretch' gap={2} mb={4}>
-          <Button
-            size='sm'
-            variant='surface'
-            onClick={() => void actions.hostPublicLobby()}>
-            Host public lobby
-          </Button>
-          <Button
-            size='sm'
-            variant='ghost'
-            onClick={() => void actions.refreshPublicLobbies()}>
-            Refresh public lobbies
-          </Button>
-          {publicLobbies?.map((lobby) => (
-            <Button
-              key={lobby._id}
-              size='xs'
-              variant='outline'
-              onClick={() => void actions.joinLobbyById(lobby._id)}>
-              Join — {lobby.betAmount} {lobby.currency} ({lobby.players?.length ?? 0}/
-              2)
-            </Button>
-          ))}
-        </VStack>
-        <Box mt={'26px'} mb={'24px'} display={{ base: 'block', md: 'none' }}>
-          {renderBetButton()}
-        </Box>
-        <Box>
-          <BetAmount
-            currency={currency}
-            disabled={isLoading || !showBetButton}
-            value={parseFloat(betAmount.toFixed(ROUNDING_DECIMALS))}
-            onChange={(e) => handleBetAmountChange(e)}
-            error={betAmountErrors.betAmount}
-          />
-        </Box>
-        <Box mt={'24px'}>
-          <ProfitOnWin
-            value={profitOnWin.toFixed(ROUNDING_DECIMALS)}
-            currency={currency}
-          />
-        </Box>
-
-        <Box
-          mt={'38px'}
-          mb={{ base: '38px', md: '0px' }}
-          display={{ base: 'none', md: 'block' }}>
-          {renderBetButton()}
-        </Box>
+      <Box
+        pt={{ base: '0px', md: '16px' }}
+        pl={'16px'}
+        pr={'20px'}
+        pb={{ base: '38px', md: '16px' }}>
+        <MultiplayerPanel
+          betAmount={betAmount}
+          betAmountErrors={betAmountErrors}
+          profitOnWin={profitOnWin}
+          roundingDecimals={ROUNDING_DECIMALS}
+          currency={currency}
+          betDisabled={betDisabled}
+          onBetAmountChange={handleBetAmountChange}
+          mpPhase={mpPhase ?? 'idle'}
+          matchQueued={matchQueued ?? false}
+          publicLobbies={publicLobbies ?? []}
+          isLoading={isLoading || isLoadingStart}
+          viewerCurrency={currency}
+          onQuickMatch={() => void actions.quickMatch()}
+          onCreateLobby={(params) => void actions.createLobby(params)}
+          onRefreshLobbies={() => void actions.refreshPublicLobbies()}
+          onJoinLobby={(id, code) => void actions.joinLobbyById(id, code)}
+          onLeaveLobby={() => void actions.leavePendingLobby()}
+        />
       </Box>
     </>
   );

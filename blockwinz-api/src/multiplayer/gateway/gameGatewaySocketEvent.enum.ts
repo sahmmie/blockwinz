@@ -12,6 +12,11 @@ export enum GameGatewaySocketEvent {
   JOIN_SESSION_ROOM = 'joinSessionRoom',
   /** Leave the session room (socket stays connected). */
   LEAVE_SESSION_ROOM = 'leaveSessionRoom',
+  /** Subscribe to `lobby.updated` / `lobby.expired` for a game type. */
+  JOIN_LOBBY_ROOM = 'joinLobbyRoom',
+  LEAVE_LOBBY_ROOM = 'leaveLobbyRoom',
+  /** Join `room:{sessionId}` as a spectator when allowed by the session row. */
+  JOIN_SPECTATOR_SESSION = 'joinSpectatorSession',
 }
 
 export enum GameGatewayError {

@@ -1,5 +1,6 @@
 import { Currency } from "@blockwinz/shared"
 import { BetType } from "@/shared/types/core"
+import type { MultiplayerSessionRow } from "@/casinoGames/multiplayer/types"
 
 export type MpPhase = 'idle' | 'queued' | 'lobby' | 'playing' | 'ended'
 
@@ -113,7 +114,9 @@ export interface TictactoeState {
     /** Multiplayer only */
     mpPhase?: MpPhase
     matchQueued?: boolean
-    publicLobbies?: Array<{ _id: string; betAmount: number; currency: string; players: string[] }>
+    publicLobbies?: MultiplayerSessionRow[]
+    /** Current user id (multiplayer lobby UI). */
+    userId?: string | null
     turnDeadlineAt?: string | null
     reconnectGraceUntil?: string | null
 }

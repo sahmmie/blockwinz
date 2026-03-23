@@ -31,6 +31,12 @@ export interface MultiplayerMoveResult<TState = unknown> {
   outcome?: MultiplayerGameOutcome;
 }
 
+/** Per-player connection snapshot for reconnect-grace resolution (game-agnostic). */
+export interface PlayerConnectionSnapshot {
+  userId: string;
+  connected: boolean;
+}
+
 /**
  * Session slice the orchestrator passes into rule evaluation (DB-agnostic).
  */
@@ -90,4 +96,21 @@ export interface MultiplayerGamePlugin<TState = unknown, TMove = unknown> {
    */
   /** Optional second argument reserved for spectator-safe views in future games. */
   toPublicView(state: TState, viewerUserId?: string | null): unknown;
+
+  /**
+   * When `reconnect_grace_until` has passed: resolve draw / forfeit / or return null if both players are back online.
+   */
+  resolveReconnectGraceTimeout(
+    ctx: MultiplayerSessionContext,
+    state: TState,
+    connectionSnapshots: PlayerConnectionSnapshot[],
+  ): Promise<MultiplayerMoveResult<TState> | null>;
+
+  /**
+   * When `turn_deadline_at` has passed: forfeit current player, auto-move, or return null if nothing to do.
+   */
+  resolveTurnTimeout(
+    ctx: MultiplayerSessionContext,
+    state: TState,
+  ): Promise<MultiplayerMoveResult<TState> | null>;
 }

@@ -1,5 +1,7 @@
 export enum MultiplayerGameEmitterEvent {
   SESSION_CREATED = 'session.created',
+  LOBBY_UPDATED = 'lobby.updated',
+  LOBBY_EXPIRED = 'lobby.expired',
   GAME_CREATED = 'game.created',
   GAME_JOINED = 'game.joined',
   GAME_STARTED = 'game.started',

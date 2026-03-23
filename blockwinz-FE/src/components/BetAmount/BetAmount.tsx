@@ -177,7 +177,7 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
             minW={0}
             gap="8px">
             <Text fontSize="14px" fontWeight="500" flexShrink={0}>
-              Bet Amount
+              Stake Amount
             </Text>
             {showToggle ? (
               <Box display="flex" gap="4px" flexShrink={0}>

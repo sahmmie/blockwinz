@@ -28,6 +28,8 @@ import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WsResponse } from 'src/shared/helpers/wsResponse.helper';
 import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
 import { DisconnectionListener } from '../players/listeners/disconnection.listener';
+import { MultiplayerGameEmitterEvent } from 'src/shared/eventEmitters/gameEmitterEvent.enum';
+import type { JoinGameOptions } from '../game-session/game-session.service';
 
 @UseFilters(new WsExceptionFilter())
 @WebSocketGateway({ namespace: 'game', cors: SOCKET_IO_CORS })
@@ -73,6 +75,54 @@ export class GameGateway extends BaseGateway {
         .to(`room:${payload.sessionId}`)
         .emit('player.disconnected', payload);
     });
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.LOBBY_UPDATED,
+      (payload: {
+        gameType: DbGameSchema;
+        reason: string;
+        sessionId?: string;
+        session: unknown;
+      }) => {
+        this.server
+          .to(`lobbies:${payload.gameType}`)
+          .emit('lobby.updated', payload);
+      },
+    );
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.LOBBY_EXPIRED,
+      (payload: { sessionId: string; gameType: DbGameSchema }) => {
+        this.server
+          .to(`lobbies:${payload.gameType}`)
+          .emit('lobby.expired', payload);
+      },
+    );
+    this.eventEmitter.on(
+      'match.ready',
+      (payload: {
+        sessionId: string;
+        gameType: string;
+        playerIds: string[];
+      }) => {
+        void this.emitMatchReadyToPlayers(payload);
+      },
+    );
+  }
+
+  private async emitMatchReadyToPlayers(payload: {
+    sessionId: string;
+    gameType: string;
+    playerIds: string[];
+  }): Promise<void> {
+    const data = {
+      sessionId: payload.sessionId,
+      gameType: payload.gameType,
+    };
+    for (const pid of payload.playerIds) {
+      const sockets = await this.getUserSocketIds(pid);
+      for (const sid of sockets) {
+        this.emitToSocket(sid, 'match.ready', data);
+      }
+    }
   }
 
   protected emitToSocket(socketId: string, event: string, data: any): void {
@@ -140,12 +190,16 @@ export class GameGateway extends BaseGateway {
   @SubscribeMessage(GameGatewaySocketEvent.GAME_ACTION)
   async gameAction(
     @ConnectedSocket() client: Socket,
-    @MessageBody(new WsValidationPipe()) data: { message: string },
+    @MessageBody() data: { message?: string; action?: string; sessionId?: string; move?: unknown },
     @WsUser() user: UserDto,
   ) {
     try {
+      const payload =
+        typeof data?.message === 'string'
+          ? data.message
+          : (data as Record<string, unknown>);
       const result = await this.gameSessionService.handleGameAction(
-        data.message,
+        payload,
         user,
       );
       return WsResponse.success(result);
@@ -165,14 +219,29 @@ export class GameGateway extends BaseGateway {
     @WsUser() user: UserDto,
   ) {
     try {
-      const status = await this.matchmakingService.requestMatch({
-        userId: getUserId(user),
-        gameId: data.gameId,
-        betAmount: data.betAmount,
-        currency: data.currency,
-        mode: 'RANDOM_PUBLIC',
-      });
-      return WsResponse.success({ status });
+      const outcome = await this.gameSessionService.tryJoinOrEnqueueQuickMatch(
+        user,
+        {
+          gameId: data.gameId,
+          betAmount: data.betAmount,
+          currency: data.currency,
+        },
+        () =>
+          this.matchmakingService.requestMatch({
+            userId: getUserId(user),
+            gameId: data.gameId,
+            betAmount: data.betAmount,
+            currency: data.currency,
+            mode: 'RANDOM_PUBLIC',
+          }),
+      );
+      if (outcome.kind === 'joined') {
+        return WsResponse.success({
+          status: 'joined',
+          session: outcome.session,
+        });
+      }
+      return WsResponse.success({ status: outcome.status });
     } catch (error) {
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
         message: error.message,
@@ -203,17 +272,27 @@ export class GameGateway extends BaseGateway {
   async joinGame(
     @ConnectedSocket() client: Socket,
     @MessageBody(new WsValidationPipe())
-    data: { gameId: string; joinCode?: string },
+    data: {
+      gameId: string;
+      joinCode?: string;
+      betAmount?: number;
+      currency?: string;
+    },
     @WsUser() user: UserDto,
   ) {
     try {
+      const joinOpts: JoinGameOptions | undefined =
+        data.betAmount !== undefined || data.currency !== undefined
+          ? { betAmount: data.betAmount, currency: data.currency }
+          : undefined;
       const session = data.joinCode
         ? await this.gameSessionService.joinGameWithCode(
             data.gameId,
             data.joinCode,
             user,
+            joinOpts,
           )
-        : await this.gameSessionService.joinGame(data.gameId, user);
+        : await this.gameSessionService.joinGame(data.gameId, user, joinOpts);
       return WsResponse.success(session);
     } catch (error) {
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
@@ -299,6 +378,72 @@ export class GameGateway extends BaseGateway {
         message: (error as Error).message,
       });
       return WsResponse.error((error as Error).message);
+    }
+  }
+
+  @SubscribeMessage(GameGatewaySocketEvent.JOIN_LOBBY_ROOM)
+  async joinLobbyRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { gameType: DbGameSchema },
+  ) {
+    try {
+      await client.join(`lobbies:${data.gameType}`);
+      return WsResponse.success({ joined: true, gameType: data.gameType });
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: (error as Error).message,
+      });
+      return WsResponse.error((error as Error).message);
+    }
+  }
+
+  @SubscribeMessage(GameGatewaySocketEvent.LEAVE_LOBBY_ROOM)
+  async leaveLobbyRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { gameType: DbGameSchema },
+  ) {
+    try {
+      await client.leave(`lobbies:${data.gameType}`);
+      return WsResponse.success({ left: true, gameType: data.gameType });
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: (error as Error).message,
+      });
+      return WsResponse.error((error as Error).message);
+    }
+  }
+
+  @SubscribeMessage(GameGatewaySocketEvent.JOIN_SPECTATOR_SESSION)
+  async joinSpectatorSession(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { sessionId: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      const session = await this.gameSessionService.getSessionById(
+        data.sessionId,
+      );
+      if (!session) {
+        throw new WsExceptionWithCode('Session not found', 404);
+      }
+      const userId = getUserId(user);
+      const allowed =
+        session.spectatorsAllowed ||
+        session.spectatorUserIds.map(String).includes(userId);
+      if (!allowed) {
+        throw new WsExceptionWithCode('Spectating not allowed for this session', 403);
+      }
+      if (session.players.map(String).includes(userId)) {
+        throw new WsExceptionWithCode('Use joinSessionRoom as a player', 400);
+      }
+      const room = `room:${data.sessionId}`;
+      await client.join(room);
+      return WsResponse.success({ joined: true, sessionId: data.sessionId, spectator: true });
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: (error as Error).message,
+      });
+      throw error;
     }
   }
 

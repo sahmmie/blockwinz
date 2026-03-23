@@ -1,17 +1,19 @@
 import {
+  BadRequestException,
   forwardRef,
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createHash, randomBytes } from 'crypto';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { MultiplayerSessionStatus } from './interfaces/game-session.interface';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { MultiplayerGameEmitterEvent } from 'src/shared/eventEmitters/gameEmitterEvent.enum';
-import { DbGameSchema } from '@blockwinz/shared';
+import { Currency, DbGameSchema } from '@blockwinz/shared';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -21,6 +23,7 @@ import type {
   GameSessionInsert,
 } from 'src/database/schema/game-sessions';
 import { MultiplayerSessionOrchestrator } from '../orchestrator/multiplayer-session-orchestrator.service';
+import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
 
 /** Session document shape returned by this service (Drizzle-backed). */
 export type GameSessionDocument = GameSessionSelect & {
@@ -67,6 +70,12 @@ export type ActiveMultiplayerSessionDocument = GameSessionDocument & {
   gameState?: unknown;
 };
 
+/** Optional client echo when joining (defense in depth with `bet_amount_must_equal`). */
+export type JoinGameOptions = {
+  betAmount?: number;
+  currency?: string;
+};
+
 @Injectable()
 export class GameSessionService {
   private readonly logger = new Logger(GameSessionService.name);
@@ -74,6 +83,7 @@ export class GameSessionService {
   constructor(
     private readonly eventEmitter: EventEmitter2,
     @Inject(DRIZZLE) private readonly db: DrizzleDb,
+    private readonly walletRepository: WalletRepository,
     @Inject(forwardRef(() => MultiplayerSessionOrchestrator))
     private readonly orchestrator: MultiplayerSessionOrchestrator,
   ) {}
@@ -107,6 +117,24 @@ export class GameSessionService {
         ? createHash('sha256').update(payload.joinCode).digest('hex')
         : null;
 
+      if (payload.betAmount > 0) {
+        try {
+          await this.walletRepository.checkPlayerBalance(
+            user,
+            payload.betAmount,
+            payload.currency as Currency,
+          );
+        } catch (e) {
+          if (e instanceof BadRequestException) {
+            throw new Error(e.message);
+          }
+          if (e instanceof NotFoundException) {
+            throw new Error(e.message);
+          }
+          throw e;
+        }
+      }
+
       const [row] = await this.db
         .insert(gameSessions)
         .values({
@@ -139,6 +167,12 @@ export class GameSessionService {
         MultiplayerGameEmitterEvent.SESSION_CREATED,
         session,
       );
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, {
+        gameType: session.gameType as DbGameSchema,
+        reason: 'lobby_created',
+        sessionId: session._id,
+        session,
+      });
       await this.orchestrator.tryStartGameplay(session._id);
       this.logger.log(`Game created for user ${user.username}`);
       return session;
@@ -174,6 +208,31 @@ export class GameSessionService {
       visibility = 'public',
     } = params;
 
+    if (betAmount > 0) {
+      const u1 = { _id: playerOneId } as UserDto;
+      const u2 = { _id: playerTwoId } as UserDto;
+      try {
+        await this.walletRepository.checkPlayerBalance(
+          u1,
+          betAmount,
+          currency as Currency,
+        );
+        await this.walletRepository.checkPlayerBalance(
+          u2,
+          betAmount,
+          currency as Currency,
+        );
+      } catch (e) {
+        if (e instanceof BadRequestException) {
+          throw new Error(e.message);
+        }
+        if (e instanceof NotFoundException) {
+          throw new Error(e.message);
+        }
+        throw e;
+      }
+    }
+
     const [row] = await this.db
       .insert(gameSessions)
       .values({
@@ -198,8 +257,21 @@ export class GameSessionService {
 
     if (!row) throw new Error('Failed to create matched session');
     const session = this.rowToDocument(row);
-    this.eventEmitter.emit(MultiplayerGameEmitterEvent.SESSION_CREATED, session);
-    await this.orchestrator.tryStartGameplay(session._id);
+    this.eventEmitter.emit(
+      MultiplayerGameEmitterEvent.SESSION_CREATED,
+      session,
+    );
+    try {
+      await this.orchestrator.tryStartGameplay(session._id);
+    } catch (e) {
+      await this.db
+        .delete(gameSessions)
+        .where(eq(gameSessions.id, session._id));
+      const msg =
+        e instanceof Error ? e.message : 'Failed to start matched game';
+      this.logger.error(`createMatchedSession rollback: ${msg}`);
+      throw new WsExceptionWithCode(msg, 500);
+    }
     return session;
   }
 
@@ -234,10 +306,7 @@ export class GameSessionService {
       return null;
     }
     const doc = this.rowToDocument(row);
-    if (
-      doc.gameStatus === MultiplayerSessionStatus.IN_PROGRESS &&
-      doc.gameId
-    ) {
+    if (doc.gameStatus === MultiplayerSessionStatus.IN_PROGRESS && doc.gameId) {
       const plugin = this.orchestrator.getPluginOrNull(gameType);
       if (plugin) {
         const state = await plugin.loadStateBySessionId(doc._id);
@@ -276,6 +345,38 @@ export class GameSessionService {
   }
 
   /**
+   * Cancels an unfilled pending lobby (e.g. TTL). No wallet locks exist until gameplay starts.
+   */
+  async cancelPendingLobby(sessionId: string): Promise<void> {
+    const [row] = await this.db
+      .select()
+      .from(gameSessions)
+      .where(eq(gameSessions.id, sessionId))
+      .limit(1);
+    if (!row || row.gameStatus !== MultiplayerSessionStatus.PENDING) {
+      return;
+    }
+    await this.db
+      .update(gameSessions)
+      .set({
+        gameStatus: MultiplayerSessionStatus.CANCELLED,
+        players: [],
+        updatedAt: new Date(),
+      } as Record<string, unknown>)
+      .where(eq(gameSessions.id, sessionId));
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, {
+      sessionId,
+      gameType: row.gameType as DbGameSchema,
+    });
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, {
+      gameType: row.gameType as DbGameSchema,
+      reason: 'lobby_expired',
+      sessionId,
+      session: null,
+    });
+  }
+
+  /**
    * Loads a session by primary key (session id).
    */
   async getSessionById(sessionId: string): Promise<GameSessionDocument | null> {
@@ -288,9 +389,71 @@ export class GameSessionService {
   }
 
   /**
-   * Joins a multiplayer lobby by session id. Validates capacity, privacy, and invites.
+   * First joinable public lobby for quick match (same game, stake, currency, not full).
    */
-  async joinGame(sessionId: string, user: UserDto): Promise<GameSessionDocument> {
+  async findJoinablePublicLobby(params: {
+    gameType: DbGameSchema;
+    betAmount: number;
+    currency: string;
+  }): Promise<string | null> {
+    const rows = await this.db
+      .select()
+      .from(gameSessions)
+      .where(
+        and(
+          eq(gameSessions.gameType, params.gameType),
+          eq(gameSessions.gameStatus, MultiplayerSessionStatus.PENDING),
+          eq(gameSessions.visibility, 'public'),
+          eq(gameSessions.betAmount, String(params.betAmount)),
+          eq(gameSessions.currency, params.currency),
+          sql`COALESCE(cardinality(${gameSessions.players}), 0) < ${gameSessions.maxPlayers}`,
+        ),
+      )
+      .orderBy(asc(gameSessions.createdAt))
+      .limit(1);
+    return rows[0]?.id ?? null;
+  }
+
+  /**
+   * Prefer joining an existing public lobby before Redis queue (quick match).
+   */
+  async tryJoinOrEnqueueQuickMatch(
+    user: UserDto,
+    params: {
+      gameId: DbGameSchema;
+      betAmount: number;
+      currency: string;
+    },
+    enqueue: () => Promise<'waiting' | 'matched'>,
+  ): Promise<
+    | { kind: 'joined'; session: GameSessionDocument }
+    | { kind: 'queued'; status: 'waiting' | 'matched' }
+  > {
+    const lobbyId = await this.findJoinablePublicLobby({
+      gameType: params.gameId,
+      betAmount: params.betAmount,
+      currency: params.currency,
+    });
+    if (lobbyId) {
+      const session = await this.joinGame(lobbyId, user, {
+        betAmount: params.betAmount,
+        currency: params.currency,
+      });
+      return { kind: 'joined', session };
+    }
+    const status = await enqueue();
+    return { kind: 'queued', status };
+  }
+
+  /**
+   * Joins a multiplayer lobby by session id. Validates capacity, privacy, invites,
+   * currency alignment, lobby stake rules (`bet_amount_must_equal`), and sufficient wallet balance for the session stake.
+   */
+  async joinGame(
+    sessionId: string,
+    user: UserDto,
+    options?: JoinGameOptions,
+  ): Promise<GameSessionDocument> {
     const userId = getUserId(user);
     const [row] = await this.db
       .select()
@@ -325,6 +488,8 @@ export class GameSessionService {
       }
     }
 
+    await this.validateJoinStakeAndWallet(user, row, options);
+
     const nextPlayers = [...players, userId];
 
     const [updated] = await this.db
@@ -346,8 +511,39 @@ export class GameSessionService {
       userId,
       session: doc,
     });
-    await this.orchestrator.tryStartGameplay(sessionId);
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, {
+      gameType: doc.gameType as DbGameSchema,
+      reason: 'player_joined',
+      sessionId,
+      session: doc,
+    });
+    try {
+      await this.orchestrator.tryStartGameplay(sessionId);
+    } catch (e) {
+      await this.revertJoin(sessionId, userId);
+      const msg =
+        e instanceof Error ? e.message : 'Failed to start game after join';
+      this.logger.error(`tryStartGameplay failed after join: ${msg}`);
+      throw new WsExceptionWithCode(msg, 500);
+    }
     return doc;
+  }
+
+  private async revertJoin(sessionId: string, userId: string): Promise<void> {
+    const [row] = await this.db
+      .select()
+      .from(gameSessions)
+      .where(eq(gameSessions.id, sessionId))
+      .limit(1);
+    if (!row) return;
+    const players = (row.players ?? []).map(String).filter((p) => p !== userId);
+    await this.db
+      .update(gameSessions)
+      .set({
+        players,
+        updatedAt: new Date(),
+      } as Record<string, unknown>)
+      .where(eq(gameSessions.id, sessionId));
   }
 
   /**
@@ -357,6 +553,7 @@ export class GameSessionService {
     sessionId: string,
     joinCode: string,
     user: UserDto,
+    options?: JoinGameOptions,
   ): Promise<GameSessionDocument> {
     const [row] = await this.db
       .select()
@@ -365,7 +562,10 @@ export class GameSessionService {
       .limit(1);
 
     if (!row?.joinCodeHash) {
-      throw new WsExceptionWithCode('This session does not use a join code', 400);
+      throw new WsExceptionWithCode(
+        'This session does not use a join code',
+        400,
+      );
     }
 
     const hash = createHash('sha256').update(joinCode).digest('hex');
@@ -373,13 +573,16 @@ export class GameSessionService {
       throw new WsExceptionWithCode('Invalid join code', 403);
     }
 
-    return this.joinGame(sessionId, user);
+    return this.joinGame(sessionId, user, options);
   }
 
   /**
    * Removes the user from a pending lobby; in-progress games are not cancelled here.
    */
-  async leaveGame(sessionId: string, user: UserDto): Promise<GameSessionDocument | null> {
+  async leaveGame(
+    sessionId: string,
+    user: UserDto,
+  ): Promise<GameSessionDocument | null> {
     const userId = getUserId(user);
     const [row] = await this.db
       .select()
@@ -423,13 +626,21 @@ export class GameSessionService {
 
   /**
    * Parses a JSON game action (e.g. move) and forwards to the orchestrator.
+   * Supports legacy `{ message: string }` stringified JSON or structured `{ action, sessionId, move }`.
    */
-  async handleGameAction(message: string, user: UserDto): Promise<unknown> {
+  async handleGameAction(
+    payload: string | Record<string, unknown>,
+    user: UserDto,
+  ): Promise<unknown> {
     let body: Record<string, unknown>;
-    try {
-      body = JSON.parse(message) as Record<string, unknown>;
-    } catch {
-      throw new WsExceptionWithCode('Invalid game action payload', 400);
+    if (typeof payload === 'string') {
+      try {
+        body = JSON.parse(payload) as Record<string, unknown>;
+      } catch {
+        throw new WsExceptionWithCode('Invalid game action payload', 400);
+      }
+    } else {
+      body = payload;
     }
 
     const action = String(body.action ?? '');
@@ -475,7 +686,9 @@ export class GameSessionService {
     const session = rows[0];
     if (!session) return;
 
-    const plugin = this.orchestrator.getPluginOrNull(session.gameType as DbGameSchema);
+    const plugin = this.orchestrator.getPluginOrNull(
+      session.gameType as DbGameSchema,
+    );
     const graceMs = plugin?.turnPolicy.reconnectGraceMs ?? 120_000;
 
     await this.db
@@ -569,6 +782,70 @@ export class GameSessionService {
 
   async handleSessionCleanup(payload: { id: string }) {
     this.logger.log(`handleSessionCleanup: payload=${JSON.stringify(payload)}`);
+  }
+
+  /**
+   * Ensures the joiner's wallet can cover the session stake before `tryStartGameplay` locks funds.
+   * Currency must match the lobby; when `bet_amount_must_equal` is set, only the fixed table stake
+   * is supported until an optional per-join stake is added to the API.
+   */
+  private async validateJoinStakeAndWallet(
+    user: UserDto,
+    row: GameSessionSelect,
+    options?: JoinGameOptions,
+  ): Promise<void> {
+    const sessionCurrency = String(row.currency) as Currency;
+    const bet = Number(row.betAmount);
+    if (bet <= 0 || Number.isNaN(bet)) {
+      throw new WsExceptionWithCode('Invalid lobby stake', 400);
+    }
+
+    if (row.betAmountMustEqual) {
+      if (
+        options?.betAmount === undefined ||
+        options?.currency === undefined
+      ) {
+        throw new WsExceptionWithCode(
+          'betAmount and currency are required to join this lobby',
+          400,
+        );
+      }
+      if (Number(options.betAmount) !== bet) {
+        throw new WsExceptionWithCode('Bet amount must match lobby', 400);
+      }
+      if (String(options.currency) !== String(row.currency)) {
+        throw new WsExceptionWithCode('Currency must match lobby', 400);
+      }
+    } else if (options !== undefined) {
+      if (
+        options.betAmount !== undefined &&
+        Number(options.betAmount) !== bet
+      ) {
+        throw new WsExceptionWithCode('Bet amount must match lobby', 400);
+      }
+      if (
+        options.currency !== undefined &&
+        String(options.currency) !== String(row.currency)
+      ) {
+        throw new WsExceptionWithCode('Currency must match lobby', 400);
+      }
+    }
+
+    try {
+      await this.walletRepository.checkPlayerBalance(
+        user,
+        bet,
+        sessionCurrency,
+      );
+    } catch (e) {
+      if (e instanceof BadRequestException) {
+        throw new WsExceptionWithCode(e.message, 400);
+      }
+      if (e instanceof NotFoundException) {
+        throw new WsExceptionWithCode(e.message, 400);
+      }
+      throw e;
+    }
   }
 
   private rowToDocument(row: GameSessionSelect): GameSessionDocument {

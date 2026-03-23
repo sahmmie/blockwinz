@@ -49,7 +49,7 @@ export class AfkListener {
 
     for (const row of rows) {
       try {
-        await this.orchestrator.applyTurnTimeoutForfeit(row.id);
+        await this.orchestrator.handleTurnDeadline(row.id);
       } catch (e) {
         this.logger.error(`Turn deadline handling failed for ${row.id}`, e);
       }

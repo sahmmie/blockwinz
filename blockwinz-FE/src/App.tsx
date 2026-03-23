@@ -37,6 +37,7 @@ const RewardLoyalty = lazy(() => import('./pages/RewardLoyalty/RewardLoyalty'));
 const WaitlistPage = lazy(() => import('./pages/WaitlistPage'));
 const Providers = lazy(() => import('./pages/Providers/Providers'));
 const Affiliate = lazy(() => import('./pages/Affiliate/Affiliate'));
+const Lobbies = lazy(() => import('./pages/Lobbies/Lobbies'));
 
 // Lazy load house games
 const CasinoGame = lazy(() => import('./casinoGames/CasinoGame'));
@@ -116,6 +117,7 @@ function App() {
                 <Route element={<ProfileDetails />} path='/profile' />
               </Route>
               <Route path='/favourites' element={<Favourites />} />
+              <Route path='/lobbies' element={<Lobbies />} />
               <Route path='originals' element={<CasinoGame />}>
                 <Route path='limbo' element={<Limbo />} />
                 <Route path='dice' element={<Dice />} />
