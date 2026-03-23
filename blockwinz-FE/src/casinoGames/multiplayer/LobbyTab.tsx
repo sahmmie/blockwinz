@@ -24,9 +24,13 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
   onRefresh,
   onJoin,
 }) => {
+  const showWalletHint =
+    lobbies.length > 0 &&
+    lobbies.some((l) => getJoinLobbyBlockReason(l, viewerCurrency, viewerStake));
+
   return (
     <Box>
-      <HStack justify='space-between' align='center' mb={3}>
+      <HStack justify='space-between' align='center' mb={2}>
         <Text fontSize='xs' fontWeight='600' color='gray.500' textTransform='uppercase' letterSpacing='0.06em'>
           Open lobbies
         </Text>
@@ -39,12 +43,18 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
           Refresh
         </Button>
       </HStack>
+      {showWalletHint && (
+        <Text fontSize='xs' color='gray.500' lineHeight='short' mb={3}>
+          Some tables need your wallet currency and stake to match before you can join.
+        </Text>
+      )}
       {lobbies.length === 0 ? (
         <Box
           borderRadius='md'
           borderWidth='1px'
           borderStyle='dashed'
-          borderColor='whiteAlpha.200'
+          borderColor='whiteAlpha.150'
+          bg='#000A27'
           py={8}
           px={4}
           textAlign='center'>
@@ -72,7 +82,7 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
                 borderRadius='md'
                 borderWidth='1px'
                 borderColor='whiteAlpha.150'
-                bg='blackAlpha.400'
+                bg='#000A27'
                 px={3}
                 py={2.5}
                 transition='border-color 0.15s ease'
@@ -110,13 +120,6 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
             );
           })}
         </VStack>
-      )}
-      {lobbies.some((l) =>
-        getJoinLobbyBlockReason(l, viewerCurrency, viewerStake),
-      ) && (
-        <Text fontSize='xs' color='gray.500' mt={3} lineHeight='short'>
-          Some rows are disabled until your currency and stake match the lobby (preview only).
-        </Text>
       )}
     </Box>
   );

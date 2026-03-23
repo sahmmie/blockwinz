@@ -14,9 +14,10 @@ const Tictactoe: FunctionComponent<TictactoeProps> = () => {
     <SocketProvider namespace='game'>
       <TictactoeGameProvider>
         <GameDashboard
-          game={multiplayerGamesInfo[MultiplayerGameTypeEnum.TicTacToeGame]}
+          game={multiplayerGamesInfo[MultiplayerGameTypeEnum.TicTacToeGame]!}
           renderConfig={<Dashboard />}
           renderGame={<GameBoard />}
+          showProvablyFair={false}
         />
       </TictactoeGameProvider>
     </SocketProvider>

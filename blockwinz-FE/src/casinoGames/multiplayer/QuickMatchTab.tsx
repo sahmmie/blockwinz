@@ -33,7 +33,6 @@ const QuickMatchTab: FunctionComponent<QuickMatchTabProps> = ({
           <Text as='span' color='white' fontWeight='600'>
             this stake
           </Text>
-          . Queue is fast—stay on this page.
         </Text>
       </Box>
       {matchQueued && (

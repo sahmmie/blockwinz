@@ -17,12 +17,15 @@ interface GameDashboardProps {
   renderConfig: JSX.Element;
   renderGame: JSX.Element;
   game: GameInfo;
+  /** Solo / on-chain provably-fair games; hide for multiplayer where verification differs. */
+  showProvablyFair?: boolean;
 }
 
 const GameDashboard: FunctionComponent<GameDashboardProps> = ({
   game,
   renderConfig,
   renderGame,
+  showProvablyFair = true,
 }) => {
   const { setCurrentGame } = usePageData();
   const { openModal } = useModal();
@@ -122,31 +125,33 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
           <SettingsPopover />
         </Box>
 
-        <Box
-          mr={{ base: '0px', md: '26px' }}
-          w={'100%'}
-          display={'flex'}
-          justifyContent={'end'}
-          alignItems={'center'}>
-          <Button
-            onClick={openFairnessModal}
-            bg={'none'}
-            textWrap={'wrap'}
-            lineHeight={'30px'}
-            fontSize={'14px'}
-            fontWeight={'600'}
-            color={'#ECF0F1'}
-            unselectable='off'
-            textDecor={'underline'}
-            cursor={'pointer'}>
-            Provably Fair
-            <img
-              src={CheckMarkIcon}
-              alt={'keyboard-icon'}
-              style={{ width: '20px', height: '20px' }}
-            />
-          </Button>
-        </Box>
+        {showProvablyFair ? (
+          <Box
+            mr={{ base: '0px', md: '26px' }}
+            w={'100%'}
+            display={'flex'}
+            justifyContent={'end'}
+            alignItems={'center'}>
+            <Button
+              onClick={openFairnessModal}
+              bg={'none'}
+              textWrap={'wrap'}
+              lineHeight={'30px'}
+              fontSize={'14px'}
+              fontWeight={'600'}
+              color={'#ECF0F1'}
+              unselectable='off'
+              textDecor={'underline'}
+              cursor={'pointer'}>
+              Provably Fair
+              <img
+                src={CheckMarkIcon}
+                alt={'keyboard-icon'}
+                style={{ width: '20px', height: '20px' }}
+              />
+            </Button>
+          </Box>
+        ) : null}
       </Box>
     </>
   );

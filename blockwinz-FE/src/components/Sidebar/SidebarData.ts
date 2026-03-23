@@ -153,9 +153,9 @@ export const originalGamesSidebarLinks: SideBarLink[] = [
 
 export const multiplayerGamesSidebarLinks: SideBarLink[] = [
   {
-    icon: multiplayerGamesInfo.TicTacToeGame.icon,
-    label: multiplayerGamesInfo.TicTacToeGame.name,
-    link: multiplayerGamesInfo.TicTacToeGame.link,
+    icon: multiplayerGamesInfo.TicTacToeGame!.icon,
+    label: multiplayerGamesInfo.TicTacToeGame!.name,
+    link: multiplayerGamesInfo.TicTacToeGame!.link,
     showDivider: true,
   },
 ];
