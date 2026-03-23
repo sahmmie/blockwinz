@@ -11,6 +11,7 @@ import {
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
 import useAuth from '@/hooks/useAuth';
+import axiosInstance from '@/lib/axios';
 import useAccount from '@/hooks/userAccount';
 import usePageData from '@/hooks/usePageData';
 import { GameCategoryEnum } from '@blockwinz/shared';
@@ -41,8 +42,10 @@ const Sidebar: FunctionComponent<SidebarProps> = ({
       }
     }
     if (path.clickOnly && path.clickOnly === 'logout') {
-      setToken(null);
-      setAccountData(null);
+      void axiosInstance.get('/authentication/logout').finally(() => {
+        setToken(null);
+        setAccountData(null);
+      });
     }
   };
 

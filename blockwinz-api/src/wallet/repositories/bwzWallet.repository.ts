@@ -12,7 +12,10 @@ import { getUserId } from 'src/shared/helpers/user.helper';
 import { WalletDto } from '../dtos/wallet.dto';
 import { CHAIN, Currency } from '@blockwinz/shared';
 import { SolanaCoreRepository } from 'src/core/solanaCore/repositories/solanaCore.repository';
-import Encryption from 'src/shared/helpers/encryption';
+import {
+  decryptWalletSecret,
+  encryptWalletSecret,
+} from '../helpers/wallet-encryption.helper';
 import {
   TransactionStatus,
   TransactionType,
@@ -86,8 +89,7 @@ export class BwzWalletRepository {
     } else {
       const newAccount = await this.solanaCoreRepository.createWallet();
       address = newAccount.address;
-      const enc = new Encryption(this.config.get('JWT_SECRET') ?? '');
-      privateKey = enc.encryptIfNotEncrypted(newAccount.privateKey);
+      privateKey = encryptWalletSecret(newAccount.privateKey, this.config);
       publicKey = newAccount.publicKey;
     }
 
@@ -217,8 +219,6 @@ export class BwzWalletRepository {
     const centralFeePayerSecretKey = this.config.get(
       'SOLANA_BLOCKWINZ_PRIVATE_KEY',
     );
-    const enc = new Encryption(this.config.get('JWT_SECRET') ?? '');
-
     if (!centralFeePayerSecretKey) {
       throw new BadRequestException('Central fee payer secret key not found');
     }
@@ -228,7 +228,10 @@ export class BwzWalletRepository {
     }
 
     const transactionObj = {
-      senderSecretKey: enc.decryptIfEncrypted(userEncryptedPrivateKey),
+      senderSecretKey: decryptWalletSecret(
+        userEncryptedPrivateKey,
+        this.config,
+      ),
       recipientAddress: toBlockWinzAddress,
       centralFeePayerSecretKey,
       amount: betAmount,

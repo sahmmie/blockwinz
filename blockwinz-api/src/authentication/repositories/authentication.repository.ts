@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { eq, or } from 'drizzle-orm';
-import { sign } from 'jsonwebtoken';
+import { sign, type SignOptions } from 'jsonwebtoken';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { ProfileDto } from 'src/shared/dtos/profile.dto';
 import * as bcrypt from 'bcrypt';
@@ -315,10 +315,21 @@ export class AuthenticationRepository {
     return successMessageHelper('Logout Successful');
   }
 
+  /** Short-lived JWT for API + WebSocket (see `JWT_ACCESS_EXPIRES_IN`). */
+  createAccessToken(user: UserDto | { _id?: unknown; id?: string }): string {
+    return this.generateToken(user);
+  }
+
   private generateToken(user: UserDto | { _id?: unknown; id?: string }) {
     const id = getUserId(user);
     const secret = this.config.get('JWT_SECRET');
-    return sign({ _id: id }, secret ?? '', { expiresIn: '7d' });
+    const expiresIn =
+      this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '15m';
+    return sign(
+      { _id: id },
+      secret ?? '',
+      { expiresIn } as SignOptions,
+    );
   }
 
   async changePassword(

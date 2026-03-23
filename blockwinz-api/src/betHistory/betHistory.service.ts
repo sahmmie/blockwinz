@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { BetHistoryRepository } from './repositories/betHistory.repository';
-import { BetHistoryDto } from './dtos/betHistory.dto';
+import { BetHistoryDto, BetHistoryPublicDto } from './dtos/betHistory.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
@@ -36,7 +36,7 @@ export class BetHistoryService {
     limit: number,
     page: number = 1,
     sortby: 'latest' | 'totalWinAmount' = 'latest',
-  ): Promise<PaginatedDataI<BetHistoryDto>> {
+  ): Promise<PaginatedDataI<BetHistoryPublicDto>> {
     if (sortby !== 'latest' && sortby !== 'totalWinAmount') {
       throw new BadRequestException('Invalid sortby parameter');
     }
@@ -53,7 +53,10 @@ export class BetHistoryService {
         offset,
         sortby,
       );
-    return this.toPaginatedResponse(result, total, page, limit);
+    const redacted = result.map(
+      ({ user: _user, ...rest }) => rest as BetHistoryPublicDto,
+    );
+    return this.toPaginatedResponse(redacted, total, page, limit);
   }
 
   /**
@@ -240,12 +243,12 @@ export class BetHistoryService {
     return this.toPaginatedResponse(result, total, page, limit);
   }
 
-  private toPaginatedResponse(
-    result: BetHistoryDto[],
+  private toPaginatedResponse<T extends BetHistoryDto | BetHistoryPublicDto>(
+    result: T[],
     total: number,
     page: number,
     limit: number,
-  ): PaginatedDataI<BetHistoryDto> {
+  ): PaginatedDataI<T> {
     const pages =
       limit > 0
         ? Array.from({ length: Math.ceil(total / limit) }, (_, i) => i + 1)
@@ -255,6 +258,6 @@ export class BetHistoryService {
       total,
       page,
       pages,
-    };
+    } as PaginatedDataI<T>;
   }
 }

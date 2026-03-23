@@ -1,4 +1,5 @@
 import useAuth from '@/hooks/useAuth';
+import axiosInstance from '@/lib/axios';
 import { FunctionComponent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,9 +10,20 @@ const Logout: FunctionComponent<LogoutProps> = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setToken(null);
-    navigate('/login', { replace: true, state: { from: location.pathname } });
-  }, []);
+    const run = async () => {
+      const t = useAuth.getState().token;
+      if (t) {
+        try {
+          await axiosInstance.get('/authentication/logout');
+        } catch {
+          /* still clear client state */
+        }
+      }
+      setToken(null);
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+    };
+    void run();
+  }, [navigate, setToken]);
 
   return <></>;
 };

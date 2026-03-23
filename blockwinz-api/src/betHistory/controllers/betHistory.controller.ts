@@ -20,7 +20,7 @@ import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { Public } from 'src/shared/decorators/publicApi.decorator';
 import { PaginatedDataI } from 'src/shared/interfaces/pagination.interface';
-import { BetHistoryDto } from '../dtos/betHistory.dto';
+import { BetHistoryDto, BetHistoryPublicDto } from '../dtos/betHistory.dto';
 import { Cache as CacheDecorator } from 'src/shared/decorators/cache.decorator';
 import { CustomCacheInterceptor } from 'src/shared/interceptors/cache.interceptor';
 import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
@@ -37,7 +37,7 @@ export class BetHistoryController {
   @Public()
   @RateLimit({ ttl: 60, limit: 60 })
   @ApiResponse({
-    type: [BetHistoryDto],
+    description: 'Leaderboard rows without user id (privacy)',
     status: 200,
   })
   @ApiOperation({ summary: 'Get Bet Histories by lastest or by bet amount' })
@@ -47,7 +47,7 @@ export class BetHistoryController {
   getBetHistories(
     @Query('limit') limit: string,
     @Query('sortyBy') sortyBy: 'latest' | 'totalWinAmount',
-  ): Promise<PaginatedDataI<BetHistoryDto>> {
+  ): Promise<PaginatedDataI<BetHistoryPublicDto>> {
     return this.betHistoryService.getBetHistories(
       parseInt(limit),
       1,

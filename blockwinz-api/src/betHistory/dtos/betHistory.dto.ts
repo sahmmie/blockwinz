@@ -84,3 +84,6 @@ export class BetHistoryDto {
   @IsDate()
   createdAt?: Date;
 }
+
+/** Public leaderboard row: user id omitted for privacy. */
+export type BetHistoryPublicDto = Omit<BetHistoryDto, 'user'>;

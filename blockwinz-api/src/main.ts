@@ -14,6 +14,7 @@ import { RedisIoAdapter } from './shared/adaptors/redisAdapter';
 import packageJson from '../package.json';
 import { WsExceptionFilter } from './shared/filters/ws-exception.filter';
 import { CORS_ORIGIN_WHITELIST } from './shared/constants/cors-origins.constant';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -27,6 +28,7 @@ async function bootstrap() {
   });
   const appVersion = packageJson.version;
   app.setGlobalPrefix(`api`);
+  app.use(cookieParser());
   app.useGlobalFilters(
     new FallbackExceptionFilter(),
     new HttpExceptionFilter(),
@@ -35,6 +37,9 @@ async function bootstrap() {
   );
   app.useGlobalPipes(
     new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
       skipMissingProperties: true,
       exceptionFactory: (errors: ValidationError[]) => {
         const messages = errors.map((error) => {

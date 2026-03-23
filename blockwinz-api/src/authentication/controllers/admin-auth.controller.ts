@@ -6,6 +6,8 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
+import { RateLimit } from 'src/shared/decorators/rateLimit.decorator';
 import { AdminAuthRepository } from '../repositories/admin-auth.repository';
 import {
   ApiOperation,
@@ -22,6 +24,7 @@ import { AdminCreationGuard } from 'src/shared/guards/admin-creation.guard';
 
 @ApiTags('Admin Authentication')
 @Controller('admin/auth')
+@UseGuards(RateLimitGuard)
 export class AdminAuthController {
   constructor(private readonly adminAuthRepository: AdminAuthRepository) {}
 
@@ -36,7 +39,7 @@ export class AdminAuthController {
       properties: {
         email: {
           type: 'string',
-          example: 'admin@blockwinz.com',
+          example: 'admin@example.com',
           description: 'Admin email address',
         },
       },
@@ -70,6 +73,7 @@ export class AdminAuthController {
     },
   })
   @Post('login')
+  @RateLimit({ ttl: 300, limit: 15 })
   async initiateLogin(@Body('email') email: string) {
     return this.adminAuthRepository.initiateLogin(email);
   }
@@ -85,12 +89,12 @@ export class AdminAuthController {
       properties: {
         email: {
           type: 'string',
-          example: 'admin@blockwinz.com',
+          example: 'admin@example.com',
           description: 'Admin email address',
         },
         otp: {
           type: 'string',
-          example: '12345678',
+          example: '00000000',
           description: 'One-time password received via email',
         },
       },
@@ -124,6 +128,7 @@ export class AdminAuthController {
     },
   })
   @Post('verify-otp')
+  @RateLimit({ ttl: 300, limit: 25 })
   async verifyOTP(@Body('email') email: string, @Body('otp') otp: string) {
     return this.adminAuthRepository.verifyOTP(email, otp);
   }

@@ -1,30 +1,40 @@
 import { create } from 'zustand';
-import { TOKEN_NAME } from '../shared/constants/app.constant';
+import axios from 'axios';
+import { SERVER_BASE_URL } from '../shared/constants/app.constant';
 
 /**
- * Auth tokens are stored in localStorage for SPA simplicity. XSS on this origin
- * can steal sessions; prefer httpOnly cookies + refresh flow when feasible.
+ * Access JWT is kept in memory only (not localStorage) to reduce XSS impact.
+ * Long-lived session uses httpOnly refresh cookie + POST /authentication/refresh.
  * See repo root SECURITY.md.
  */
 interface AuthState {
   token: string | null;
   setToken: (token: string | null) => void;
   isAuthenticated: boolean;
+  bootstrapSession: () => Promise<void>;
 }
 
-const useAuth = create<AuthState>((set) => {
-  const initialToken = localStorage.getItem(TOKEN_NAME);
-
+const useAuth = create<AuthState>((set, get) => {
   return {
-    token: initialToken,
-    isAuthenticated: !!initialToken,
+    token: null,
+    isAuthenticated: false,
     setToken: (token: string | null) => {
-      if (token) {
-        localStorage.setItem(TOKEN_NAME, token);
-      } else {
-        localStorage.removeItem(TOKEN_NAME);
-      }
       set({ token, isAuthenticated: !!token });
+    },
+    bootstrapSession: async () => {
+      if (get().token) return;
+      try {
+        const { data } = await axios.post<{ token: string }>(
+          `${SERVER_BASE_URL}/api/authentication/refresh`,
+          {},
+          { withCredentials: true },
+        );
+        if (data?.token) {
+          set({ token: data.token, isAuthenticated: true });
+        }
+      } catch {
+        set({ token: null, isAuthenticated: false });
+      }
     },
   };
 });

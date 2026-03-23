@@ -204,7 +204,9 @@ const BetTable: FunctionComponent<BetTableProps> = ({
             : '—'}
         </Table.Cell>
         {!isMobile && betTableType !== BetTableType.MY_BETS && (
-          <Table.Cell p={'12px'}>{(item?.user as UserI)?.username}</Table.Cell>
+          <Table.Cell p={'12px'}>
+            {(item?.user as UserI | undefined)?.username ?? '—'}
+          </Table.Cell>
         )}
       </Table.Row>
     ));

@@ -13,6 +13,10 @@ import { CHAIN, Currency } from '@blockwinz/shared';
 import { SolanaCoreRepository } from 'src/core/solanaCore/repositories/solanaCore.repository';
 import Encryption from 'src/shared/helpers/encryption';
 import {
+  decryptWalletSecret,
+  encryptWalletSecret,
+} from '../helpers/wallet-encryption.helper';
+import {
   TransactionStatus,
   TransactionType,
 } from '@blockwinz/shared';
@@ -68,9 +72,9 @@ export class SolWalletRepository {
       throw new NotAcceptableException('Wallet already exists');
     }
     const newAccount = await this.solanaCoreRepository.createWallet();
-    const enc = new Encryption(this.config.get('JWT_SECRET') ?? '');
-    const encryptedPrivateKey = enc.encryptIfNotEncrypted(
+    const encryptedPrivateKey = encryptWalletSecret(
       newAccount.privateKey,
+      this.config,
     );
     const [inserted] = await this.db
       .insert(wallets)
@@ -192,7 +196,7 @@ export class SolWalletRepository {
     amount: number,
   ): Promise<string> {
     const toBlockWinzAddress = process.env.BLOCKWINZ_ADDRESS;
-    const enc = new Encryption(this.config.get('JWT_SECRET') ?? '');
+    const encCentral = new Encryption(this.config.get('JWT_SECRET') ?? '');
 
     if (!toBlockWinzAddress) {
       throw new NotFoundException('BlockWinz address not found');
@@ -203,9 +207,12 @@ export class SolWalletRepository {
     }
 
     return await this.solanaCoreRepository.transferSOLWithFeePayer({
-      senderSecretKey: enc.decryptIfEncrypted(userEncryptedPrivateKey),
+      senderSecretKey: decryptWalletSecret(
+        userEncryptedPrivateKey,
+        this.config,
+      ),
       recipientAddress: toBlockWinzAddress,
-      centralFeePayerSecretKey: enc.decryptIfEncrypted(
+      centralFeePayerSecretKey: encCentral.decryptIfEncrypted(
         process.env.SOLANA_BLOCKWINZ_PRIVATE_KEY ?? '',
       ),
       amount,

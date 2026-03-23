@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import ProtectedRoutes from '@/guards/ProtectedRoutes';
 import usePageData from '@/hooks/usePageData';
@@ -16,6 +16,7 @@ import VerifyEmail from './pages/VerifyEmail/VerifyEmail';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AboutUs from './pages/AboutUs';
+import useAuth from '@/hooks/useAuth';
 
 // Lazy load pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -48,6 +49,20 @@ const Wheel = lazy(() => import('@/casinoGames/wheel/WheelGame'));
 const PlinkoGame = lazy(() => import('@/casinoGames/plinko/pages/PlinkoGame'));
 const CoinFlipGame = lazy(() => import('@/casinoGames/coinflip/CoinFlipGame'));
 
+function SessionBootstrap({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    void useAuth
+      .getState()
+      .bootstrapSession()
+      .finally(() => setReady(true));
+  }, []);
+  if (!ready) {
+    return <LoadingScreen />;
+  }
+  return <>{children}</>;
+}
+
 function App() {
   const { title } = usePageData();
   const isProd = APP_ENV === 'prod';
@@ -70,7 +85,7 @@ function App() {
   }
 
   return (
-    <>
+    <SessionBootstrap>
       <RouteLoadingBar />
       <Suspense fallback={<LoadingScreen />}>
         <Chatwoot />
@@ -123,7 +138,7 @@ function App() {
           </Route>
         </Routes>
       </Suspense>
-    </>
+    </SessionBootstrap>
   );
 }
 

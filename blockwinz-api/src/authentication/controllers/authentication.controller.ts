@@ -6,7 +6,13 @@ import {
   Patch,
   Post,
   HttpStatus,
+  Req,
+  Res,
+  UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
+import { decode } from 'jsonwebtoken';
 import { AuthenticationRepository } from '../repositories/authentication.repository';
 import {
   ApiBearerAuth,
@@ -24,27 +30,34 @@ import { Public } from 'src/shared/decorators/publicApi.decorator';
 import { EmailService } from '../../email/email.service';
 import { OTPRepository } from '../repositories/otp.repository';
 import { WaitlistDto } from 'src/shared/dtos/waitlist.dto';
+import { RefreshTokenService } from '../services/refresh-token.service';
+import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
+import { RateLimit } from 'src/shared/decorators/rateLimit.decorator';
+import { getUserId } from 'src/shared/helpers/user.helper';
 
 @ApiTags('Authentication')
 @Controller('authentication')
+@UseGuards(RateLimitGuard)
 export class AuthenticationController {
   constructor(
     private authenticationRepository: AuthenticationRepository,
     private readonly emailService: EmailService,
     private readonly otpRepository: OTPRepository,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   @Public()
+  @RateLimit({ ttl: 3600, limit: 15 })
   @ApiBody({
     type: UserDto,
     examples: {
       default: {
         value: {
-          username: 'Sahmmie',
-          password: '1234567890',
-          email: 'smarsatto@gmail.com',
+          username: 'example_user',
+          password: 'Str0ng!Ex4mpleP@ss',
+          email: 'user@example.com',
           userAccounts: [UserAccountEnum.USER],
-          referralCode: 'REF123456',
+          referralCode: 'REFEXAMPLE',
         } as UserDto,
       },
     },
@@ -52,24 +65,30 @@ export class AuthenticationController {
   @ApiOperation({ summary: 'Create Account' })
   @Post('registration')
   @HttpCode(201)
-  userSignup(@Body() user: UserDto): Promise<{ user: UserDto; token: string }> {
-    return this.authenticationRepository.saveUser(user);
+  async userSignup(
+    @Body() user: UserDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ user: UserDto; token: string }> {
+    const out = await this.authenticationRepository.saveUser(user);
+    await this.refreshTokenService.setRefreshToken(getUserId(out.user), res);
+    return out;
   }
 
   @Public()
+  @RateLimit({ ttl: 60, limit: 25 })
   @ApiBody({
     type: UserDto,
     examples: {
       email_login: {
         value: {
-          username: 'smarsatto@gmail.com',
-          password: '1234567890',
+          username: 'user@example.com',
+          password: 'Str0ng!Ex4mpleP@ss',
         } as UserDto,
       },
       phoneNumber_login: {
         value: {
-          username: '09033172104',
-          password: '1234567890',
+          username: '0123456789',
+          password: 'Str0ng!Ex4mpleP@ss',
         } as UserDto,
       },
     },
@@ -77,8 +96,40 @@ export class AuthenticationController {
   @ApiOperation({ summary: 'Account Login' })
   @Post('login')
   @HttpCode(200)
-  userLogin(@Body() user: LoginDto): Promise<{ token: string }> {
-    return this.authenticationRepository.findUserAndGenerateToken(user);
+  async userLogin(
+    @Body() user: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ token: string }> {
+    const out = await this.authenticationRepository.findUserAndGenerateToken(user);
+    const payload = decode(out.token) as { _id?: string } | null;
+    if (payload?._id) {
+      await this.refreshTokenService.setRefreshToken(payload._id, res);
+    }
+    return out;
+  }
+
+  @Public()
+  @RateLimit({ ttl: 60, limit: 30 })
+  @ApiOperation({ summary: 'Refresh access token (httpOnly refresh cookie)' })
+  @Post('refresh')
+  @HttpCode(200)
+  async refreshSession(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ token: string }> {
+    const userId = await this.refreshTokenService.rotateRefreshSession(
+      req,
+      res,
+    );
+    if (!userId) {
+      throw new UnauthorizedException('Invalid or expired session');
+    }
+    const profile = await this.authenticationRepository.findUserWithProfile(
+      userId,
+    );
+    return {
+      token: this.authenticationRepository.createAccessToken(profile),
+    };
   }
 
   @ApiBody({
@@ -86,8 +137,8 @@ export class AuthenticationController {
     examples: {
       default: {
         value: {
-          currentPassword: '1234567890',
-          newPassword: '1234567890',
+          currentPassword: 'CurrentStr0ng!P@ss',
+          newPassword: 'NewStr0ng!P@ss',
         },
       },
     },
@@ -114,10 +165,16 @@ export class AuthenticationController {
   @ApiOperation({ summary: 'Account Logout' })
   @ApiBearerAuth('JWT-auth')
   @Get('logout')
-  userLogout(@CurrentUser() user: UserRequestI): Promise<{
+  async userLogout(
+    @CurrentUser() user: UserRequestI,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{
     message: string;
     status: string;
   }> {
+    await this.refreshTokenService.revokeFromRequest(req);
+    this.refreshTokenService.clearCookie(res);
     return this.authenticationRepository.logoutAccount(user);
   }
 
@@ -134,6 +191,7 @@ export class AuthenticationController {
   }
 
   @Public()
+  @RateLimit({ ttl: 3600, limit: 10 })
   @ApiOperation({ summary: 'Request Password Reset' })
   @ApiBody({
     schema: {
@@ -168,6 +226,7 @@ export class AuthenticationController {
   }
 
   @Public()
+  @RateLimit({ ttl: 900, limit: 15 })
   @ApiOperation({ summary: 'Verify and Reset Password' })
   @ApiBody({
     schema: {
@@ -247,6 +306,7 @@ export class AuthenticationController {
   }
 
   @Public()
+  @RateLimit({ ttl: 3600, limit: 40 })
   @ApiOperation({ summary: 'Join Waitlist' })
   @ApiBody({
     type: WaitlistDto,
@@ -278,6 +338,7 @@ export class AuthenticationController {
   }
 
   @Public()
+  @RateLimit({ ttl: 3600, limit: 40 })
   @ApiOperation({ summary: 'Verify Email' })
   @ApiBody({
     schema: {
@@ -309,6 +370,7 @@ export class AuthenticationController {
   }
 
   @Public()
+  @RateLimit({ ttl: 3600, limit: 20 })
   @ApiOperation({ summary: 'Resend Verification Email' })
   @ApiBody({
     schema: {

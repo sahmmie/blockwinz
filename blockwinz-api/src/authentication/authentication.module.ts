@@ -9,6 +9,8 @@ import { ConfigModule } from '@nestjs/config';
 import { AdminAuthRepository } from './repositories/admin-auth.repository';
 import { AdminAuthController } from './controllers/admin-auth.controller';
 import { QueueModule } from 'src/core/queue/queue.module';
+import { RefreshTokenService } from './services/refresh-token.service';
+import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
 
 const controllers = [AuthenticationController, AdminAuthController];
 
@@ -21,6 +23,8 @@ const customModules = [SeedsModule, WalletModule, EmailModule, ConfigModule];
     AuthenticationRepository,
     OTPRepository,
     AdminAuthRepository,
+    RefreshTokenService,
+    RateLimitGuard,
   ],
   exports: [AuthenticationRepository, OTPRepository, AdminAuthRepository],
 })

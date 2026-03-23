@@ -20,6 +20,9 @@ BlockWinz handles wagering and wallet flows. This document summarizes **known ri
 
 - **Swagger:** Disabled when `NODE_ENV=production`. Set `ENABLE_SWAGGER=true` to force-enable (e.g. a secured staging host).
 - **HTTP / WebSocket CORS:** Allowed browser origins live in `blockwinz-api/src/shared/constants/cors-origins.constant.ts` — update that file when adding new front-end URLs.
+- **Access JWT lifetime:** `JWT_ACCESS_EXPIRES_IN` (default `15m` in code) — signing uses `jsonwebtoken` in `AuthenticationRepository`.
+- **Refresh sessions:** HttpOnly cookie `bwz_refresh` (rotation on `POST /api/authentication/refresh`, Redis keys `refresh:{sha256}`). Production uses `SameSite=None; Secure` for cross-origin SPA + API.
+- **Wallet encryption:** **`DATA_ENCRYPTION_KEY` is required** for encrypting/decrypting user wallet private keys. It is separate from `JWT_SECRET`; there is no fallback between them.
 
 ---
 
@@ -59,10 +62,9 @@ BlockWinz handles wagering and wallet flows. This document summarizes **known ri
 
 ### JWT storage and lifetime
 
-- Storing bearer tokens in **localStorage** exposes them to any XSS on the origin.
-- Long-lived JWTs (e.g. multi-day) extend compromise windows.
+- **Implemented:** Short-lived **access** JWT (default **15m**), **refresh** rotation via **httpOnly** cookie + Redis; access token held **in memory** on the SPA (not `localStorage`). Axios uses `withCredentials` for cookie-backed refresh.
 
-**Direction:** Short-lived **access** tokens, **refresh** tokens with rotation and server-side revoke, and **httpOnly** `Secure` cookies plus a CSRF strategy (e.g. `SameSite` + double-submit or header checks).
+**Residual:** CSRF on refresh is mitigated by `SameSite` (`Lax` dev, `None`+`Secure` prod cross-site); state-changing cookie routes are limited to refresh/logout.
 
 ### API documentation (Swagger)
 
@@ -72,33 +74,27 @@ BlockWinz handles wagering and wallet flows. This document summarizes **known ri
 
 ### Request validation
 
-- Global `ValidationPipe` without `whitelist` / `forbidNonWhitelisted` and with `skipMissingProperties: true` weakens protection against unexpected body fields.
-
-**Direction:** Enable whitelist-based stripping and forbid unknown properties where compatible with existing DTOs.
+- Global `ValidationPipe` uses **`whitelist`**, **`forbidNonWhitelisted`**, **`transform: true`**, with `skipMissingProperties: true` retained until a full DTO audit.
 
 ### Public bet leaderboard
 
-- Public `GET /bet-history/all` can leak patterns useful for OSINT and targeted scams.
-
-**Direction:** Product decision—redact fields, require auth, or add stricter rate limits as appropriate.
+- **`user` id is omitted** from public leaderboard rows. Rate limiting remains on the controller.
 
 ### OTP and login brute force
 
-- Password reset and OTP verify endpoints need **per-IP and per-identifier** throttling and monitoring.
+- **Rate limits** on login, registration, password-reset, waitlist, verify-email, resend, and admin OTP routes (`RateLimitGuard` + Redis).
 
 ### Cryptographic key separation
 
-- Using `JWT_SECRET` as the sole material for wallet-related encryption couples rotation and compromise domains.
-
-**Direction:** Use a dedicated **data encryption key** (env/KMS) for at-rest secrets, separate from signing keys.
+- **`DATA_ENCRYPTION_KEY`** is mandatory for wallet at-rest crypto (`wallet-encryption.helper.ts`). **`JWT_SECRET`** is only for JWT signing/verification, not wallet ciphertext.
 
 ### Swagger / docs examples
 
-- Remove or neutralize realistic passwords and emails from OpenAPI examples to avoid implying weak or real credentials.
+- OpenAPI examples use **neutral placeholders** (`user@example.com`, `Str0ng!Ex4mpleP@ss`, etc.).
 
 ### Admin UI
 
-- Any `dangerouslySetInnerHTML` (e.g. charts) requires trusted input only or sanitization; keep admin dependencies patched.
+- Chart component documents that injected CSS is built only from trusted `ChartConfig` (no user-controlled strings).
 
 ---
 
@@ -106,19 +102,19 @@ BlockWinz handles wagering and wallet flows. This document summarizes **known ri
 
 Use this as a tracking list; tick items in PRs or issue trackers as you complete them.
 
-1. **Withdrawals:** Wire rate limit guard; fix idempotency path/method; improve rate-limit key design (route + user/key).
-2. **IDORs:** Scope withdrawal status and bet-by-id to owner or admin.
-3. **WebSockets:** `lastLogout` / `iat` parity with HTTP; tighten WS CORS.
-4. **Operations:** Disable or gate Swagger in production; harden `send-bwz` (wallet binding, env safety).
-5. **Tokens:** Short-lived access JWT + refresh token flow (rotation, revoke list or version, secure storage).
-6. **Frontend session:** Prefer httpOnly cookies + CSRF over localStorage for session tokens.
-7. **CSP:** Add Content-Security-Policy and reduce XSS surface on the web app.
-8. **ValidationPipe:** `whitelist`, `forbidNonWhitelisted`; revisit `skipMissingProperties`.
-9. **Public leaderboard:** Policy review (redaction, auth, limits).
-10. **Auth endpoints:** Rate limit login, password-reset, admin OTP verification.
-11. **Encryption:** Dedicated key/KMS for wallet encryption, not `JWT_SECRET`.
-12. **Docs:** Sanitize Swagger examples.
-13. **Admin:** Audit chart / HTML rendering paths for XSS.
+1. ~~**Withdrawals:** Wire rate limit guard; fix idempotency path/method; improve rate-limit key design (route + user/key).~~ **Done**
+2. ~~**IDORs:** Scope withdrawal status and bet-by-id to owner or admin.~~ **Done**
+3. ~~**WebSockets:** `lastLogout` / `iat` parity with HTTP; tighten WS CORS.~~ **Done**
+4. ~~**Operations:** Disable or gate Swagger in production; harden `send-bwz` (wallet binding, env safety).~~ **Done**
+5. ~~**Tokens:** Short-lived access JWT + refresh token flow (Redis-backed rotation).~~ **Done**
+6. ~~**Frontend session:** httpOnly refresh cookie + in-memory access token; axios `withCredentials`.~~ **Done**
+7. ~~**CSP:** Content-Security-Policy on Netlify (`connect-src` for API/WebSocket).~~ **Done** — *adjust `connect-src` in `netlify.toml` for your RPC/CDN hosts.*
+8. ~~**ValidationPipe:** `whitelist` + `forbidNonWhitelisted` (+ `transform`); `skipMissingProperties` unchanged pending DTO audit.~~ **Done**
+9. ~~**Public leaderboard:** Redacted fields on `GET /bet-history/all` public response.~~ **Done**
+10. ~~**Auth endpoints:** Rate limits on login, registration, password-reset, admin OTP.~~ **Done**
+11. ~~**Encryption:** `DATA_ENCRYPTION_KEY` only for wallet crypto (no `JWT_SECRET` fallback).~~ **Done**
+12. ~~**Docs:** Sanitize Swagger examples (neutral placeholders).~~ **Done**
+13. ~~**Admin:** Chart `dangerouslySetInnerHTML` — trusted input only (documented in component).~~ **Done**
 
 ---
 

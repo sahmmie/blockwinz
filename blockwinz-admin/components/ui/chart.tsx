@@ -67,6 +67,10 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "Chart"
 
+/**
+ * Injects theme CSS variables. `dangerouslySetInnerHTML` content is built only from
+ * `ChartConfig` keys and color tokens supplied by this app — never from user input.
+ */
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([_, config]) => config.theme || config.color
