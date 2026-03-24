@@ -5,7 +5,13 @@ import type {
   MultiplayerSessionRow,
 } from "@/casinoGames/multiplayer/types"
 
-export type MpPhase = 'idle' | 'queued' | 'lobby' | 'playing' | 'ended'
+export enum MpPhase {
+  Idle = 'idle',
+  Queued = 'queued',
+  Lobby = 'lobby',
+  Playing = 'playing',
+  Ended = 'ended',
+}
 
 export interface TicTacToeMove {
     move: Move

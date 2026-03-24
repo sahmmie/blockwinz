@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMultiplayerTictactoe } from '../hooks/useMultiplayerTictactoe';
+import { MpPhase } from '../types';
 import { toaster } from '@/components/ui/toaster';
 
 type MpReturn = ReturnType<typeof useMultiplayerTictactoe>;
@@ -60,8 +61,8 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [location.state, location.pathname, location.search, navigate, joinLobbyById]);
 
   const handleSelectCell = (cellIndex: number) => {
-    if (mp.state.mpPhase !== 'playing') {
-      if (mp.state.mpPhase === 'lobby') {
+    if (mp.state.mpPhase !== MpPhase.Playing) {
+      if (mp.state.mpPhase === MpPhase.Lobby) {
         toaster.create({
           title: 'Waiting for opponent',
           type: 'info',

@@ -5,8 +5,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { DbGameSchema } from '@blockwinz/shared';
-import { Currency } from '@blockwinz/shared';
+import {
+  Currency,
+  DbGameSchema,
+  MultiplayerGameEmitterEvent,
+} from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
 import {
@@ -107,7 +110,7 @@ export class MultiplayerSessionOrchestrator {
 
     const refreshed = await this.gameSessionService.getSessionById(sessionId);
     const state = await plugin.loadStateBySessionId(sessionId);
-    this.eventEmitter.emit('game.started', {
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_STARTED, {
       sessionId,
       gameId: refreshed?.gameId,
       state: state ? plugin.toPublicView(state) : null,
@@ -142,7 +145,7 @@ export class MultiplayerSessionOrchestrator {
     const ctx = this.toCtx(session);
     const valid = plugin.validateMove(ctx, state, userId, move);
     if (valid !== true) {
-      this.eventEmitter.emit('game.invalidMove', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_INVALID_MOVE, {
         sessionId,
         playerId: userId,
         reason: valid,
@@ -162,7 +165,7 @@ export class MultiplayerSessionOrchestrator {
     });
 
     if (!result.terminal) {
-      this.eventEmitter.emit('game.move', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_MOVE, {
         sessionId,
         playerId: userId,
         move,
@@ -175,7 +178,7 @@ export class MultiplayerSessionOrchestrator {
       await this.settlement.settleSession(session, result.outcome, saved);
     }
 
-    this.eventEmitter.emit('game.finished', {
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_FINISHED, {
       sessionId,
       winner: result.outcome?.winnerUserIds?.[0] ?? null,
       finalState: saved,
@@ -227,7 +230,7 @@ export class MultiplayerSessionOrchestrator {
         saved as { moveHistory?: Array<{ userId: string }> }
       )?.moveHistory?.at(-1);
       const moverId = lastMove?.userId ?? 'system';
-      this.eventEmitter.emit('game.move', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_MOVE, {
         sessionId,
         playerId: moverId,
         move: { auto: true },
@@ -240,7 +243,7 @@ export class MultiplayerSessionOrchestrator {
       await this.settlement.settleSession(session, result.outcome, saved);
     }
 
-    this.eventEmitter.emit('game.finished', {
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_FINISHED, {
       sessionId,
       winner: result.outcome?.winnerUserIds?.[0] ?? null,
       finalState: saved,
@@ -311,7 +314,7 @@ export class MultiplayerSessionOrchestrator {
       await this.settlement.settleSession(session, result.outcome, saved);
     }
 
-    this.eventEmitter.emit('game.finished', {
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_FINISHED, {
       sessionId,
       winner: result.outcome?.winnerUserIds?.[0] ?? null,
       finalState: saved,

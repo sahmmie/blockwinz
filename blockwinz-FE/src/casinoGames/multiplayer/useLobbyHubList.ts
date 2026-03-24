@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { DbGameSchema, MultiplayerGameTypeEnum } from '@blockwinz/shared';
+import {
+  DbGameSchema,
+  GameGatewaySocketEvent,
+  MultiplayerGameEmitterEvent,
+  MultiplayerGameTypeEnum,
+} from '@blockwinz/shared';
 import { useSocketContext } from '@/context/socketContext';
 import type { MultiplayerSessionRow } from './types';
 import { MOCK_MULTIPLAYER_LOBBIES } from './multiplayerLobbyMock';
@@ -97,9 +102,13 @@ export function useLobbyHubList(gameType: MultiplayerGameTypeEnum | null) {
       }
       if (!opts?.silent) setIsLoading(true);
       try {
-        const res = await emitAck<MultiplayerSessionRow[]>(emit, 'listPublicLobbies', {
-          gameType: schema,
-        });
+        const res = await emitAck<MultiplayerSessionRow[]>(
+          emit,
+          GameGatewaySocketEvent.LIST_PUBLIC_LOBBIES,
+          {
+            gameType: schema,
+          },
+        );
         setLobbies(Array.isArray(res.data) ? res.data : []);
         setLastFetchedAt(new Date());
       } catch {
@@ -132,14 +141,18 @@ export function useLobbyHubList(gameType: MultiplayerGameTypeEnum | null) {
     const bump = () => {
       void refresh({ silent: true });
     };
-    on('lobby.updated', bump);
-    on('lobby.expired', bump);
-    void emitAck(emit, 'joinLobbyRoom', { gameType: schema }).catch(() => {});
+    on(MultiplayerGameEmitterEvent.LOBBY_UPDATED, bump);
+    on(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, bump);
+    void emitAck(emit, GameGatewaySocketEvent.JOIN_LOBBY_ROOM, {
+      gameType: schema,
+    }).catch(() => {});
 
     return () => {
-      off('lobby.updated', bump);
-      off('lobby.expired', bump);
-      void emitAck(emit, 'leaveLobbyRoom', { gameType: schema }).catch(() => {});
+      off(MultiplayerGameEmitterEvent.LOBBY_UPDATED, bump);
+      off(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, bump);
+      void emitAck(emit, GameGatewaySocketEvent.LEAVE_LOBBY_ROOM, {
+        gameType: schema,
+      }).catch(() => {});
     };
   }, [emit, on, off, gameType, refresh]);
 

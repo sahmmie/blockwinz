@@ -13,7 +13,12 @@ import { MultiplayerSessionStatus } from './interfaces/game-session.interface';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { MultiplayerGameEmitterEvent } from 'src/shared/eventEmitters/gameEmitterEvent.enum';
-import { Currency, DbGameSchema } from '@blockwinz/shared';
+import {
+  Currency,
+  DbGameSchema,
+  MultiplayerGamePayloadAction,
+  QuickMatchResponseStatus,
+} from '@blockwinz/shared';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
@@ -424,10 +429,17 @@ export class GameSessionService {
       betAmount: number;
       currency: string;
     },
-    enqueue: () => Promise<'waiting' | 'matched'>,
+    enqueue: () => Promise<
+      QuickMatchResponseStatus.WAITING | QuickMatchResponseStatus.MATCHED
+    >,
   ): Promise<
     | { kind: 'joined'; session: GameSessionDocument }
-    | { kind: 'queued'; status: 'waiting' | 'matched' }
+    | {
+        kind: 'queued';
+        status:
+          | QuickMatchResponseStatus.WAITING
+          | QuickMatchResponseStatus.MATCHED;
+      }
   > {
     const lobbyId = await this.findJoinablePublicLobby({
       gameType: params.gameId,
@@ -644,7 +656,7 @@ export class GameSessionService {
     }
 
     const action = String(body.action ?? '');
-    if (action === 'move') {
+    if (action === MultiplayerGamePayloadAction.MOVE) {
       const sessionId = String(body.sessionId ?? '');
       if (!sessionId) {
         throw new WsExceptionWithCode('sessionId is required', 400);

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 import { AntiCheatService } from '../anti-cheat.service';
 
 @Injectable()
@@ -9,7 +10,7 @@ export class MoveMadeListener {
 
   constructor(private readonly antiCheatService: AntiCheatService) {}
 
-  @OnEvent('game.move')
+  @OnEvent(MultiplayerGameEmitterEvent.GAME_MOVE)
   handleMove(payload: {
     sessionId: string;
     playerId: string;

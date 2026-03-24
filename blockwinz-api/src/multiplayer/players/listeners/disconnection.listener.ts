@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
+import { MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 
 @Injectable()
 export class DisconnectionListener {
@@ -9,7 +10,7 @@ export class DisconnectionListener {
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
-  @OnEvent('player.disconnected')
+  @OnEvent(MultiplayerGameEmitterEvent.PLAYER_DISCONNECTED)
   handlePlayerDisconnected(payload: { playerId: string; sessionId: string }) {
     const { playerId, sessionId } = payload;
     this.logger.warn(
@@ -20,7 +21,7 @@ export class DisconnectionListener {
       this.logger.error(
         `Player ${playerId} did not reconnect in time. Cancelling session ${sessionId}.`,
       );
-      this.eventEmitter.emit('game.cancelled', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_CANCELLED, {
         sessionId,
         reason: 'player_disconnected',
         playerId,

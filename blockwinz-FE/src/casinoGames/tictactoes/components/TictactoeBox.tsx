@@ -2,6 +2,7 @@ import { Grid, GridItem, Heading } from '@chakra-ui/react';
 import { FunctionComponent } from 'react';
 import { BORDER_COLOR, HOVER_COLOR, oColor, xColor } from '../constants';
 import { useTictactoeGameContext } from '../context/TictactoeGameContext';
+import { MpPhase } from '../types';
 import { toaster } from '@/components/ui/toaster';
 
 interface TictactoeBoxProps {}
@@ -15,7 +16,7 @@ const TictactoeBox: FunctionComponent<TictactoeBoxProps> = () => {
   const selectCell = (cell: string, index: number) => {
     if (!isActiveGame()) {
       const title =
-        mpPhase === 'lobby'
+        mpPhase === MpPhase.Lobby
           ? 'Waiting for an opponent to join'
           : 'Use Quick match or join a lobby from the panel';
       return toaster.create({

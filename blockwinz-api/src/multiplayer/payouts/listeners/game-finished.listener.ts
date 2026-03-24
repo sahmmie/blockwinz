@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 
 /**
  * Legacy `game.finished` / `game.settled` hooks. Wallet settlement is handled by
@@ -12,7 +13,7 @@ export class GameFinishedListener {
   /**
    * Logs completed games; does not move funds (settlement is authoritative).
    */
-  @OnEvent('game.finished')
+  @OnEvent(MultiplayerGameEmitterEvent.GAME_FINISHED)
   handleGameFinished(payload: {
     sessionId: string;
     winner: string | null;

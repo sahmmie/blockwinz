@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { DbGameSchema } from '@blockwinz/shared';
+import { DbGameSchema, MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 import { GameSessionService } from '../game-session.service';
 import type { MatchRequest } from '../../matchmaking/match-request.interface';
 
@@ -16,7 +16,7 @@ export class MatchFoundListener {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  @OnEvent('match.found')
+  @OnEvent(MultiplayerGameEmitterEvent.MATCH_FOUND)
   async handleMatchFound(payload: {
     player1: MatchRequest;
     player2: MatchRequest;
@@ -33,7 +33,7 @@ export class MatchFoundListener {
         betAmount: player1.betAmount,
         currency: player1.currency,
       });
-      this.eventEmitter.emit('match.ready', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.MATCH_READY, {
         sessionId: session._id,
         gameType: session.gameType,
         playerIds: [player1.userId, player2.userId],

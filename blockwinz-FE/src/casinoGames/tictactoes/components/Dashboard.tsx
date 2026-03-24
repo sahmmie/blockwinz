@@ -4,6 +4,7 @@ import { useTictactoeGameContext } from '../context/TictactoeGameContext';
 import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import useWalletState from '@/hooks/useWalletState';
 import MultiplayerPanel from '@/casinoGames/multiplayer/MultiplayerPanel';
+import { MpPhase } from '../types';
 import HostInviteModal from '@/casinoGames/multiplayer/HostInviteModal';
 interface DashboardProps {}
 
@@ -55,7 +56,7 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
           currency={currency}
           betDisabled={betDisabled}
           onBetAmountChange={handleBetAmountChange}
-          mpPhase={mpPhase ?? 'idle'}
+          mpPhase={mpPhase ?? MpPhase.Idle}
           matchQueued={matchQueued ?? false}
           publicLobbies={publicLobbies ?? []}
           isLoading={isLoading || isLoadingStart}

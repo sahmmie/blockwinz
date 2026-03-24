@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 import { MetricsService } from '../metrics.service';
 
 @Injectable()
 export class GameMetricsCollector {
   constructor(private readonly metricsService: MetricsService) {}
 
-  @OnEvent('game.finished')
+  @OnEvent(MultiplayerGameEmitterEvent.GAME_FINISHED)
   handleGameFinished(payload: {
     sessionId: string;
     winner: string | null;
@@ -19,7 +20,7 @@ export class GameMetricsCollector {
     }
   }
 
-  @OnEvent('game.cancelled')
+  @OnEvent(MultiplayerGameEmitterEvent.GAME_CANCELLED)
   handleGameCancelled() {
     this.metricsService.logGameAbandoned();
   }

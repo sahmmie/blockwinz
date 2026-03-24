@@ -9,6 +9,7 @@ import type {
   MultiplayerPanelTab,
   MultiplayerSessionRow,
 } from './types';
+import { MpPhase } from '@/casinoGames/tictactoes/types';
 import QuickMatchTab from './QuickMatchTab';
 import LobbyTab from './LobbyTab';
 import CreateTab from './CreateTab';
@@ -25,7 +26,7 @@ export interface MultiplayerPanelProps {
   currency: string;
   betDisabled: boolean;
   onBetAmountChange: (value: number) => void;
-  mpPhase: string;
+  mpPhase: MpPhase;
   matchQueued: boolean;
   publicLobbies: MultiplayerSessionRow[];
   isLoading: boolean;
@@ -74,7 +75,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   return (
     <Box>
       <HStack justify='space-between' align='center' mb={2}>
-        {mpPhase === 'lobby' && (
+        {mpPhase === MpPhase.Lobby && (
           <Button
             size='sm'
             variant='outline'

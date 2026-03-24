@@ -3,6 +3,7 @@ import { type ChangeEvent, FunctionComponent, useState } from 'react';
 import { customAlphabet } from 'nanoid';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { LobbyVisibility } from '@blockwinz/shared';
 import type { CreateLobbyParams } from './types';
 
 const genJoinCode = customAlphabet(
@@ -28,7 +29,9 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
   loading,
   onCreate,
 }) => {
-  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  const [visibility, setVisibility] = useState<LobbyVisibility>(
+    LobbyVisibility.PUBLIC,
+  );
   const [joinCode, setJoinCode] = useState('');
   const [exactStake, setExactStake] = useState(false);
 
@@ -37,7 +40,8 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
       betAmount,
       currency,
       visibility,
-      joinCode: visibility === 'private' ? joinCode.trim() : undefined,
+      joinCode:
+        visibility === LobbyVisibility.PRIVATE ? joinCode.trim() : undefined,
       betAmountMustEqual: exactStake,
       maxPlayers: 2,
     });
@@ -60,28 +64,36 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
             size='sm'
             flex={1}
             minW='100px'
-            variant={visibility === 'public' ? 'solid' : 'outline'}
-            bg={visibility === 'public' ? '#00DD25' : undefined}
-            color={visibility === 'public' ? '#151832' : undefined}
+            variant={
+              visibility === LobbyVisibility.PUBLIC ? 'solid' : 'outline'
+            }
+            bg={visibility === LobbyVisibility.PUBLIC ? '#00DD25' : undefined}
+            color={
+              visibility === LobbyVisibility.PUBLIC ? '#151832' : undefined
+            }
             borderColor='whiteAlpha.300'
-            onClick={() => setVisibility('public')}>
+            onClick={() => setVisibility(LobbyVisibility.PUBLIC)}>
             Public
           </Button>
           <Button
             size='sm'
             flex={1}
             minW='100px'
-            variant={visibility === 'private' ? 'solid' : 'outline'}
-            bg={visibility === 'private' ? '#00DD25' : undefined}
-            color={visibility === 'private' ? '#151832' : undefined}
+            variant={
+              visibility === LobbyVisibility.PRIVATE ? 'solid' : 'outline'
+            }
+            bg={visibility === LobbyVisibility.PRIVATE ? '#00DD25' : undefined}
+            color={
+              visibility === LobbyVisibility.PRIVATE ? '#151832' : undefined
+            }
             borderColor='whiteAlpha.300'
-            onClick={() => setVisibility('private')}>
+            onClick={() => setVisibility(LobbyVisibility.PRIVATE)}>
             Private
           </Button>
         </HStack>
       </Box>
 
-      {visibility === 'private' && (
+      {visibility === LobbyVisibility.PRIVATE && (
         <Box>
           <Text
             fontSize='xs'
@@ -163,7 +175,7 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
           disabled ||
           loading ||
           betAmount <= 0 ||
-          (visibility === 'private' && !joinCode.trim())
+          (visibility === LobbyVisibility.PRIVATE && !joinCode.trim())
         }
         onClick={handleCreate}>
         Create game

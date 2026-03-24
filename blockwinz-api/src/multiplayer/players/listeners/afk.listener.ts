@@ -13,6 +13,7 @@ import { gameSessions } from 'src/database/schema/game-sessions';
 import { PlayerSessionTrackerService } from '../player-session-tracker.service';
 import { MultiplayerSessionStatus } from '../../game-session/interfaces/game-session.interface';
 import { MultiplayerSessionOrchestrator } from '../../orchestrator/multiplayer-session-orchestrator.service';
+import { MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 
 /**
  * Phase-based deadlines from `game_sessions.turn_deadline_at` plus optional in-memory idle hints.
@@ -97,7 +98,7 @@ export class AfkListener {
         this.logger.warn(
           `Player ${state.playerId} is AFK in session ${state.sessionId}`,
         );
-        this.eventEmitter.emit('player.afk', {
+        this.eventEmitter.emit(MultiplayerGameEmitterEvent.PLAYER_AFK, {
           playerId: state.playerId,
           sessionId: state.sessionId,
         });

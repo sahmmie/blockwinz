@@ -1,6 +1,7 @@
 import { UserDto } from 'src/shared/dtos/user.dto';
-import { Currency } from '@blockwinz/shared';
-import { DbGameSchema } from '@blockwinz/shared';
+import { Currency, DbGameSchema, MultiplayerSessionStatus } from '@blockwinz/shared';
+
+export { MultiplayerSessionStatus };
 
 export interface GameSession {
   _id: string;
@@ -18,12 +19,4 @@ export interface GameSession {
 }
 export interface GameSessionWithPlayers extends Omit<GameSession, 'players'> {
   players: UserDto[];
-}
-
-/** Multiplayer session lifecycle (in-memory / gateway). */
-export enum MultiplayerSessionStatus {
-  PENDING = 'pending',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
 }

@@ -20,15 +20,18 @@ import { JwtService } from '@nestjs/jwt';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { WsValidationPipe } from 'src/shared/pipes/ws-validation.pipe';
 import { WsUser } from 'src/shared/decorators/ws-user.decorator';
-import { GameGatewaySocketEvent } from './gameGatewaySocketEvent.enum';
 import { GameSessionDocument } from '../game-session/game-session.service';
-import { DbGameSchema } from '@blockwinz/shared';
+import {
+  DbGameSchema,
+  GameGatewaySocketEvent,
+  MultiplayerGameEmitterEvent,
+  QuickMatchResponseStatus,
+} from '@blockwinz/shared';
 import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WsResponse } from 'src/shared/helpers/wsResponse.helper';
 import { SOCKET_IO_CORS } from 'src/shared/constants/cors-origins.constant';
 import { DisconnectionListener } from '../players/listeners/disconnection.listener';
-import { MultiplayerGameEmitterEvent } from 'src/shared/eventEmitters/gameEmitterEvent.enum';
 import type { JoinGameOptions } from '../game-session/game-session.service';
 
 @UseFilters(new WsExceptionFilter())
@@ -51,30 +54,42 @@ export class GameGateway extends BaseGateway {
   ) {
     super(jwtService, redisService, authenticationRepository, eventEmitter);
     // Listen to internal events and broadcast to rooms
-    this.eventEmitter.on('game.started', (payload) => {
-      this.server.to(`room:${payload.sessionId}`).emit('game.started', payload);
-    });
-    this.eventEmitter.on('game.move', (payload) => {
-      this.server.to(`room:${payload.sessionId}`).emit('game.move', payload);
-    });
-    this.eventEmitter.on('game.invalidMove', (payload) => {
+    this.eventEmitter.on(MultiplayerGameEmitterEvent.GAME_STARTED, (payload) => {
       this.server
         .to(`room:${payload.sessionId}`)
-        .emit('game.invalidMove', payload);
+        .emit(MultiplayerGameEmitterEvent.GAME_STARTED, payload);
     });
-    this.eventEmitter.on('game.finished', (payload) => {
+    this.eventEmitter.on(MultiplayerGameEmitterEvent.GAME_MOVE, (payload) => {
       this.server
         .to(`room:${payload.sessionId}`)
-        .emit('game.finished', payload);
+        .emit(MultiplayerGameEmitterEvent.GAME_MOVE, payload);
     });
-    this.eventEmitter.on('player.afk', (payload) => {
-      this.server.to(`room:${payload.sessionId}`).emit('player.afk', payload);
-    });
-    this.eventEmitter.on('player.disconnected', (payload) => {
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.GAME_INVALID_MOVE,
+      (payload) => {
+        this.server
+          .to(`room:${payload.sessionId}`)
+          .emit(MultiplayerGameEmitterEvent.GAME_INVALID_MOVE, payload);
+      },
+    );
+    this.eventEmitter.on(MultiplayerGameEmitterEvent.GAME_FINISHED, (payload) => {
       this.server
         .to(`room:${payload.sessionId}`)
-        .emit('player.disconnected', payload);
+        .emit(MultiplayerGameEmitterEvent.GAME_FINISHED, payload);
     });
+    this.eventEmitter.on(MultiplayerGameEmitterEvent.PLAYER_AFK, (payload) => {
+      this.server
+        .to(`room:${payload.sessionId}`)
+        .emit(MultiplayerGameEmitterEvent.PLAYER_AFK, payload);
+    });
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.PLAYER_DISCONNECTED,
+      (payload) => {
+        this.server
+          .to(`room:${payload.sessionId}`)
+          .emit(MultiplayerGameEmitterEvent.PLAYER_DISCONNECTED, payload);
+      },
+    );
     this.eventEmitter.on(
       MultiplayerGameEmitterEvent.LOBBY_UPDATED,
       (payload: {
@@ -85,7 +100,7 @@ export class GameGateway extends BaseGateway {
       }) => {
         this.server
           .to(`lobbies:${payload.gameType}`)
-          .emit('lobby.updated', payload);
+          .emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, payload);
       },
     );
     this.eventEmitter.on(
@@ -93,11 +108,11 @@ export class GameGateway extends BaseGateway {
       (payload: { sessionId: string; gameType: DbGameSchema }) => {
         this.server
           .to(`lobbies:${payload.gameType}`)
-          .emit('lobby.expired', payload);
+          .emit(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, payload);
       },
     );
     this.eventEmitter.on(
-      'match.ready',
+      MultiplayerGameEmitterEvent.MATCH_READY,
       (payload: {
         sessionId: string;
         gameType: string;
@@ -120,7 +135,7 @@ export class GameGateway extends BaseGateway {
     for (const pid of payload.playerIds) {
       const sockets = await this.getUserSocketIds(pid);
       for (const sid of sockets) {
-        this.emitToSocket(sid, 'match.ready', data);
+        this.emitToSocket(sid, MultiplayerGameEmitterEvent.MATCH_READY, data);
       }
     }
   }
@@ -237,7 +252,7 @@ export class GameGateway extends BaseGateway {
       );
       if (outcome.kind === 'joined') {
         return WsResponse.success({
-          status: 'joined',
+          status: QuickMatchResponseStatus.JOINED,
           session: outcome.session,
         });
       }

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { DbGameSchema } from '@blockwinz/shared';
+import { DbGameSchema, MultiplayerGameEmitterEvent, QuickMatchResponseStatus } from '@blockwinz/shared';
 import { RedisService } from 'src/shared/services/redis.service';
 import { MatchRequest } from './match-request.interface';
 
@@ -21,9 +21,13 @@ export class MatchmakingService {
   /**
    * Enqueues the player or immediately pairs with another waiter and emits `match.found`.
    *
-   * @returns `'waiting'` if queued, or `'matched'` if this call created the pair.
+   * @returns `WAITING` if queued, or `MATCHED` if this call created the pair.
    */
-  async requestMatch(request: MatchRequest): Promise<'waiting' | 'matched'> {
+  async requestMatch(
+    request: MatchRequest,
+  ): Promise<
+    QuickMatchResponseStatus.WAITING | QuickMatchResponseStatus.MATCHED
+  > {
     const key = this.poolKey(request);
     const encoded = JSON.stringify(request);
 
@@ -36,24 +40,24 @@ export class MatchmakingService {
         this.logger.warn(`Corrupt match queue entry on ${key}; dropping`);
         await this.redisService.lPush(key, encoded);
         await this.redisService.expire(key, QUEUE_TTL_SEC);
-        return 'waiting';
+        return QuickMatchResponseStatus.WAITING;
       }
 
       if (peer.userId === request.userId) {
         await this.redisService.rPush(key, tail);
         await this.redisService.lPush(key, encoded);
         await this.redisService.expire(key, QUEUE_TTL_SEC);
-        return 'waiting';
+        return QuickMatchResponseStatus.WAITING;
       }
 
       this.logger.log(
         `Match found: ${peer.userId} vs ${request.userId} (${request.gameId})`,
       );
-      this.eventEmitter.emit('match.found', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.MATCH_FOUND, {
         player1: peer,
         player2: request,
       });
-      return 'matched';
+      return QuickMatchResponseStatus.MATCHED;
     }
 
     await this.redisService.lPush(key, encoded);
@@ -61,7 +65,7 @@ export class MatchmakingService {
     this.logger.log(
       `Player queued: ${request.userId} for ${request.gameId} (${request.betAmount} ${request.currency})`,
     );
-    return 'waiting';
+    return QuickMatchResponseStatus.WAITING;
   }
 
   /**

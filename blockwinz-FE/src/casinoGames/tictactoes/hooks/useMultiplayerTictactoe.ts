@@ -2,7 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSocketContext } from '@/context/socketContext';
 import useAuth from '@/hooks/useAuth';
 import { getUserIdFromAccessToken } from '@/shared/utils/jwtPayload';
-import { DbGameSchema } from '@blockwinz/shared';
+import {
+  DbGameSchema,
+  GameGatewaySocketEvent,
+  GameMode,
+  LobbyVisibility,
+  MultiplayerGameEmitterEvent,
+  MultiplayerGamePayloadAction,
+  MultiplayerSessionStatus,
+  QuickMatchResponseStatus,
+} from '@blockwinz/shared';
 import { BOARD_SIZE, TOTAL_TILES } from '../constants';
 import {
   BET_STATUS,
@@ -12,7 +21,6 @@ import {
   TictactoeState,
   TICTACTOE_TILE,
 } from '../types';
-import { GameMode } from '@blockwinz/shared';
 import { parseFloatValue } from '@/shared/utils/common';
 import useWalletState from '@/hooks/useWalletState';
 import { useBetAmount } from '@/hooks/useBetAmount';
@@ -71,9 +79,9 @@ function mapServerBetStatusToPlayer(
   myId: string | null,
 ): BET_STATUS {
   if (!status) return BET_STATUS.NOT_STARTED;
-  if (status === 'tie') return BET_STATUS.TIE;
-  if (status === 'in_progress') return BET_STATUS.IN_PROGRESS;
-  if (status === 'win' && winnerId && myId) {
+  if (status === BET_STATUS.TIE) return BET_STATUS.TIE;
+  if (status === BET_STATUS.IN_PROGRESS) return BET_STATUS.IN_PROGRESS;
+  if (status === BET_STATUS.WIN && winnerId && myId) {
     return winnerId === myId ? BET_STATUS.WIN : BET_STATUS.LOSE;
   }
   return BET_STATUS.NOT_STARTED;
@@ -89,7 +97,7 @@ export function useMultiplayerTictactoe() {
   const { selectedBalance, balances, getWalletData } = useWalletState();
   const { openModal } = useModal();
 
-  const [phase, setPhase] = useState<MpPhase>('idle');
+  const [phase, setPhase] = useState<MpPhase>(MpPhase.Idle);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionRow, setSessionRow] = useState<MultiplayerSessionRow | null>(null);
   const [gameState, setGameState] = useState<GameStatePayload | null>(null);
@@ -114,14 +122,16 @@ export function useMultiplayerTictactoe() {
 
   const leaveSessionRoom = useCallback(
     (sid: string) => {
-      emit('leaveSessionRoom', { sessionId: sid });
+      emit(GameGatewaySocketEvent.LEAVE_SESSION_ROOM, { sessionId: sid });
     },
     [emit],
   );
 
   const joinSessionRoom = useCallback(
     async (sid: string) => {
-      await emitAck(emit, 'joinSessionRoom', { sessionId: sid });
+      await emitAck(emit, GameGatewaySocketEvent.JOIN_SESSION_ROOM, {
+        sessionId: sid,
+      });
     },
     [emit],
   );
@@ -202,6 +212,41 @@ export function useMultiplayerTictactoe() {
     [balances, currency, selectedBalance?.decimals],
   );
 
+  const syncActiveSession = useCallback(async () => {
+    const res = await emitAck<MultiplayerSessionRow | null>(
+      emit,
+      GameGatewaySocketEvent.GET_ACTIVE_GAME,
+      {
+        gameType: GAME_TYPE,
+      },
+    );
+    const row = res.data as MultiplayerSessionRow & {
+      gameState?: GameStatePayload;
+    };
+    if (!row || !row._id) {
+      setSessionId(null);
+      setSessionRow(null);
+      setGameState(null);
+      setPhase(MpPhase.Idle);
+      return null;
+    }
+    setSessionId(row._id);
+    setSessionRow(row);
+    if (row.gameState) {
+      setGameState(row.gameState);
+      applyGameStateToBoard(row.gameState);
+    }
+    if (row.gameStatus === MultiplayerSessionStatus.PENDING) {
+      setPhase(MpPhase.Lobby);
+    } else if (row.gameStatus === MultiplayerSessionStatus.IN_PROGRESS) {
+      setPhase(MpPhase.Playing);
+    } else {
+      setPhase(MpPhase.Ended);
+    }
+    await joinSessionRoom(row._id);
+    return row;
+  }, [emit, joinSessionRoom, applyGameStateToBoard]);
+
   useEffect(() => {
     const socket = getSocketInstance();
     if (!socket) return;
@@ -211,10 +256,11 @@ export function useMultiplayerTictactoe() {
       state?: GameStatePayload | null;
     }) => {
       hydrateFromPayload(payload);
-      setPhase('playing');
+      setPhase(MpPhase.Playing);
       setMatchQueued(false);
       stopPolling();
       if (payload.state) applyGameStateToBoard(payload.state);
+      void syncActiveSession();
     };
 
     const onMove = (payload: {
@@ -238,20 +284,30 @@ export function useMultiplayerTictactoe() {
       finalState?: GameStatePayload;
     }) => {
       if (payload.finalState) applyGameStateToBoard(payload.finalState);
-      setPhase('ended');
+      setPhase(MpPhase.Ended);
       void getWalletData();
     };
 
-    on('game.started', onStarted);
-    on('game.move', onMove);
-    on('game.invalidMove', onInvalid);
-    on('game.finished', onFinished);
+    const onGameError = (payload: { message?: string }) => {
+      toaster.create({
+        title: 'Game',
+        description: payload?.message ?? 'Something went wrong',
+        type: 'error',
+      });
+    };
+
+    on(MultiplayerGameEmitterEvent.GAME_STARTED, onStarted);
+    on(MultiplayerGameEmitterEvent.GAME_MOVE, onMove);
+    on(MultiplayerGameEmitterEvent.GAME_INVALID_MOVE, onInvalid);
+    on(MultiplayerGameEmitterEvent.GAME_FINISHED, onFinished);
+    on(GameGatewaySocketEvent.GAME_ERROR, onGameError);
 
     return () => {
-      off('game.started', onStarted);
-      off('game.move', onMove);
-      off('game.invalidMove', onInvalid);
-      off('game.finished', onFinished);
+      off(MultiplayerGameEmitterEvent.GAME_STARTED, onStarted);
+      off(MultiplayerGameEmitterEvent.GAME_MOVE, onMove);
+      off(MultiplayerGameEmitterEvent.GAME_INVALID_MOVE, onInvalid);
+      off(MultiplayerGameEmitterEvent.GAME_FINISHED, onFinished);
+      off(GameGatewaySocketEvent.GAME_ERROR, onGameError);
     };
   }, [
     on,
@@ -261,42 +317,18 @@ export function useMultiplayerTictactoe() {
     applyGameStateToBoard,
     stopPolling,
     getWalletData,
+    syncActiveSession,
   ]);
-
-  const syncActiveSession = useCallback(async () => {
-    const res = await emitAck<MultiplayerSessionRow | null>(emit, 'getActiveGame', {
-      gameType: GAME_TYPE,
-    });
-    const row = res.data as MultiplayerSessionRow & {
-      gameState?: GameStatePayload;
-    };
-    if (!row || !row._id) {
-      setSessionId(null);
-      setSessionRow(null);
-      setGameState(null);
-      setPhase('idle');
-      return null;
-    }
-    setSessionId(row._id);
-    setSessionRow(row);
-    if (row.gameState) {
-      setGameState(row.gameState);
-      applyGameStateToBoard(row.gameState);
-    }
-    if (row.gameStatus === 'pending') {
-      setPhase('lobby');
-    } else if (row.gameStatus === 'in_progress') {
-      setPhase('playing');
-    } else {
-      setPhase('ended');
-    }
-    await joinSessionRoom(row._id);
-    return row;
-  }, [emit, joinSessionRoom, applyGameStateToBoard]);
 
   useEffect(() => {
     void syncActiveSession();
   }, [syncActiveSession]);
+
+  useEffect(() => {
+    if (sessionRow?.betAmount != null && sessionRow.betAmount > 0) {
+      setLocalBetAmount(sessionRow.betAmount);
+    }
+  }, [sessionRow?._id, sessionRow?.betAmount]);
 
   const startQuickMatchPoll = useCallback(() => {
     stopPolling();
@@ -305,7 +337,7 @@ export function useMultiplayerTictactoe() {
         try {
           const res = await emitAck<MultiplayerSessionRow | null>(
             emit,
-            'getActiveGame',
+            GameGatewaySocketEvent.GET_ACTIVE_GAME,
             {
               gameType: GAME_TYPE,
             },
@@ -322,9 +354,10 @@ export function useMultiplayerTictactoe() {
               setGameState(row.gameState);
               applyGameStateToBoard(row.gameState);
             }
-            if (row.gameStatus === 'pending') setPhase('lobby');
-            else if (row.gameStatus === 'in_progress') {
-              setPhase('playing');
+            if (row.gameStatus === MultiplayerSessionStatus.PENDING)
+              setPhase(MpPhase.Lobby);
+            else if (row.gameStatus === MultiplayerSessionStatus.IN_PROGRESS) {
+              setPhase(MpPhase.Playing);
               if (row.gameState) applyGameStateToBoard(row.gameState);
             }
             await joinSessionRoom(row._id);
@@ -356,17 +389,19 @@ export function useMultiplayerTictactoe() {
     setIsLoading(true);
     setHasError(false);
     try {
-      const res = await emitAck<{ status: 'waiting' | 'matched' }>(
+      const res = await emitAck<{
+        status: QuickMatchResponseStatus;
+      }>(
         emit,
-        'quickMatch',
+        GameGatewaySocketEvent.QUICK_MATCH,
         {
           gameId: GAME_TYPE,
           betAmount: localBetAmount,
           currency,
         },
       );
-      if (res.data.status === 'waiting') {
-        setPhase('queued');
+      if (res.data.status === QuickMatchResponseStatus.WAITING) {
+        setPhase(MpPhase.Queued);
         setMatchQueued(true);
         startQuickMatchPoll();
       } else {
@@ -415,7 +450,7 @@ export function useMultiplayerTictactoe() {
         });
         return;
       }
-      if (params.visibility === 'private') {
+      if (params.visibility === LobbyVisibility.PRIVATE) {
         const code = params.joinCode?.trim();
         if (!code) {
           toaster.create({
@@ -428,27 +463,31 @@ export function useMultiplayerTictactoe() {
       }
       setIsLoading(true);
       try {
-        const res = await emitAck<MultiplayerSessionRow>(emit, 'newGame', {
-          gameType: GAME_TYPE,
-          betAmount: stake,
-          currency: cur,
-          visibility: params.visibility,
-          maxPlayers: params.maxPlayers ?? 2,
-          joinCode:
-            params.visibility === 'private'
-              ? params.joinCode?.trim()
-              : undefined,
-          betAmountMustEqual: params.betAmountMustEqual ?? false,
-        });
+        const res = await emitAck<MultiplayerSessionRow>(
+          emit,
+          GameGatewaySocketEvent.NEW_GAME,
+          {
+            gameType: GAME_TYPE,
+            betAmount: stake,
+            currency: cur,
+            visibility: params.visibility,
+            maxPlayers: params.maxPlayers ?? 2,
+            joinCode:
+              params.visibility === LobbyVisibility.PRIVATE
+                ? params.joinCode?.trim()
+                : undefined,
+            betAmountMustEqual: params.betAmountMustEqual ?? false,
+          },
+        );
         const row = res.data;
         setSessionId(row._id);
         setSessionRow(row);
-        setPhase('lobby');
+        setPhase(MpPhase.Lobby);
         setHostInvite({
           sessionId: row._id,
           visibility: params.visibility,
           plaintextJoinCode:
-            params.visibility === 'private'
+            params.visibility === LobbyVisibility.PRIVATE
               ? params.joinCode?.trim()
               : undefined,
           betAmount: stake,
@@ -476,7 +515,7 @@ export function useMultiplayerTictactoe() {
     try {
       const res = await emitAck<MultiplayerSessionRow[]>(
         emit,
-        'listPublicLobbies',
+        GameGatewaySocketEvent.LIST_PUBLIC_LOBBIES,
         {
           gameType: GAME_TYPE,
         },
@@ -498,19 +537,21 @@ export function useMultiplayerTictactoe() {
       void refreshPublicLobbies();
     };
 
-    on('lobby.updated', onLobbyUpdated);
-    on('lobby.expired', onLobbyExpired);
+    on(MultiplayerGameEmitterEvent.LOBBY_UPDATED, onLobbyUpdated);
+    on(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, onLobbyExpired);
 
-    void emitAck(emit, 'joinLobbyRoom', { gameType: GAME_TYPE }).catch(() => {
+    void emitAck(emit, GameGatewaySocketEvent.JOIN_LOBBY_ROOM, {
+      gameType: GAME_TYPE,
+    }).catch(() => {
       /* socket may still be connecting */
     });
 
     return () => {
-      off('lobby.updated', onLobbyUpdated);
-      off('lobby.expired', onLobbyExpired);
-      void emitAck(emit, 'leaveLobbyRoom', { gameType: GAME_TYPE }).catch(
-        () => {},
-      );
+      off(MultiplayerGameEmitterEvent.LOBBY_UPDATED, onLobbyUpdated);
+      off(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, onLobbyExpired);
+      void emitAck(emit, GameGatewaySocketEvent.LEAVE_LOBBY_ROOM, {
+        gameType: GAME_TYPE,
+      }).catch(() => {});
     };
   }, [emit, on, off, refreshPublicLobbies]);
 
@@ -523,9 +564,9 @@ export function useMultiplayerTictactoe() {
       setMatchQueued(false);
       void syncActiveSession();
     };
-    on('match.ready', onMatchReady);
+    on(MultiplayerGameEmitterEvent.MATCH_READY, onMatchReady);
     return () => {
-      off('match.ready', onMatchReady);
+      off(MultiplayerGameEmitterEvent.MATCH_READY, onMatchReady);
     };
   }, [on, off, syncActiveSession, stopPolling]);
 
@@ -541,15 +582,20 @@ export function useMultiplayerTictactoe() {
       }
       setIsLoading(true);
       try {
-        const res = await emitAck<MultiplayerSessionRow>(emit, 'joinGame', {
-          gameId,
-          joinCode,
-        });
+        const res = await emitAck<MultiplayerSessionRow>(
+          emit,
+          GameGatewaySocketEvent.JOIN_GAME,
+          {
+            gameId,
+            joinCode,
+          },
+        );
         const row = res.data;
         setSessionId(row._id);
         setSessionRow(row);
-        if (row.gameStatus === 'pending') setPhase('lobby');
-        else setPhase('playing');
+        if (row.gameStatus === MultiplayerSessionStatus.PENDING)
+          setPhase(MpPhase.Lobby);
+        else setPhase(MpPhase.Playing);
         await joinSessionRoom(row._id);
         await syncActiveSession();
       } catch (e) {
@@ -568,7 +614,9 @@ export function useMultiplayerTictactoe() {
   const leavePendingLobby = useCallback(async () => {
     if (!sessionId) return;
     try {
-      await emitAck(emit, 'leaveGame', { gameId: sessionId });
+      await emitAck(emit, GameGatewaySocketEvent.LEAVE_GAME, {
+        gameId: sessionId,
+      });
       leaveSessionRoom(sessionId);
     } catch {
       /* ignore */
@@ -576,7 +624,7 @@ export function useMultiplayerTictactoe() {
     setSessionId(null);
     setSessionRow(null);
     setGameState(null);
-    setPhase('idle');
+    setPhase(MpPhase.Idle);
     stopPolling();
     setMatchQueued(false);
     setHostInvite(null);
@@ -592,12 +640,12 @@ export function useMultiplayerTictactoe() {
       const row = Math.floor(cellIndex / BOARD_SIZE);
       const col = cellIndex % BOARD_SIZE;
       const message = JSON.stringify({
-        action: 'move',
+        action: MultiplayerGamePayloadAction.MOVE,
         sessionId,
         move: { row, col },
       });
       try {
-        await emitAck(emit, 'gameAction', { message });
+        await emitAck(emit, GameGatewaySocketEvent.GAME_ACTION, { message });
       } catch (e) {
         toaster.create({
           title: 'Move failed',
@@ -615,7 +663,7 @@ export function useMultiplayerTictactoe() {
     setSessionId(null);
     setSessionRow(null);
     setGameState(null);
-    setPhase('idle');
+    setPhase(MpPhase.Idle);
     setMatchQueued(false);
     setHostInvite(null);
   }, [sessionId, leaveSessionRoom, stopPolling]);
@@ -625,11 +673,11 @@ export function useMultiplayerTictactoe() {
   const status = betResultStatus();
 
   const isActiveGame = useCallback(
-    () => phase === 'playing',
+    () => phase === MpPhase.Playing,
     [phase],
   );
 
-  const hasEnded = useCallback(() => phase === 'ended', [phase]);
+  const hasEnded = useCallback(() => phase === MpPhase.Ended, [phase]);
 
   useEffect(() => {
     if (!hasError) return;
@@ -643,14 +691,14 @@ export function useMultiplayerTictactoe() {
   }, [hasError, errorMsg]);
 
   useEffect(() => {
-    if (phase !== 'ended') {
+    if (phase !== MpPhase.Ended) {
       endedModalShownRef.current = false;
     }
   }, [phase]);
 
   useEffect(() => {
     if (
-      phase !== 'ended' ||
+      phase !== MpPhase.Ended ||
       endedModalShownRef.current ||
       status === BET_STATUS.IN_PROGRESS ||
       status === BET_STATUS.NOT_STARTED

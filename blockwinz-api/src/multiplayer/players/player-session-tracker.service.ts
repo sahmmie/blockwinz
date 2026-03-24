@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PlayerSessionState } from './interfaces/player-session.interface';
 import { RedisService } from 'src/shared/services/redis.service';
+import { MultiplayerGameEmitterEvent } from '@blockwinz/shared';
 
 const MP_PRESENCE_PREFIX = 'mp:presence:';
 const PRESENCE_TTL_SEC = 600;
@@ -49,7 +50,7 @@ export class PlayerSessionTrackerService {
       this.logger.log(
         `Player ${playerId} disconnected from session ${state.sessionId}`,
       );
-      this.eventEmitter.emit('player.disconnected', {
+      this.eventEmitter.emit(MultiplayerGameEmitterEvent.PLAYER_DISCONNECTED, {
         playerId,
         sessionId: state.sessionId,
       });

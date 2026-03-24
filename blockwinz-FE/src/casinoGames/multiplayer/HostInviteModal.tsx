@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toaster } from '@/components/ui/toaster';
+import { LobbyVisibility } from '@blockwinz/shared';
 import type { HostInviteInfo } from './types';
 import { buildTictactoeInviteUrl, formatInvitePlainText } from './inviteLink';
 
@@ -103,7 +104,9 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
                 {invite.betAmount} {invite.currency.toUpperCase()}
               </Text>
               <Text fontSize='xs' color='gray.500' mt={2}>
-                {invite.visibility === 'private' ? 'Private lobby' : 'Public lobby'}
+                {invite.visibility === LobbyVisibility.PRIVATE
+                  ? 'Private lobby'
+                  : 'Public lobby'}
               </Text>
             </Box>
 
@@ -128,7 +131,8 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
                   {invite.sessionId}
                 </Text>
               </Box>
-              {invite.visibility === 'private' && invite.plaintextJoinCode && (
+              {invite.visibility === LobbyVisibility.PRIVATE &&
+                invite.plaintextJoinCode && (
                 <Box
                   flex='1'
                   minW='120px'
@@ -158,7 +162,8 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
                 }>
                 Copy session ID
               </Button>
-              {invite.visibility === 'private' && invite.plaintextJoinCode && (
+              {invite.visibility === LobbyVisibility.PRIVATE &&
+                invite.plaintextJoinCode && (
                 <Button
                   size='sm'
                   variant='outline'
