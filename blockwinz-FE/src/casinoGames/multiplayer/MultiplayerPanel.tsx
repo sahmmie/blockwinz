@@ -26,15 +26,18 @@ export interface MultiplayerPanelProps {
   betDisabled: boolean;
   onBetAmountChange: (value: number) => void;
   mpPhase: MpPhase;
-  matchQueued: boolean;
   publicLobbies: MultiplayerSessionRow[];
   isLoading: boolean;
+  /** True while Find match is awaiting the initial quickMatch socket response (spinner on that button only). */
+  quickMatchRequestPending: boolean;
   viewerCurrency: string;
-  onQuickMatch: () => void;
+  onQuickMatch: (opts: { betAmountMustEqual: boolean }) => void;
   onCreateLobby: (params: CreateLobbyParams) => void;
   onRefreshLobbies: () => void;
   onJoinLobby: (sessionId: string, joinCode?: string) => void;
   onLeaveLobby: () => void;
+  activeTab: MultiplayerPanelTab;
+  onActiveTabChange: (tab: MultiplayerPanelTab) => void;
 }
 
 /**
@@ -50,17 +53,20 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   betDisabled,
   onBetAmountChange,
   mpPhase,
-  matchQueued,
   publicLobbies,
   isLoading,
+  quickMatchRequestPending,
   viewerCurrency,
   onQuickMatch,
   onCreateLobby,
   onRefreshLobbies,
   onJoinLobby,
   onLeaveLobby,
+  activeTab,
+  onActiveTabChange,
 }) => {
-  const [tab, setTab] = useState<MultiplayerPanelTab>('create');
+  const tab = activeTab;
+  const [exactStakeOnly, setExactStakeOnly] = useState(false);
 
   useEffect(() => {
     if (tab !== 'lobbies') return;
@@ -102,7 +108,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
         </Box>
       </Box>
 
-      <MultiplayerTabBar value={tab} onChange={setTab} />
+      <MultiplayerTabBar value={tab} onChange={onActiveTabChange} />
 
       <Box pt={4} minH='140px'>
         {tab === 'lobbies' && (
@@ -120,9 +126,13 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
             betAmount={betAmount}
             currency={currency}
             disabled={betDisabled || !!betAmountErrors.betAmount}
-            loading={isLoading}
-            matchQueued={matchQueued}
-            onFindMatch={onQuickMatch}
+            createLoading={isLoading}
+            findMatchLoading={quickMatchRequestPending}
+            exactStakeOnly={exactStakeOnly}
+            onExactStakeOnlyChange={setExactStakeOnly}
+            onFindMatch={() =>
+              onQuickMatch({ betAmountMustEqual: exactStakeOnly })
+            }
             onCreate={onCreateLobby}
           />
         )}

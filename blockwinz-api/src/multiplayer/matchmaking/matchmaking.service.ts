@@ -69,7 +69,10 @@ export class MatchmakingService {
   }
 
   /**
-   * Removes a user from all quick-match queues (best-effort; scans known pool keys for this user).
+   * Removes a user from all quick-match Redis lists for the game (best-effort scan).
+   *
+   * @param userId Player to dequeue.
+   * @param gameId Limits scan to pools for this game type.
    */
   async cancelForUser(userId: string, gameId: DbGameSchema): Promise<void> {
     const pattern = `mp:queue:${gameId}:*`;
@@ -92,6 +95,10 @@ export class MatchmakingService {
   }
 
   private poolKey(request: MatchRequest): string {
-    return `mp:queue:${request.gameId}:${request.betAmount}:${request.currency}`;
+    const exact = request.betAmountMustEqual !== false;
+    if (exact) {
+      return `mp:queue:${request.gameId}:${request.betAmount}:${request.currency}`;
+    }
+    return `mp:queue:${request.gameId}:flex:${request.currency}`;
   }
 }

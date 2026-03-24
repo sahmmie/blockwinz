@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createHash, randomBytes } from 'crypto';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lte, sql } from 'drizzle-orm';
 import { MultiplayerSessionStatus } from './interfaces/game-session.interface';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
@@ -328,9 +328,13 @@ export class GameSessionService {
 
   /**
    * Lists public lobbies waiting for players (excludes private and in-progress games).
+   * Lobbies hosted by `viewerUserId` are omitted so browse lists only show other hosts.
+   *
+   * @param viewerUserId Authenticated user; rows where they are the host are excluded.
    */
   async listPublicLobbies(
     gameType: DbGameSchema,
+    viewerUserId: string,
     limit = 50,
   ): Promise<GameSessionDocument[]> {
     const rows = await this.db
@@ -341,6 +345,7 @@ export class GameSessionService {
           eq(gameSessions.gameType, gameType),
           eq(gameSessions.gameStatus, MultiplayerSessionStatus.PENDING),
           eq(gameSessions.visibility, 'public'),
+          sql`COALESCE(${gameSessions.hostUserId}, ${gameSessions.userId}) <> ${viewerUserId}::uuid`,
         ),
       )
       .orderBy(desc(gameSessions.createdAt))
@@ -394,13 +399,22 @@ export class GameSessionService {
   }
 
   /**
-   * First joinable public lobby for quick match (same game, stake, currency, not full).
+   * First joinable public lobby for quick match (same game, currency, not full).
+   * Exact stake: lobby stake must equal `betAmount`.
+   * Flex stake: lobby stake must be ≤ `betAmount` (prefer highest such stake).
+   * Never returns a lobby hosted by `excludeUserId` so quick match cannot re-join the caller’s own lobby.
    */
   async findJoinablePublicLobby(params: {
     gameType: DbGameSchema;
     betAmount: number;
     currency: string;
-  }): Promise<string | null> {
+    excludeUserId: string;
+    /** When true, only a lobby with the same stake as `betAmount`. When false, any lobby stake ≤ `betAmount`. */
+    flexStake?: boolean;
+  }): Promise<{ id: string; betAmount: number } | null> {
+    const stakeClause = params.flexStake
+      ? lte(gameSessions.betAmount, String(params.betAmount))
+      : eq(gameSessions.betAmount, String(params.betAmount));
     const rows = await this.db
       .select()
       .from(gameSessions)
@@ -409,18 +423,26 @@ export class GameSessionService {
           eq(gameSessions.gameType, params.gameType),
           eq(gameSessions.gameStatus, MultiplayerSessionStatus.PENDING),
           eq(gameSessions.visibility, 'public'),
-          eq(gameSessions.betAmount, String(params.betAmount)),
+          stakeClause,
           eq(gameSessions.currency, params.currency),
           sql`COALESCE(cardinality(${gameSessions.players}), 0) < ${gameSessions.maxPlayers}`,
+          sql`COALESCE(${gameSessions.hostUserId}, ${gameSessions.userId}) <> ${params.excludeUserId}::uuid`,
         ),
       )
-      .orderBy(asc(gameSessions.createdAt))
+      .orderBy(
+        ...(params.flexStake
+          ? [desc(gameSessions.betAmount), asc(gameSessions.createdAt)]
+          : [asc(gameSessions.createdAt)]),
+      )
       .limit(1);
-    return rows[0]?.id ?? null;
+    const row = rows[0];
+    if (!row) return null;
+    return { id: row.id, betAmount: Number(row.betAmount) };
   }
 
   /**
    * Prefer joining an existing public lobby before Redis queue (quick match).
+   * Does not join a public lobby hosted by the same user.
    */
   async tryJoinOrEnqueueQuickMatch(
     user: UserDto,
@@ -428,6 +450,8 @@ export class GameSessionService {
       gameId: DbGameSchema;
       betAmount: number;
       currency: string;
+      /** Default true: same-stake queues / lobbies only (backward compatible). */
+      betAmountMustEqual?: boolean;
     },
     enqueue: () => Promise<
       QuickMatchResponseStatus.WAITING | QuickMatchResponseStatus.MATCHED
@@ -441,14 +465,17 @@ export class GameSessionService {
           | QuickMatchResponseStatus.MATCHED;
       }
   > {
-    const lobbyId = await this.findJoinablePublicLobby({
+    const betAmountMustEqual = params.betAmountMustEqual !== false;
+    const lobby = await this.findJoinablePublicLobby({
       gameType: params.gameId,
       betAmount: params.betAmount,
       currency: params.currency,
+      excludeUserId: getUserId(user),
+      flexStake: !betAmountMustEqual,
     });
-    if (lobbyId) {
-      const session = await this.joinGame(lobbyId, user, {
-        betAmount: params.betAmount,
+    if (lobby) {
+      const session = await this.joinGame(lobby.id, user, {
+        betAmount: lobby.betAmount,
         currency: params.currency,
       });
       return { kind: 'joined', session };

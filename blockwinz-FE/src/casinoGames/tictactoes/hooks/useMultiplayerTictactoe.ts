@@ -54,6 +54,9 @@ type GameStatePayload = {
 
 const GAME_TYPE = DbGameSchema.TicTacToeGame;
 
+/** Max time to stay in quick-match queue before dequeue + UI reset (server has separate Redis key TTL). */
+const QUICK_MATCH_WAIT_MS = 15_000;
+
 const emptyCells = (): string[] => Array.from({ length: TOTAL_TILES }, () => '');
 
 function emitAck<T>(
@@ -105,6 +108,7 @@ export function useMultiplayerTictactoe() {
   const [isLoading, setIsLoading] = useState(false);
   const [matchQueued, setMatchQueued] = useState(false);
   const [hostInvite, setHostInvite] = useState<HostInviteInfo | null>(null);
+  const [quickMatchNoMatchOpen, setQuickMatchNoMatchOpen] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<IErrorMsg>({
     title: '',
@@ -112,6 +116,9 @@ export function useMultiplayerTictactoe() {
   });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const quickMatchWaitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -119,6 +126,49 @@ export function useMultiplayerTictactoe() {
       pollRef.current = null;
     }
   }, []);
+
+  const clearQuickMatchWaitTimeout = useCallback(() => {
+    if (quickMatchWaitTimeoutRef.current !== null) {
+      clearTimeout(quickMatchWaitTimeoutRef.current);
+      quickMatchWaitTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleQuickMatchWaitTimeout = useCallback(() => {
+    clearQuickMatchWaitTimeout();
+    quickMatchWaitTimeoutRef.current = setTimeout(() => {
+      quickMatchWaitTimeoutRef.current = null;
+      void (async () => {
+        try {
+          await emitAck(emit, GameGatewaySocketEvent.CANCEL_QUICK_MATCH, {
+            gameId: GAME_TYPE,
+          });
+        } catch {
+          /* best-effort dequeue */
+        }
+        stopPolling();
+        setMatchQueued(false);
+        setPhase(MpPhase.Idle);
+        setQuickMatchNoMatchOpen(true);
+      })();
+    }, QUICK_MATCH_WAIT_MS);
+  }, [emit, clearQuickMatchWaitTimeout, stopPolling]);
+
+  /** User dismissed Find match modal or left the queue early — does not open the “no match” modal. */
+  const cancelQuickMatchSearch = useCallback(async () => {
+    clearQuickMatchWaitTimeout();
+    stopPolling();
+    setIsLoading(false);
+    try {
+      await emitAck(emit, GameGatewaySocketEvent.CANCEL_QUICK_MATCH, {
+        gameId: GAME_TYPE,
+      });
+    } catch {
+      /* best-effort dequeue */
+    }
+    setMatchQueued(false);
+    setPhase((p) => (p === MpPhase.Queued ? MpPhase.Idle : p));
+  }, [emit, clearQuickMatchWaitTimeout, stopPolling]);
 
   const leaveSessionRoom = useCallback(
     (sid: string) => {
@@ -325,6 +375,10 @@ export function useMultiplayerTictactoe() {
   }, [syncActiveSession]);
 
   useEffect(() => {
+    return () => clearQuickMatchWaitTimeout();
+  }, [clearQuickMatchWaitTimeout]);
+
+  useEffect(() => {
     if (sessionRow?.betAmount != null && sessionRow.betAmount > 0) {
       setLocalBetAmount(sessionRow.betAmount);
     }
@@ -346,6 +400,7 @@ export function useMultiplayerTictactoe() {
             gameState?: GameStatePayload;
           };
           if (row?._id) {
+            clearQuickMatchWaitTimeout();
             stopPolling();
             setMatchQueued(false);
             setSessionId(row._id);
@@ -367,9 +422,16 @@ export function useMultiplayerTictactoe() {
         }
       })();
     }, 2000);
-  }, [emit, stopPolling, joinSessionRoom, applyGameStateToBoard]);
+  }, [
+    emit,
+    stopPolling,
+    joinSessionRoom,
+    applyGameStateToBoard,
+    clearQuickMatchWaitTimeout,
+  ]);
 
-  const quickMatch = useCallback(async () => {
+  const quickMatch = useCallback(
+    async (betAmountMustEqual = true) => {
     if (isMultiplayerLobbyMock()) {
       toaster.create({
         title: 'Mock mode',
@@ -378,16 +440,26 @@ export function useMultiplayerTictactoe() {
       });
       return;
     }
-    if (!currency || localBetAmount <= 0) {
+    if (!currency) {
       toaster.create({
-        title: 'Invalid bet',
-        description: 'Choose amount and currency',
+        title: 'Wallet not ready',
+        description: 'Select a currency, then try Find match again.',
         type: 'error',
       });
       return;
     }
-    setIsLoading(true);
+    if (localBetAmount <= 0) {
+      toaster.create({
+        title: 'Set a stake first',
+        description:
+          'Enter a stake amount greater than zero above, then tap Find match.',
+        type: 'error',
+      });
+      return;
+    }
     setHasError(false);
+    setQuickMatchNoMatchOpen(false);
+    clearQuickMatchWaitTimeout();
     try {
       const res = await emitAck<{
         status: QuickMatchResponseStatus;
@@ -398,12 +470,14 @@ export function useMultiplayerTictactoe() {
           gameId: GAME_TYPE,
           betAmount: localBetAmount,
           currency,
+          betAmountMustEqual,
         },
       );
       if (res.data.status === QuickMatchResponseStatus.WAITING) {
         setPhase(MpPhase.Queued);
         setMatchQueued(true);
         startQuickMatchPoll();
+        scheduleQuickMatchWaitTimeout();
       } else {
         setMatchQueued(false);
         stopPolling();
@@ -415,17 +489,19 @@ export function useMultiplayerTictactoe() {
         title: 'Matchmaking failed',
         description: e instanceof Error ? e.message : 'Try again',
       });
-    } finally {
-      setIsLoading(false);
     }
-  }, [
+  },
+  [
     currency,
     localBetAmount,
     emit,
     syncActiveSession,
     startQuickMatchPoll,
     stopPolling,
-  ]);
+    clearQuickMatchWaitTimeout,
+    scheduleQuickMatchWaitTimeout,
+  ],
+  );
 
   /**
    * Creates a public or private lobby (`newGame`).
@@ -560,6 +636,7 @@ export function useMultiplayerTictactoe() {
     if (isMultiplayerLobbyMock()) return;
 
     const onMatchReady = () => {
+      clearQuickMatchWaitTimeout();
       stopPolling();
       setMatchQueued(false);
       void syncActiveSession();
@@ -568,7 +645,7 @@ export function useMultiplayerTictactoe() {
     return () => {
       off(MultiplayerGameEmitterEvent.MATCH_READY, onMatchReady);
     };
-  }, [on, off, syncActiveSession, stopPolling]);
+  }, [on, off, syncActiveSession, stopPolling, clearQuickMatchWaitTimeout]);
 
   const joinLobbyById = useCallback(
     async (gameId: string, joinCode?: string) => {
@@ -776,6 +853,7 @@ export function useMultiplayerTictactoe() {
     reconnectGraceUntil: sessionRow?.reconnectGraceUntil ?? null,
     userId,
     hostInvite,
+    quickMatchNoMatchOpen,
   };
 
   return {
@@ -796,6 +874,8 @@ export function useMultiplayerTictactoe() {
       handleBetAmountChange,
       syncActiveSession,
       dismissHostInvite,
+      dismissQuickMatchNoMatch: () => setQuickMatchNoMatchOpen(false),
+      cancelQuickMatchSearch,
     },
   };
 }

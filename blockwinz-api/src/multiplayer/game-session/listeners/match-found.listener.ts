@@ -26,11 +26,12 @@ export class MatchFoundListener {
       `Creating matched session for ${player1.userId} vs ${player2.userId}`,
     );
     try {
+      const tableStake = Math.min(player1.betAmount, player2.betAmount);
       const session = await this.sessionService.createMatchedSession({
         playerOneId: player1.userId,
         playerTwoId: player2.userId,
         gameType: player1.gameId as DbGameSchema,
-        betAmount: player1.betAmount,
+        betAmount: tableStake,
         currency: player1.currency,
       });
       this.eventEmitter.emit(MultiplayerGameEmitterEvent.MATCH_READY, {

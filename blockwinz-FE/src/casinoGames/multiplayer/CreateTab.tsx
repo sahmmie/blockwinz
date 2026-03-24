@@ -3,6 +3,8 @@ import { type ChangeEvent, FunctionComponent, useState } from 'react';
 import { customAlphabet } from 'nanoid';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip } from '@/components/ui/tooltip';
+import InfoIcon from '@/assets/icons/info-icon.svg';
 import { LobbyVisibility } from '@blockwinz/shared';
 import type { CreateLobbyParams } from './types';
 
@@ -15,8 +17,12 @@ interface CreateTabProps {
   betAmount: number;
   currency: string;
   disabled: boolean;
-  loading: boolean;
-  matchQueued: boolean;
+  /** Create lobby / other host actions (not quick match). */
+  createLoading: boolean;
+  /** In-flight Find match request (opening modal + socket ack). */
+  findMatchLoading: boolean;
+  exactStakeOnly: boolean;
+  onExactStakeOnlyChange: (value: boolean) => void;
   onFindMatch: () => void;
   onCreate: (params: CreateLobbyParams) => void;
 }
@@ -28,8 +34,10 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
   betAmount,
   currency,
   disabled,
-  loading,
-  matchQueued,
+  createLoading,
+  findMatchLoading,
+  exactStakeOnly,
+  onExactStakeOnlyChange,
   onFindMatch,
   onCreate,
 }) => {
@@ -37,7 +45,6 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
     LobbyVisibility.PUBLIC,
   );
   const [joinCode, setJoinCode] = useState('');
-  const [exactStake, setExactStake] = useState(false);
 
   const handleCreate = () => {
     onCreate({
@@ -46,7 +53,7 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
       visibility,
       joinCode:
         visibility === LobbyVisibility.PRIVATE ? joinCode.trim() : undefined,
-      betAmountMustEqual: exactStake,
+      betAmountMustEqual: exactStakeOnly,
       maxPlayers: 2,
     });
   };
@@ -149,21 +156,56 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
       )}
 
       <Box
-      display='flex'
-      justifyContent='space-between'
+        display='flex'
+        justifyContent='space-between'
+        alignItems='center'
+        gap={3}
         borderRadius='md'
         borderWidth='1px'
         borderColor='whiteAlpha.150'
         bg='blackAlpha.400'
         px={3}
         py={3}>
-           <Text as='span' fontSize='sm' color='gray.200'>
+        <HStack gap={2} align='center' minW={0}>
+          <Text as='span' fontSize='sm' color='gray.200'>
             Exact stake only
           </Text>
+          <Tooltip
+            content={
+              <Text fontSize='sm' lineHeight='short' maxW='240px'>
+                When off, you can match the same stake or lower; the table uses
+                the lower amount.
+              </Text>
+            }
+            showArrow
+            openDelay={200}
+            portalled
+            positioning={{ placement: 'top' }}>
+            <Box
+              as='span'
+              display='inline-flex'
+              alignItems='center'
+              flexShrink={0}
+              cursor='help'
+              lineHeight={0}
+              aria-label='About exact stake only'>
+              <img
+                src={InfoIcon}
+                alt=''
+                width={16}
+                height={16}
+                style={{ opacity: 0.55 }}
+              />
+            </Box>
+          </Tooltip>
+        </HStack>
         <Switch
           labelDirection='right'
-          checked={exactStake}
-          onCheckedChange={({ checked }) => setExactStake(checked)}/>
+          checked={exactStakeOnly}
+          onCheckedChange={({ checked }) =>
+            onExactStakeOnlyChange(Boolean(checked))
+          }
+        />
       </Box>
 
       <Button
@@ -174,10 +216,11 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
         color='#151832'
         fontWeight='600'
         fontSize='md'
-        loading={loading}
+        loading={createLoading}
         disabled={
           disabled ||
-          loading ||
+          createLoading ||
+          findMatchLoading ||
           betAmount <= 0 ||
           (visibility === LobbyVisibility.PRIVATE && !joinCode.trim())
         }
@@ -207,16 +250,11 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
         color='#ECF0F1'
         fontWeight='600'
         fontSize='md'
-        loading={loading}
-        disabled={disabled || loading}
+        loading={findMatchLoading}
+        disabled={disabled || createLoading || findMatchLoading}
         onClick={() => onFindMatch()}>
         Find match
       </Button>
-      {matchQueued && (
-        <Text fontSize='sm' color='#00DD25' fontWeight='600'>
-          Searching for an opponent…
-        </Text>
-      )}
     </VStack>
   );
 };

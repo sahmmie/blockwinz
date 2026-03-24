@@ -230,9 +230,16 @@ export class GameGateway extends BaseGateway {
   async quickMatch(
     @ConnectedSocket() client: Socket,
     @MessageBody(new WsValidationPipe())
-    data: { gameId: DbGameSchema; betAmount: number; currency: string },
+    data: {
+      gameId: DbGameSchema;
+      betAmount: number;
+      currency: string;
+      /** Omitted or true: exact stake only. False: flex pool / lobby stake ≤ yours; table uses min stakes when paired. */
+      betAmountMustEqual?: boolean;
+    },
     @WsUser() user: UserDto,
   ) {
+    const betAmountMustEqual = data.betAmountMustEqual !== false;
     try {
       const outcome = await this.gameSessionService.tryJoinOrEnqueueQuickMatch(
         user,
@@ -240,6 +247,7 @@ export class GameGateway extends BaseGateway {
           gameId: data.gameId,
           betAmount: data.betAmount,
           currency: data.currency,
+          betAmountMustEqual,
         },
         () =>
           this.matchmakingService.requestMatch({
@@ -248,6 +256,7 @@ export class GameGateway extends BaseGateway {
             betAmount: data.betAmount,
             currency: data.currency,
             mode: 'RANDOM_PUBLIC',
+            betAmountMustEqual,
           }),
       );
       if (outcome.kind === 'joined') {
@@ -265,14 +274,36 @@ export class GameGateway extends BaseGateway {
     }
   }
 
+  /**
+   * Drops the authenticated user from quick-match queues for `gameId` (client cancel / wait timeout).
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.CANCEL_QUICK_MATCH)
+  async cancelQuickMatch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { gameId: DbGameSchema },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      await this.matchmakingService.cancelForUser(getUserId(user), data.gameId);
+      return WsResponse.success({ ok: true });
+    } catch (error) {
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: error.message,
+      });
+      return WsResponse.error(error.message);
+    }
+  }
+
   @SubscribeMessage(GameGatewaySocketEvent.LIST_PUBLIC_LOBBIES)
   async listPublicLobbies(
     @ConnectedSocket() client: Socket,
     @MessageBody(new WsValidationPipe()) data: { gameType: DbGameSchema },
+    @WsUser() user: UserDto,
   ) {
     try {
       const rows = await this.gameSessionService.listPublicLobbies(
         data.gameType,
+        getUserId(user),
       );
       return WsResponse.success(rows);
     } catch (error) {

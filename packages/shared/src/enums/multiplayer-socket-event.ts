@@ -8,6 +8,8 @@ export enum GameGatewaySocketEvent {
   DISCONNECT = 'disconnect',
   LEAVE_GAME = 'leaveGame',
   QUICK_MATCH = 'quickMatch',
+  /** Remove the caller from Redis quick-match queues for a game (e.g. client wait timeout). */
+  CANCEL_QUICK_MATCH = 'cancelQuickMatch',
   LIST_PUBLIC_LOBBIES = 'listPublicLobbies',
   /** Join Socket.IO room `room:{sessionId}` for realtime `game.*` events. */
   JOIN_SESSION_ROOM = 'joinSessionRoom',

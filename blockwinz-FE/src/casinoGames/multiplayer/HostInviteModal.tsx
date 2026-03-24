@@ -80,13 +80,25 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
       unmountOnExit>
       <DialogContent maxW='min(100vw - 24px, 440px)' p={0}>
         <DialogCloseTrigger onClick={onClose} />
-        <DialogHeader pb={2}>
-          <DialogTitle fontSize='lg' color='white'>
-            Your game is ready
-          </DialogTitle>
-          <Text fontSize='sm' color='gray.400' fontWeight='normal' mt={1}>
-            Share the link or code so your opponent can join.
-          </Text>
+        <DialogHeader pb={2} display='block' width='100%' px={5} pt={5}>
+          <VStack align='stretch' gap={2} width='100%'>
+            <DialogTitle
+              fontSize='lg'
+              color='white'
+              display='block'
+              width='100%'>
+              Your game is ready
+            </DialogTitle>
+            <Text
+              fontSize='sm'
+              color='gray.400'
+              fontWeight='normal'
+              lineHeight='tall'
+              display='block'
+              width='100%'>
+              Share the link or code so your opponent can join.
+            </Text>
+          </VStack>
         </DialogHeader>
         <DialogBody px={5} pb={6} pt={0}>
           <VStack align='stretch' gap={4}>
@@ -178,8 +190,8 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
                 size='sm'
                 bg='#00DD25'
                 color='#151832'
-                onClick={() => copyToClipboard('Full invite', fullText)}>
-                Copy full invite
+                onClick={() => copyToClipboard('Invite link', inviteUrl)}>
+                Copy link
               </Button>
             </HStack>
 
@@ -191,38 +203,9 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
                 fontSize='xs'
                 color='gray.300'
                 wordBreak='break-all'
-                lineHeight='short'
-                mb={2}>
+                lineHeight='short'>
                 {inviteUrl}
               </Text>
-              <HStack gap={2} flexWrap='wrap'>
-                <Button
-                  size='sm'
-                  variant='outline'
-                  borderColor='whiteAlpha.300'
-                  onClick={() => copyToClipboard('Invite link', inviteUrl)}>
-                  Copy link
-                </Button>
-                {typeof navigator !== 'undefined' &&
-                  typeof navigator.share === 'function' && (
-                    <Button
-                      size='sm'
-                      variant='ghost'
-                      color='gray.300'
-                      onClick={() => {
-                        void navigator
-                          .share({
-                            title: 'Join my Tic Tac Toe game',
-                            url: inviteUrl,
-                          })
-                          .catch(() => {
-                            copyToClipboard('Invite link', inviteUrl);
-                          });
-                      }}>
-                      Share…
-                    </Button>
-                  )}
-              </HStack>
             </Box>
 
             <VStack align='center' gap={2} py={2}>
@@ -238,9 +221,47 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
               </Box>
             </VStack>
 
-            <Button w='100%' variant='outline' borderColor='whiteAlpha.400' onClick={onClose}>
-              Done
-            </Button>
+            <Box
+              pt={4}
+              mt={1}
+              borderTopWidth='1px'
+              borderColor='whiteAlpha.150'>
+              <VStack align='stretch' gap={2} w='100%'>
+                <Button
+                  w='100%'
+                  size='lg'
+                  h='48px'
+                  bg='#00DD25'
+                  color='#151832'
+                  fontWeight='600'
+                  onClick={() => copyToClipboard('Full invite', fullText)}>
+                  Copy full invite
+                </Button>
+                {typeof navigator !== 'undefined' &&
+                  typeof navigator.share === 'function' && (
+                    <Button
+                      w='100%'
+                      size='lg'
+                      h='48px'
+                      variant='outline'
+                      borderColor='whiteAlpha.400'
+                      color='#ECF0F1'
+                      fontWeight='600'
+                      onClick={() => {
+                        void navigator
+                          .share({
+                            title: 'Join my Tic Tac Toe game',
+                            url: inviteUrl,
+                          })
+                          .catch(() => {
+                            copyToClipboard('Invite link', inviteUrl);
+                          });
+                      }}>
+                      Share…
+                    </Button>
+                  )}
+              </VStack>
+            </Box>
           </VStack>
         </DialogBody>
       </DialogContent>

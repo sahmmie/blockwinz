@@ -130,4 +130,6 @@ export interface TictactoeState {
     reconnectGraceUntil?: string | null
     /** Populated after hosting a lobby until dismissed. */
     hostInvite?: HostInviteInfo | null
+    /** Quick match timed out without a pairing. */
+    quickMatchNoMatchOpen?: boolean
 }
