@@ -10,7 +10,6 @@ import type {
   MultiplayerSessionRow,
 } from './types';
 import { MpPhase } from '@/casinoGames/tictactoes/types';
-import QuickMatchTab from './QuickMatchTab';
 import LobbyTab from './LobbyTab';
 import CreateTab from './CreateTab';
 import JoinCodeTab from './JoinCodeTab';
@@ -39,7 +38,7 @@ export interface MultiplayerPanelProps {
 }
 
 /**
- * Unified multiplayer controls: stake, tab bar (host / browse / invite / match).
+ * Unified multiplayer controls: stake, tab bar (host / browse / join).
  * Game title lives in `GameInfo` below the board, not repeated here.
  */
 const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
@@ -106,14 +105,6 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
       <MultiplayerTabBar value={tab} onChange={setTab} />
 
       <Box pt={4} minH='140px'>
-        {tab === 'quick' && (
-          <QuickMatchTab
-            disabled={betDisabled || !!betAmountErrors.betAmount}
-            loading={isLoading}
-            matchQueued={matchQueued}
-            onFindMatch={onQuickMatch}
-          />
-        )}
         {tab === 'lobbies' && (
           <LobbyTab
             lobbies={publicLobbies}
@@ -130,6 +121,8 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
             currency={currency}
             disabled={betDisabled || !!betAmountErrors.betAmount}
             loading={isLoading}
+            matchQueued={matchQueued}
+            onFindMatch={onQuickMatch}
             onCreate={onCreateLobby}
           />
         )}

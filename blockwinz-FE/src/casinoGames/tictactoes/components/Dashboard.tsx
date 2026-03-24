@@ -47,7 +47,7 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
         pt={{ base: '0px', md: '16px' }}
         pl={'16px'}
         pr={'20px'}
-        pb={{ base: '38px', md: '16px' }}>
+        pb={{ base: '38px', md: '32px' }}>
         <MultiplayerPanel
           betAmount={betAmount}
           betAmountErrors={betAmountErrors}

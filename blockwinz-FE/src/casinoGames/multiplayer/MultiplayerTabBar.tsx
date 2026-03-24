@@ -7,11 +7,10 @@ const OPTIONS: { label: string; value: MultiplayerPanelTab }[] = [
   { label: 'Host', value: 'create' },
   { label: 'Browse', value: 'lobbies' },
   { label: 'Join', value: 'join' },
-  { label: 'Match', value: 'quick' },
 ];
 
 /**
- * Segmented control for multiplayer intents (fits four tabs on narrow layouts).
+ * Segmented control for multiplayer intents (host includes quick match + create lobby).
  */
 export const MultiplayerTabBar: FunctionComponent<{
   value: MultiplayerPanelTab;

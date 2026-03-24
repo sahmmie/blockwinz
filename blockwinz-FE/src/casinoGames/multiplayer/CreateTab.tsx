@@ -16,17 +16,21 @@ interface CreateTabProps {
   currency: string;
   disabled: boolean;
   loading: boolean;
+  matchQueued: boolean;
+  onFindMatch: () => void;
   onCreate: (params: CreateLobbyParams) => void;
 }
 
 /**
- * Host flow: public/private, optional exact stake, join code for private.
+ * Host flow: create a lobby, or quick match from the same tab.
  */
 const CreateTab: FunctionComponent<CreateTabProps> = ({
   betAmount,
   currency,
   disabled,
   loading,
+  matchQueued,
+  onFindMatch,
   onCreate,
 }) => {
   const [visibility, setVisibility] = useState<LobbyVisibility>(
@@ -180,6 +184,39 @@ const CreateTab: FunctionComponent<CreateTabProps> = ({
         onClick={handleCreate}>
         Create game
       </Button>
+
+      <Box
+        display='flex'
+        alignItems='center'
+        gap={3}
+        py={2}
+        aria-hidden>
+        <Box flex={1} h='1px' bg='whiteAlpha.200' />
+        <Text fontSize='xs' color='gray.500' textTransform='uppercase'>
+          Or
+        </Text>
+        <Box flex={1} h='1px' bg='whiteAlpha.200' />
+      </Box>
+
+      <Button
+        w='100%'
+        size='lg'
+        h='52px'
+        variant='outline'
+        borderColor='whiteAlpha.400'
+        color='#ECF0F1'
+        fontWeight='600'
+        fontSize='md'
+        loading={loading}
+        disabled={disabled || loading}
+        onClick={() => onFindMatch()}>
+        Find match
+      </Button>
+      {matchQueued && (
+        <Text fontSize='sm' color='#00DD25' fontWeight='600'>
+          Searching for an opponent…
+        </Text>
+      )}
     </VStack>
   );
 };

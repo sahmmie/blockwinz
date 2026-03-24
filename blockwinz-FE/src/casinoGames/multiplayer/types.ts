@@ -31,7 +31,7 @@ export type CreateLobbyParams = {
   maxPlayers?: number;
 };
 
-export type MultiplayerPanelTab = 'quick' | 'lobbies' | 'create' | 'join';
+export type MultiplayerPanelTab = 'lobbies' | 'create' | 'join';
 
 /** Shown after `newGame`; join code is only available client-side for private lobbies. */
 export type HostInviteInfo = {
