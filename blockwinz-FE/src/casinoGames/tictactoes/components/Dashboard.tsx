@@ -41,6 +41,10 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     publicLobbies,
     hostInvite,
     quickMatchNoMatchOpen,
+    multiplayerSession,
+    userId,
+    userIs,
+    currentTurn,
   } = state;
   const { balances } = useWalletState();
 
@@ -177,6 +181,10 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
           onLeaveLobby={() => void actions.leavePendingLobby()}
           activeTab={panelTab}
           onActiveTabChange={setPanelTab}
+          multiplayerSession={multiplayerSession ?? null}
+          userId={userId}
+          userIs={userIs}
+          currentTurn={currentTurn}
         />
       </Box>
     </>

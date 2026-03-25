@@ -132,4 +132,6 @@ export interface TictactoeState {
     hostInvite?: HostInviteInfo | null
     /** Quick match timed out without a pairing. */
     quickMatchNoMatchOpen?: boolean
+    /** Current lobby / session row when in multiplayer (join, host, or match). */
+    multiplayerSession?: MultiplayerSessionRow | null
 }

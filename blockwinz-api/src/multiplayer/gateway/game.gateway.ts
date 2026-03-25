@@ -77,6 +77,18 @@ export class GameGateway extends BaseGateway {
         .to(`room:${payload.sessionId}`)
         .emit(MultiplayerGameEmitterEvent.GAME_FINISHED, payload);
     });
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.GAME_JOINED,
+      (payload: {
+        sessionId: string;
+        userId: string;
+        session: unknown;
+      }) => {
+        this.server
+          .to(`room:${payload.sessionId}`)
+          .emit(MultiplayerGameEmitterEvent.GAME_JOINED, payload);
+      },
+    );
     this.eventEmitter.on(MultiplayerGameEmitterEvent.PLAYER_AFK, (payload) => {
       this.server
         .to(`room:${payload.sessionId}`)

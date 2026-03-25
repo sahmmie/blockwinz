@@ -29,6 +29,13 @@
       "when": 1774222513317,
       "tag": "0003_curvy_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774399030075,
+      "tag": "0004_chubby_morg",
+      "breakpoints": true
     }
   ]
 }

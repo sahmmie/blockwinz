@@ -1,7 +1,6 @@
-import { Box, HStack } from '@chakra-ui/react';
+import { Box, Text } from '@chakra-ui/react';
 import { FunctionComponent, useEffect, useState } from 'react';
 import { Currency } from '@blockwinz/shared';
-import { Button } from '@/components/ui/button';
 import BetAmount from '@/components/BetAmount/BetAmount';
 import ProfitOnWin from '@/components/ProfitOnWin/ProfitOnWin';
 import type {
@@ -10,6 +9,7 @@ import type {
   MultiplayerSessionRow,
 } from './types';
 import { MpPhase } from '@/casinoGames/tictactoes/types';
+import ActiveMultiplayerSessionCard from './ActiveMultiplayerSessionCard';
 import LobbyTab from './LobbyTab';
 import CreateTab from './CreateTab';
 import JoinCodeTab from './JoinCodeTab';
@@ -38,6 +38,11 @@ export interface MultiplayerPanelProps {
   onLeaveLobby: () => void;
   activeTab: MultiplayerPanelTab;
   onActiveTabChange: (tab: MultiplayerPanelTab) => void;
+  /** Set when user is in a lobby or live match (not while queued). */
+  multiplayerSession: MultiplayerSessionRow | null;
+  userId: string | null | undefined;
+  userIs: string;
+  currentTurn: string;
 }
 
 /**
@@ -64,34 +69,85 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   onLeaveLobby,
   activeTab,
   onActiveTabChange,
+  multiplayerSession,
+  userId,
+  userIs,
+  currentTurn,
 }) => {
   const tab = activeTab;
   const [exactStakeOnly, setExactStakeOnly] = useState(false);
 
+  const showActiveSession =
+    Boolean(multiplayerSession) &&
+    (mpPhase === MpPhase.Lobby || mpPhase === MpPhase.Playing);
+  const showQueuedOnly = mpPhase === MpPhase.Queued;
+
   useEffect(() => {
     if (tab !== 'lobbies') return;
+    if (showActiveSession || showQueuedOnly) return;
     void onRefreshLobbies();
     const id = window.setInterval(() => {
       void onRefreshLobbies();
     }, LOBBY_REFRESH_MS);
     return () => window.clearInterval(id);
-  }, [tab, onRefreshLobbies]);
+  }, [tab, onRefreshLobbies, showActiveSession, showQueuedOnly]);
+
+  if (showActiveSession && multiplayerSession) {
+    return (
+      <Box>
+        <ActiveMultiplayerSessionCard
+          session={multiplayerSession}
+          mpPhase={mpPhase}
+          userId={userId}
+          userMark={userIs}
+          currentTurn={currentTurn}
+          roundingDecimals={roundingDecimals}
+          onLeaveLobby={onLeaveLobby}
+        />
+      </Box>
+    );
+  }
+
+  if (showQueuedOnly) {
+    return (
+      <Box>
+        <Box
+          mb={4}
+          borderRadius='md'
+          borderWidth='1px'
+          borderColor='rgba(0, 221, 37, 0.35)'
+          bg='blackAlpha.450'
+          px={4}
+          py={3}>
+          <Text fontSize='sm' fontWeight='700' color='white' mb={1}>
+            Finding a match
+          </Text>
+          <Text fontSize='xs' color='gray.400' lineHeight='short'>
+            Hang tight — we&apos;re pairing you with another player. Use the
+            search dialog to cancel. Your stake below is what you queued with.
+          </Text>
+        </Box>
+        <Box mb={4} opacity={0.85}>
+          <BetAmount
+            currency={currency as Currency}
+            disabled
+            value={parseFloat(betAmount.toFixed(roundingDecimals))}
+            onChange={onBetAmountChange}
+            error={betAmountErrors.betAmount}
+          />
+          <Box mt={3}>
+            <ProfitOnWin
+              value={profitOnWin.toFixed(roundingDecimals)}
+              currency={currency as Currency}
+            />
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box>
-      <HStack justify='space-between' align='center' mb={2}>
-        {mpPhase === MpPhase.Lobby && (
-          <Button
-            size='sm'
-            variant='outline'
-            borderColor='whiteAlpha.400'
-            color='gray.300'
-            flexShrink={0}
-            onClick={() => onLeaveLobby()}>
-            Leave lobby
-          </Button>
-        )}
-      </HStack>
       <Box mb={4}>
         <BetAmount
           currency={currency as Currency}

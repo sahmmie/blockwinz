@@ -57,6 +57,7 @@ export class MultiplayerSessionOrchestrator {
 
   /**
    * Creates the per-game DB row, locks stakes, and moves the session to `in_progress` when ready.
+   * Skips locking the host again when `hostLobbyStakeLocked` is set (lobby creation already locked the host stake).
    */
   async tryStartGameplay(sessionId: string): Promise<void> {
     const session = await this.gameSessionService.getSessionById(sessionId);
@@ -76,12 +77,17 @@ export class MultiplayerSessionOrchestrator {
     const ctx = this.toCtx(session);
     const bet = session.betAmount;
     const currency = session.currency as Currency;
+    const hostId = String(session.hostUserId ?? session.user);
+    const hostAlreadyLocked = session.hostLobbyStakeLocked === true;
 
     await this.db.transaction(async (tx) => {
       const txDb = tx as unknown as DrizzleDb;
 
       if (bet > 0) {
         for (const pid of session.players) {
+          if (hostAlreadyLocked && String(pid) === hostId) {
+            continue;
+          }
           await this.walletRepository.lockBetFunds(
             asUser(pid),
             bet,
@@ -105,6 +111,7 @@ export class MultiplayerSessionOrchestrator {
         gameStatus: MultiplayerSessionStatus.IN_PROGRESS,
         turnDeadlineAt: deadline,
         reconnectGraceUntil: null,
+        hostLobbyStakeLocked: false,
       });
     });
 

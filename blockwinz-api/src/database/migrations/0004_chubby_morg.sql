@@ -1,0 +1,1 @@
+ALTER TABLE "game_sessions" ADD COLUMN "host_lobby_stake_locked" boolean DEFAULT false NOT NULL;

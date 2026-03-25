@@ -31,6 +31,10 @@ export const gameSessions = pgTable(
     invitedEmail: text('invited_email').array().default([]),
     visibility: text('visibility').notNull().default('public'),
     hostUserId: uuid('host_user_id'),
+    /** True while host stake is held for an open lobby (released on cancel or when gameplay locks all players). */
+    hostLobbyStakeLocked: boolean('host_lobby_stake_locked')
+      .notNull()
+      .default(false),
     maxPlayers: integer('max_players').notNull().default(2),
     joinCodeHash: text('join_code_hash'),
     spectatorsAllowed: boolean('spectators_allowed').notNull().default(false),

@@ -45,6 +45,7 @@ export type GameSessionDocument = GameSessionSelect & {
   invitedEmail?: string[];
   visibility: string;
   hostUserId: string | null;
+  hostLobbyStakeLocked: boolean;
   maxPlayers: number;
   joinCodeHash: string | null;
   spectatorsAllowed: boolean;
@@ -140,29 +141,43 @@ export class GameSessionService {
         }
       }
 
-      const [row] = await this.db
-        .insert(gameSessions)
-        .values({
-          userId,
-          gameType: payload.gameType,
-          players: [userId],
-          betAmount: String(payload.betAmount),
-          betAmountMustEqual: payload.betAmountMustEqual ?? false,
-          currency: payload.currency,
-          gameStatus: MultiplayerSessionStatus.PENDING,
-          invitedPlayers,
-          invitedEmail,
-          gameId: null,
-          visibility,
-          hostUserId: userId,
-          maxPlayers,
-          joinCodeHash,
-          spectatorsAllowed: false,
-          spectatorUserIds: [],
-        } as GameSessionInsert)
-        .returning();
-
-      if (!row) throw new Error('Failed to create game session');
+      const stakeLocked = payload.betAmount > 0;
+      const row = await this.db.transaction(async (tx) => {
+        if (stakeLocked) {
+          await this.walletRepository.lockBetFunds(
+            user,
+            payload.betAmount,
+            payload.currency as Currency,
+            tx as unknown as DrizzleDb,
+          );
+        }
+        const [inserted] = await tx
+          .insert(gameSessions)
+          .values({
+            userId,
+            gameType: payload.gameType,
+            players: [userId],
+            betAmount: String(payload.betAmount),
+            betAmountMustEqual: payload.betAmountMustEqual ?? false,
+            currency: payload.currency,
+            gameStatus: MultiplayerSessionStatus.PENDING,
+            invitedPlayers,
+            invitedEmail,
+            gameId: null,
+            visibility,
+            hostUserId: userId,
+            hostLobbyStakeLocked: stakeLocked,
+            maxPlayers,
+            joinCodeHash,
+            spectatorsAllowed: false,
+            spectatorUserIds: [],
+          } as GameSessionInsert)
+          .returning();
+        if (!inserted) {
+          throw new Error('Failed to create game session');
+        }
+        return inserted;
+      });
 
       const session = this.rowToDocument(row);
       this.logger.verbose(
@@ -253,6 +268,7 @@ export class GameSessionService {
         gameId: null,
         visibility,
         hostUserId: playerOneId,
+        hostLobbyStakeLocked: false,
         maxPlayers: 2,
         joinCodeHash: null,
         spectatorsAllowed: false,
@@ -355,9 +371,16 @@ export class GameSessionService {
   }
 
   /**
-   * Cancels an unfilled pending lobby (e.g. TTL). No wallet locks exist until gameplay starts.
+   * Cancels an unfilled pending lobby (e.g. TTL, host left, last player left).
+   * Releases the host’s lobby stake lock when present (`host_lobby_stake_locked` and no `game_id` yet).
+   *
+   * @param sessionId Session row id.
+   * @param options Optional `lobbyUpdatedReason` for `LOBBY_UPDATED` (default `lobby_expired`).
    */
-  async cancelPendingLobby(sessionId: string): Promise<void> {
+  async cancelPendingLobby(
+    sessionId: string,
+    options?: { lobbyUpdatedReason?: string },
+  ): Promise<void> {
     const [row] = await this.db
       .select()
       .from(gameSessions)
@@ -366,21 +389,44 @@ export class GameSessionService {
     if (!row || row.gameStatus !== MultiplayerSessionStatus.PENDING) {
       return;
     }
-    await this.db
-      .update(gameSessions)
-      .set({
-        gameStatus: MultiplayerSessionStatus.CANCELLED,
-        players: [],
-        updatedAt: new Date(),
-      } as Record<string, unknown>)
-      .where(eq(gameSessions.id, sessionId));
+
+    const bet = Number(row.betAmount);
+    const currency = String(row.currency) as Currency;
+    const hostId = String(row.hostUserId ?? row.userId);
+    const releaseLobbyStake =
+      !row.gameId &&
+      bet > 0 &&
+      row.hostLobbyStakeLocked === true;
+
+    await this.db.transaction(async (tx) => {
+      const txDb = tx as unknown as DrizzleDb;
+      if (releaseLobbyStake) {
+        await this.walletRepository.releaseBetFunds(
+          { _id: hostId } as UserDto,
+          bet,
+          currency,
+          txDb,
+        );
+      }
+      await tx
+        .update(gameSessions)
+        .set({
+          gameStatus: MultiplayerSessionStatus.CANCELLED,
+          players: [],
+          hostLobbyStakeLocked: false,
+          updatedAt: new Date(),
+        } as Record<string, unknown>)
+        .where(eq(gameSessions.id, sessionId));
+    });
+
+    const reason = options?.lobbyUpdatedReason ?? 'lobby_expired';
     this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_EXPIRED, {
       sessionId,
       gameType: row.gameType as DbGameSchema,
     });
     this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, {
       gameType: row.gameType as DbGameSchema,
-      reason: 'lobby_expired',
+      reason,
       sessionId,
       session: null,
     });
@@ -617,6 +663,10 @@ export class GameSessionService {
 
   /**
    * Removes the user from a pending lobby; in-progress games are not cancelled here.
+   *
+   * - **Last player leaves** (including host alone): session is cancelled (`lobby_closed`).
+   * - **Non-host leaves** with others still present: only that player is removed from `players`.
+   * - **Host leaves** while one or more guests remain: entire lobby is cancelled (`host_left`) so guests are not left in an orphaned room.
    */
   async leaveGame(
     sessionId: string,
@@ -640,14 +690,17 @@ export class GameSessionService {
     const players = (row.players ?? []).map(String).filter((p) => p !== userId);
 
     if (players.length === 0) {
-      await this.db
-        .update(gameSessions)
-        .set({
-          gameStatus: MultiplayerSessionStatus.CANCELLED,
-          players: [],
-          updatedAt: new Date(),
-        } as Record<string, unknown>)
-        .where(eq(gameSessions.id, sessionId));
+      await this.cancelPendingLobby(sessionId, {
+        lobbyUpdatedReason: 'lobby_closed',
+      });
+      return null;
+    }
+
+    const hostId = String(row.hostUserId ?? row.userId);
+    if (userId === hostId) {
+      await this.cancelPendingLobby(sessionId, {
+        lobbyUpdatedReason: 'host_left',
+      });
       return null;
     }
 
@@ -768,6 +821,7 @@ export class GameSessionService {
       gameStatus: string;
       turnDeadlineAt: Date | null;
       reconnectGraceUntil: Date | null;
+      hostLobbyStakeLocked: boolean;
     }>,
   ): Promise<void> {
     await tx
@@ -903,6 +957,7 @@ export class GameSessionService {
       invitedEmail: row.invitedEmail ?? [],
       visibility: row.visibility ?? 'public',
       hostUserId: row.hostUserId ?? null,
+      hostLobbyStakeLocked: row.hostLobbyStakeLocked ?? false,
       maxPlayers: row.maxPlayers ?? 2,
       joinCodeHash: row.joinCodeHash ?? null,
       spectatorsAllowed: row.spectatorsAllowed ?? false,

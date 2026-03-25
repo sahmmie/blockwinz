@@ -36,12 +36,14 @@ const JoinCodeTab: FunctionComponent<JoinCodeTabProps> = ({
         value={sessionId}
         placeholder='xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
         monospace
+        showPasteButton
         onChange={setSessionId}
       />
       <MultiplayerTextField
         label='Join code'
         value={code}
         placeholder='Code from host'
+        showPasteButton
         onChange={setCode}
       />
       <Button
