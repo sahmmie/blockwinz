@@ -19,23 +19,32 @@ const MAILGUN_DEFAULT_API_URL = 'https://api.mailgun.net';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly mailgunClient: IMailgunClient;
+  private readonly mailgunClient: IMailgunClient | null;
   private readonly mailgunDomain: string;
 
   constructor(
     private configService: ConfigService,
     private emailQueueRepository: EmailQueueRepository,
   ) {
-    const apiKey = this.configService.get<string>('MAILGUN_API_KEY') ?? '';
+    const apiKey = this.configService.get<string>('MAILGUN_API_KEY')?.trim();
     const url =
       this.configService.get<string>('MAILGUN_API_URL') ??
       MAILGUN_DEFAULT_API_URL;
-    const mailgun = new Mailgun(FormData);
-    this.mailgunClient = mailgun.client({
-      username: 'api',
-      key: apiKey,
-      url,
-    });
+
+    if (apiKey) {
+      const mailgun = new Mailgun(FormData);
+      this.mailgunClient = mailgun.client({
+        username: 'api',
+        key: apiKey,
+        url,
+      });
+    } else {
+      this.mailgunClient = null;
+      this.logger.warn(
+        'MAILGUN_API_KEY is not set; email sending is disabled until it is configured.',
+      );
+    }
+
     this.mailgunDomain = this.configService.get<string>('MAILGUN_DOMAIN') ?? '';
   }
 
@@ -47,9 +56,9 @@ export class EmailService {
     subject: string,
     html: string,
   ): Promise<MailgunSendResult> {
-    const apiKey = this.configService.get<string>('MAILGUN_API_KEY');
+    const apiKey = this.configService.get<string>('MAILGUN_API_KEY')?.trim();
     const from = this.configService.get<string>('MAILGUN_FROM');
-    if (!apiKey) {
+    if (!apiKey || !this.mailgunClient) {
       throw new Error('MAILGUN_API_KEY is not configured');
     }
     if (!this.mailgunDomain) {
