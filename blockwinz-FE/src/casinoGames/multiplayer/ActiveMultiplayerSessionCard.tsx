@@ -18,6 +18,9 @@ export interface ActiveMultiplayerSessionCardProps {
   onLeaveLobby: () => void;
   /** Live match only: opens confirm, then resigns (opponent wins stakes). */
   onForfeitMatch?: () => void;
+  /** Host in lobby: reopen invite modal (link, code, QR). */
+  onShareRoomDetails?: () => void;
+  leaveLobbyLoading?: boolean;
 }
 
 const ForfeitConfirmBody: FunctionComponent<{
@@ -55,6 +58,8 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
   roundingDecimals,
   onLeaveLobby,
   onForfeitMatch,
+  onShareRoomDetails,
+  leaveLobbyLoading,
 }) => {
   const { openModal, closeModal } = useModal();
 
@@ -202,17 +207,35 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
       </Box>
 
       {mpPhase === MpPhase.Lobby ? (
-        <Button
-          w='100%'
-          size='lg'
-          h='48px'
-          variant='outline'
-          borderColor='whiteAlpha.400'
-          color='#ECF0F1'
-          fontWeight='600'
-          onClick={() => onLeaveLobby()}>
-          Leave lobby
-        </Button>
+        <VStack align='stretch' gap={2}>
+          {onShareRoomDetails ? (
+            <Button
+              w='100%'
+              size='lg'
+              h='48px'
+              bg='#00DD25'
+              color='#151832'
+              fontWeight='700'
+              disabled={leaveLobbyLoading}
+              onClick={() => onShareRoomDetails()}>
+              Share room details
+            </Button>
+          ) : null}
+          <Button
+            w='100%'
+            size='lg'
+            h='48px'
+            variant='outline'
+            borderColor='whiteAlpha.400'
+            color='#ECF0F1'
+            fontWeight='600'
+            loading={leaveLobbyLoading}
+            loadingText='Leaving…'
+            disabled={leaveLobbyLoading}
+            onClick={() => void onLeaveLobby()}>
+            Leave lobby
+          </Button>
+        </VStack>
       ) : mpPhase === MpPhase.Playing && onForfeitMatch ? (
         <VStack align='stretch' gap={2}>
           <Button

@@ -52,10 +52,13 @@ export interface MultiplayerPanelProps {
   currentTurn: string;
   /** Live tic-tac-toe (etc.): forfeit control in the active session card. */
   onForfeitMatch?: () => void;
-  /** Resolve session row from public list (join-by-code stake in confirm modal). */
-  resolveLobbyFromPublicList?: (
+  /** Resolve session row from public list (join tab + confirm stake). */
+  resolveLobbyFromPublicList: (
     sessionId: string,
   ) => Promise<MultiplayerSessionRow | null>;
+  /** Host waiting in lobby: reopen “Your game is ready” (link / code / QR). */
+  onShareRoomDetails?: () => void;
+  leaveLobbyLoading?: boolean;
 }
 
 /**
@@ -88,6 +91,8 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   currentTurn,
   onForfeitMatch,
   resolveLobbyFromPublicList,
+  onShareRoomDetails,
+  leaveLobbyLoading,
 }) => {
   const tab = activeTab;
   const [exactStakeOnly, setExactStakeOnly] = useState(false);
@@ -151,7 +156,9 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
     const joinCode =
       joinConfirm.kind === 'public'
         ? undefined
-        : joinConfirm.joinCode;
+        : joinConfirm.kind === 'private'
+          ? joinConfirm.joinCode?.trim() || undefined
+          : joinConfirm.joinCode?.trim() || undefined;
     const ok = await onJoinLobby(sessionId, joinCode);
     if (ok) {
       closeJoinModal();
@@ -180,6 +187,8 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
           roundingDecimals={roundingDecimals}
           onLeaveLobby={onLeaveLobby}
           onForfeitMatch={onForfeitMatch}
+          onShareRoomDetails={onShareRoomDetails}
+          leaveLobbyLoading={leaveLobbyLoading}
         />
       </Box>
     );
@@ -287,8 +296,14 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
           <JoinCodeTab
             disabled={betDisabled}
             loading={isLoading}
-            onRequestJoin={(sessionId, code) =>
-              setJoinConfirm({ kind: 'private', sessionId, joinCode: code })
+            resolveLobbyFromPublicList={resolveLobbyFromPublicList}
+            onRequestJoin={(sessionId, code, hideJoinCodeInConfirm) =>
+              setJoinConfirm({
+                kind: 'private',
+                sessionId,
+                joinCode: code,
+                hideJoinCodeInConfirm,
+              })
             }
           />
         )}

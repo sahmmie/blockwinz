@@ -182,6 +182,10 @@ export function useMultiplayerTictactoe() {
   const [isLoading, setIsLoading] = useState(false);
   const [matchQueued, setMatchQueued] = useState(false);
   const [hostInvite, setHostInvite] = useState<HostInviteInfo | null>(null);
+  /** Closing "Your game is ready" only hides the modal; invite data stays for Share room details. */
+  const [hostInviteModalDismissed, setHostInviteModalDismissed] =
+    useState(false);
+  const [leaveLobbyPending, setLeaveLobbyPending] = useState(false);
   const [quickMatchNoMatchOpen, setQuickMatchNoMatchOpen] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<IErrorMsg>({
@@ -824,6 +828,7 @@ export function useMultiplayerTictactoe() {
         if (row.gameStatus === MultiplayerSessionStatus.IN_PROGRESS) {
           setPhase(MpPhase.Playing);
           setHostInvite(null);
+          setHostInviteModalDismissed(false);
         } else if (row.gameStatus === MultiplayerSessionStatus.PENDING) {
           setPhase(MpPhase.Lobby);
           setHostInvite({
@@ -836,9 +841,11 @@ export function useMultiplayerTictactoe() {
             betAmount: stake,
             currency: cur,
           });
+          setHostInviteModalDismissed(false);
         } else {
           setPhase(MpPhase.Ended);
           setHostInvite(null);
+          setHostInviteModalDismissed(false);
         }
         await joinSessionRoom(row._id);
       } catch (e) {
@@ -1040,27 +1047,46 @@ export function useMultiplayerTictactoe() {
 
   const leavePendingLobby = useCallback(async () => {
     if (!sessionId) return;
+    const sid = sessionId;
+    setLeaveLobbyPending(true);
     try {
       await emitAck(emit, GameGatewaySocketEvent.LEAVE_GAME, {
-        gameId: sessionId,
+        gameId: sid,
       });
-      leaveSessionRoom(sessionId);
+      leaveSessionRoom(sid);
+      setSessionId(null);
+      setSessionRow(null);
+      setGameState(null);
+      setPhase(MpPhase.Idle);
+      stopPolling();
+      setMatchQueued(false);
+      setHostInvite(null);
+      setHostInviteModalDismissed(false);
+      stripMultiplayerSearchParams();
+      toaster.create({
+        title: 'Left lobby',
+        description: 'You can host or join another table anytime.',
+        type: 'success',
+      });
     } catch {
-      /* ignore */
+      toaster.create({
+        title: 'Could not leave',
+        description: 'Try again in a moment.',
+        type: 'error',
+      });
+    } finally {
+      setLeaveLobbyPending(false);
     }
-    setSessionId(null);
-    setSessionRow(null);
-    setGameState(null);
-    setPhase(MpPhase.Idle);
-    stopPolling();
-    setMatchQueued(false);
-    setHostInvite(null);
-    stripMultiplayerSearchParams();
   }, [emit, sessionId, leaveSessionRoom, stopPolling, stripMultiplayerSearchParams]);
 
   const dismissHostInvite = useCallback(() => {
-    setHostInvite(null);
+    setHostInviteModalDismissed(true);
   }, []);
+
+  const reopenHostInviteModal = useCallback(() => {
+    if (!hostInvite) return;
+    setHostInviteModalDismissed(false);
+  }, [hostInvite]);
 
   const sendMove = useCallback(
     async (cellIndex: number) => {
@@ -1149,6 +1175,7 @@ export function useMultiplayerTictactoe() {
     setPhase(MpPhase.Idle);
     setMatchQueued(false);
     setHostInvite(null);
+    setHostInviteModalDismissed(false);
     stripMultiplayerSearchParams();
   }, [sessionId, leaveSessionRoom, stopPolling, stripMultiplayerSearchParams]);
 
@@ -1271,9 +1298,11 @@ export function useMultiplayerTictactoe() {
     reconnectGraceUntil: sessionRow?.reconnectGraceUntil ?? null,
     userId,
     hostInvite,
+    showHostInviteModal: Boolean(hostInvite) && !hostInviteModalDismissed,
     quickMatchNoMatchOpen,
     multiplayerSession: sessionRow,
     mpTurnLabel,
+    leaveLobbyPending,
   };
 
   return {
@@ -1296,6 +1325,7 @@ export function useMultiplayerTictactoe() {
       handleBetAmountChange,
       syncActiveSession,
       dismissHostInvite,
+      reopenHostInviteModal,
       dismissQuickMatchNoMatch: () => setQuickMatchNoMatchOpen(false),
       cancelQuickMatchSearch,
       clearInviteUrlParams: stripMultiplayerSearchParams,

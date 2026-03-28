@@ -17,14 +17,20 @@ import { getJoinLobbyBlockReason, shortHostLabel } from './lobbyJoinRules';
 
 export type JoinLobbyConfirmPayload =
   | { kind: 'public'; lobby: MultiplayerSessionRow }
-  | { kind: 'private'; sessionId: string; joinCode: string }
+  | {
+      kind: 'private';
+      sessionId: string;
+      joinCode: string;
+      /** True when list lookup says public (or unknown) — no join code row in confirm. */
+      hideJoinCodeInConfirm?: boolean;
+    }
   /** Deep link, lobby hub, or paste flow before we have a full lobby row. */
   | {
       kind: 'invite';
       sessionId: string;
       joinCode?: string;
       source?: 'url' | 'hub';
-      /** Deep link only: show join code field when URL has no `code` and table is private or unknown. */
+      /** Deep link only: show join code field when URL has no `code` and we know the table is private. */
       requiresJoinCodeInput?: boolean;
       /** When the session appears on the public list (or hub resolved it). */
       tableBetAmount?: number;
@@ -99,7 +105,9 @@ const JoinLobbyConfirmModal: FunctionComponent<JoinLobbyConfirmModalProps> = ({
         ? 'Private'
         : 'Public'
       : payload.kind === 'private'
-        ? 'Private'
+        ? payload.hideJoinCodeInConfirm
+          ? 'Public'
+          : 'Private'
         : 'Invite link';
 
   const stakeRow = (() => {
@@ -241,9 +249,9 @@ const JoinLobbyConfirmModal: FunctionComponent<JoinLobbyConfirmModalProps> = ({
             ) : payload.kind === 'private' ? (
               <>
                 <Text fontSize='xs' color='gray.500' lineHeight='short'>
-                  You&apos;re joining with a session ID and code from the host.
-                  Your wallet will be checked for the table stake when you
-                  confirm.
+                  {payload.hideJoinCodeInConfirm
+                    ? "You're joining a public table with this session ID. Your wallet will be checked for the table stake when you confirm."
+                    : "You're joining with a session ID and code from the host. Your wallet will be checked for the table stake when you confirm."}
                 </Text>
                 <HStack justify='space-between' gap={3} align='flex-start'>
                   <Text fontSize='sm' color='gray.400' flexShrink={0}>
@@ -258,18 +266,20 @@ const JoinLobbyConfirmModal: FunctionComponent<JoinLobbyConfirmModalProps> = ({
                     {payload.sessionId}
                   </Text>
                 </HStack>
-                <HStack justify='space-between' gap={3}>
-                  <Text fontSize='sm' color='gray.400'>
-                    Join code
-                  </Text>
-                  <Text
-                    fontSize='sm'
-                    color='gray.200'
-                    textAlign='right'
-                    fontFamily='mono'>
-                    {payload.joinCode}
-                  </Text>
-                </HStack>
+                {!payload.hideJoinCodeInConfirm ? (
+                  <HStack justify='space-between' gap={3}>
+                    <Text fontSize='sm' color='gray.400'>
+                      Join code
+                    </Text>
+                    <Text
+                      fontSize='sm'
+                      color='gray.200'
+                      textAlign='right'
+                      fontFamily='mono'>
+                      {payload.joinCode}
+                    </Text>
+                  </HStack>
+                ) : null}
               </>
             ) : (
               <>

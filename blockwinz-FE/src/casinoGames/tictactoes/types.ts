@@ -128,12 +128,16 @@ export interface TictactoeState {
     userId?: string | null
     turnDeadlineAt?: string | null
     reconnectGraceUntil?: string | null
-    /** Populated after hosting a lobby until dismissed. */
+    /** Populated after hosting a lobby until the table ends or you leave (survives closing the invite modal). */
     hostInvite?: HostInviteInfo | null
+    /** True when host invite modal should be visible. */
+    showHostInviteModal?: boolean
     /** Quick match timed out without a pairing. */
     quickMatchNoMatchOpen?: boolean
     /** Current lobby / session row when in multiplayer (join, host, or match). */
     multiplayerSession?: MultiplayerSessionRow | null
     /** Multiplayer: short label for whose turn it is (empty when not in play). */
     mpTurnLabel?: string
+    /** Leaving a pending lobby (socket round-trip). */
+    leaveLobbyPending?: boolean
 }

@@ -40,11 +40,13 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     mpPhase,
     publicLobbies,
     hostInvite,
+    showHostInviteModal,
     quickMatchNoMatchOpen,
     multiplayerSession,
     userId,
     userIs,
     currentTurn,
+    leaveLobbyPending,
   } = state;
   const { balances } = useWalletState();
 
@@ -55,6 +57,7 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
   const {
     handleBetAmountChange,
     dismissHostInvite,
+    reopenHostInviteModal,
     dismissQuickMatchNoMatch,
     refreshPublicLobbies,
     cancelQuickMatchSearch,
@@ -132,10 +135,19 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
   const betDisabled =
     isLoading || quickMatchPending || !showBetButton;
 
+  const canShareRoomDetails =
+    mpPhase === MpPhase.Lobby &&
+    Boolean(hostInvite) &&
+    Boolean(
+      userId &&
+        multiplayerSession?.hostUserId &&
+        String(userId) === String(multiplayerSession.hostUserId),
+    );
+
   return (
     <>
       <HostInviteModal
-        open={Boolean(hostInvite)}
+        open={Boolean(showHostInviteModal)}
         onClose={() => dismissHostInvite()}
         invite={hostInvite ?? null}
       />
@@ -191,6 +203,10 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
           currentTurn={currentTurn}
           onForfeitMatch={() => void forfeitMatch()}
           resolveLobbyFromPublicList={resolveLobbyFromPublicList}
+          onShareRoomDetails={
+            canShareRoomDetails ? () => reopenHostInviteModal() : undefined
+          }
+          leaveLobbyLoading={leaveLobbyPending}
         />
       </Box>
     </>

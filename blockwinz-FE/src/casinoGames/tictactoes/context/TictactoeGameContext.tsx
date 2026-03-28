@@ -155,7 +155,7 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /**
    * Deep link: `/multiplayer/tictactoe?session=…&code=…` — after sync, skip modal if
-   * already seated; otherwise open confirm (join code field when private / unknown).
+   * already seated; otherwise open confirm (join code field only when the lobby is private).
    */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -198,10 +198,11 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (cancelled) return;
 
+        // Only private tables need a join code in the modal. Public tables are often
+        // absent from LIST_PUBLIC_LOBBIES (full / timing); requiring a code blocked joins.
         const needsCodeInput =
           !codeFromUrl &&
-          (listRow?.visibility === LobbyVisibility.PRIVATE ||
-            listRow === null);
+          listRow?.visibility === LobbyVisibility.PRIVATE;
 
         setDeepLinkJoinCodeDraft('');
         setPendingInvite({
