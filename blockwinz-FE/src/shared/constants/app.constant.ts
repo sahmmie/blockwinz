@@ -5,7 +5,6 @@ export const APP_VERSION = pkg.version;
 export const SERVER_BASE_URL = import.meta.env.VITE_REACT_APP_SERVER_BASE_URL as string
 export const TOKEN_NAME = import.meta.env.VITE_REACT_APP_TOKEN_NAME as string
 export const APP_ENV = import.meta.env.VITE_REACT_APP_ENV as string
-export const WS_URL = import.meta.env.VITE_REACT_APP_WS_URL as string
 export const WAITLIST_LAUNCH_DATE = import.meta.env.VITE_WAITLIST_LAUNCH_DATE as string
 
 

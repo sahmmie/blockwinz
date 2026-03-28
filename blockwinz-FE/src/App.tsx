@@ -7,7 +7,7 @@ import Layout from './components/Layout/Layout';
 import LoadingScreen from './components/LoadingScreen/LoadingScreen';
 import Logout from './pages/Logout/Logout';
 import Chatwoot from '@/components/Chatwoot/Chatwoot';
-import { APP_ENV } from './shared/constants/app.constant';
+import { APP_ENV, WAITLIST_LAUNCH_DATE } from './shared/constants/app.constant';
 import PageNotFound from './pages/404/PageNotFound';
 import { registerLoginModalOpener } from './shared/utils/authModalHandler';
 import useModal from '@/hooks/useModal';
@@ -67,6 +67,8 @@ function SessionBootstrap({ children }: { children: React.ReactNode }) {
 function App() {
   const { title } = usePageData();
   const isProd = APP_ENV === 'prod';
+  const showProdWaitlist =
+    isProd && Boolean(WAITLIST_LAUNCH_DATE?.trim());
   const { openModal } = useModal();
 
   useEffect(() => {
@@ -77,7 +79,7 @@ function App() {
     registerLoginModalOpener(openModal);
   }, [openModal]);
 
-  if (isProd) {
+  if (showProdWaitlist) {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <WaitlistPage />
