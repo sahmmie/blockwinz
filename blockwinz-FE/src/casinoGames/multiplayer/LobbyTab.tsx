@@ -11,7 +11,7 @@ interface LobbyTabProps {
   viewerStake: number;
   isLoading: boolean;
   onRefresh: () => void;
-  onJoin: (sessionId: string) => void;
+  onJoin: (lobby: MultiplayerSessionRow) => void;
 }
 
 /**
@@ -292,10 +292,9 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
                         ? undefined
                         : { filter: 'brightness(1.06)' }
                     }
-                    disabled={disabled}
-                    title={block ?? undefined}
+                    title={block ?? 'Review table details before joining'}
                     aria-label={`Join Tic Tac Toe table, ${lobby.betAmount} ${cur}`}
-                    onClick={() => onJoin(lobby._id)}>
+                    onClick={() => onJoin(lobby)}>
                     Join
                   </Button>
                 </HStack>

@@ -5,12 +5,20 @@ import React, {
   useContext,
   useEffect,
   useRef,
+  useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Box, Spinner, Text } from '@chakra-ui/react';
 import { useSocketContext } from '@/context/socketContext';
+import useWalletState from '@/hooks/useWalletState';
+import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
+import JoinLobbyConfirmModal, {
+  type JoinLobbyConfirmPayload,
+} from '@/casinoGames/multiplayer/JoinLobbyConfirmModal';
 import { useMultiplayerTictactoe } from '../hooks/useMultiplayerTictactoe';
 import { MpPhase } from '../types';
 import { toaster } from '@/components/ui/toaster';
+import { LobbyVisibility } from '@blockwinz/shared';
 
 const SOCKET_WAIT_MS = 15_000;
 
@@ -47,7 +55,7 @@ type MpReturn = ReturnType<typeof useMultiplayerTictactoe>;
 
 export type TictactoeGameContextValue = {
   opponentLabel: string;
-  state: MpReturn['state'];
+  state: MpReturn['state'] & { deepLinkJoinPending?: boolean };
   actions: MpReturn['actions'] & {
     handleSelectCell: (cellIndex: number) => void;
   };
@@ -61,13 +69,33 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const mp = useMultiplayerTictactoe();
-  const { joinLobbyById } = mp.actions;
+  const {
+    joinLobbyById,
+    syncActiveSession,
+    resolveLobbyFromPublicList,
+    clearInviteUrlParams,
+  } = mp.actions;
   const { getSocketInstance } = useSocketContext();
   const location = useLocation();
   const navigate = useNavigate();
+  const { balances } = useWalletState();
+
+  const [pendingInvite, setPendingInvite] =
+    useState<JoinLobbyConfirmPayload | null>(null);
+  const [deepLinkJoinCodeDraft, setDeepLinkJoinCodeDraft] = useState('');
+  const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
+  const inviteDismissedSessionRef = useRef<string | null>(null);
 
   const activeSessionIdRef = useRef<string | null>(null);
   activeSessionIdRef.current = mp.state.activeGameId ?? null;
+
+  const userIdRef = useRef(mp.state.userId);
+  userIdRef.current = mp.state.userId;
+
+  const currency = mp.state.currency;
+  const roundingDecimals =
+    balances.find((c) => c.currency === currency)?.decimals ??
+    DEFAULT_ROUNDING_DECIMALS;
 
   const waitForGameSocket = useCallback(() => {
     return waitForSocketConnected(getSocketInstance, SOCKET_WAIT_MS);
@@ -118,67 +146,223 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
     navigate,
   ]);
 
+  /** Close invite UI when the match ends (URL is also cleared from the game hook). */
+  useEffect(() => {
+    if (mp.state.mpPhase !== MpPhase.Ended) return;
+    setPendingInvite(null);
+    setDeepLinkJoinCodeDraft('');
+  }, [mp.state.mpPhase]);
+
   /**
-   * Deep link: `/multiplayer/tictactoe?session=…&code=…` (optional code for private).
-   * Skips if already in that session (e.g. host after create or refresh). Query is kept
-   * in sync by the effect above instead of being stripped.
+   * Deep link: `/multiplayer/tictactoe?session=…&code=…` — after sync, skip modal if
+   * already seated; otherwise open confirm (join code field when private / unknown).
    */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const session = params.get('session')?.trim();
     if (!session) return;
-    const code = params.get('code')?.trim();
 
+    if (mp.state.mpPhase === MpPhase.Ended) {
+      clearInviteUrlParams();
+      return;
+    }
+
+    const codeFromUrl = params.get('code')?.trim();
     let cancelled = false;
 
     void (async () => {
-      await waitForGameSocket();
-      if (cancelled) return;
-      if (activeSessionIdRef.current === session) return;
-      await joinLobbyById(session, code || undefined);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    location.search,
-    location.pathname,
-    joinLobbyById,
-    waitForGameSocket,
-  ]);
-
-  /** Join flow from `/lobbies` hub (`navigate(..., { state: { pendingJoinLobbyId } })`). */
-  useEffect(() => {
-    const joinId = (location.state as { pendingJoinLobbyId?: string } | null)
-      ?.pendingJoinLobbyId;
-    if (!joinId) return;
-
-    let cancelled = false;
-
-    void (async () => {
+      setInviteLinkLoading(true);
       try {
         await waitForGameSocket();
         if (cancelled) return;
-        await joinLobbyById(joinId);
+        if (inviteDismissedSessionRef.current === session) return;
+
+        const activeRow = await syncActiveSession();
+        if (cancelled) return;
+        const uid = userIdRef.current;
+        if (
+          activeRow?._id === session &&
+          uid &&
+          (activeRow.players ?? []).map(String).includes(String(uid))
+        ) {
+          return;
+        }
+
+        let listRow: Awaited<
+          ReturnType<typeof resolveLobbyFromPublicList>
+        > = null;
+        try {
+          listRow = await resolveLobbyFromPublicList(session);
+        } catch {
+          listRow = null;
+        }
+        if (cancelled) return;
+
+        const needsCodeInput =
+          !codeFromUrl &&
+          (listRow?.visibility === LobbyVisibility.PRIVATE ||
+            listRow === null);
+
+        setDeepLinkJoinCodeDraft('');
+        setPendingInvite({
+          kind: 'invite',
+          sessionId: session,
+          joinCode: codeFromUrl || undefined,
+          source: 'url',
+          requiresJoinCodeInput: needsCodeInput,
+          tableBetAmount: listRow?.betAmount,
+          tableCurrency: listRow?.currency,
+        });
       } finally {
         if (!cancelled) {
-          navigate(
-            { pathname: location.pathname, search: location.search },
-            { replace: true, state: {} },
-          );
+          setInviteLinkLoading(false);
         }
       }
     })();
 
     return () => {
       cancelled = true;
+      setInviteLinkLoading(false);
+    };
+  }, [
+    location.search,
+    mp.state.mpPhase,
+    syncActiveSession,
+    resolveLobbyFromPublicList,
+    waitForGameSocket,
+    clearInviteUrlParams,
+  ]);
+
+  /** Hub: `navigate(..., { state: { pendingJoinLobbyId } })` — confirm before join. */
+  useEffect(() => {
+    const params = new URLSearchParams(
+      location.search.startsWith('?')
+        ? location.search.slice(1)
+        : location.search,
+    );
+    if (params.get('session')?.trim()) return;
+
+    const joinId = (
+      location.state as { pendingJoinLobbyId?: string } | null
+    )?.pendingJoinLobbyId?.trim();
+    if (!joinId) return;
+
+    if (mp.state.mpPhase === MpPhase.Ended) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      setInviteLinkLoading(true);
+      try {
+        await waitForGameSocket();
+        if (cancelled) return;
+        if (inviteDismissedSessionRef.current === joinId) return;
+
+        const row = await syncActiveSession();
+        if (cancelled) return;
+        const uid = userIdRef.current;
+        if (
+          row?._id === joinId &&
+          uid &&
+          (row.players ?? []).map(String).includes(String(uid))
+        ) {
+          navigate(
+            { pathname: location.pathname, search: location.search },
+            { replace: true, state: {} },
+          );
+          return;
+        }
+
+        let listRow: Awaited<
+          ReturnType<typeof resolveLobbyFromPublicList>
+        > = null;
+        try {
+          listRow = await resolveLobbyFromPublicList(joinId);
+        } catch {
+          listRow = null;
+        }
+        if (cancelled) return;
+
+        setPendingInvite({
+          kind: 'invite',
+          sessionId: joinId,
+          source: 'hub',
+          tableBetAmount: listRow?.betAmount,
+          tableCurrency: listRow?.currency,
+        });
+        navigate(
+          { pathname: location.pathname, search: location.search },
+          { replace: true, state: {} },
+        );
+      } finally {
+        if (!cancelled) {
+          setInviteLinkLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      setInviteLinkLoading(false);
     };
   }, [
     location.state,
     location.pathname,
     location.search,
     navigate,
+    syncActiveSession,
+    waitForGameSocket,
+    resolveLobbyFromPublicList,
+    mp.state.mpPhase,
+  ]);
+
+  const handleInviteModalClose = useCallback(() => {
+    setDeepLinkJoinCodeDraft('');
+    setPendingInvite((prev) => {
+      if (prev?.kind === 'invite') {
+        inviteDismissedSessionRef.current = prev.sessionId;
+      }
+      return null;
+    });
+    const p = new URLSearchParams(
+      location.search.startsWith('?')
+        ? location.search.slice(1)
+        : location.search,
+    );
+    if (p.has('session') || p.has('code')) {
+      p.delete('session');
+      p.delete('code');
+      const s = p.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: s ? `?${s}` : '',
+        },
+        { replace: true },
+      );
+    }
+  }, [location.pathname, location.search, navigate]);
+
+  const handleInviteConfirm = useCallback(async () => {
+    if (pendingInvite?.kind !== 'invite') return;
+    await waitForGameSocket();
+    const joinCode =
+      pendingInvite.source === 'url' &&
+      pendingInvite.requiresJoinCodeInput &&
+      !pendingInvite.joinCode?.trim()
+        ? deepLinkJoinCodeDraft.trim() || undefined
+        : pendingInvite.joinCode;
+    const ok = await joinLobbyById(pendingInvite.sessionId, joinCode);
+    if (ok) {
+      inviteDismissedSessionRef.current = null;
+      setDeepLinkJoinCodeDraft('');
+      setPendingInvite(null);
+    }
+  }, [
+    pendingInvite,
+    deepLinkJoinCodeDraft,
     joinLobbyById,
     waitForGameSocket,
   ]);
@@ -206,7 +390,7 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value: TictactoeGameContextValue = {
     opponentLabel: 'Opponent',
-    state: mp.state,
+    state: { ...mp.state, deepLinkJoinPending: inviteLinkLoading },
     actions: {
       ...mp.actions,
       handleSelectCell,
@@ -215,6 +399,43 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <TictactoeGameContext.Provider value={value}>
+      {inviteLinkLoading ? (
+        <Box
+          position='fixed'
+          inset={0}
+          zIndex='modal'
+          bg='blackAlpha.700'
+          display='flex'
+          alignItems='center'
+          justifyContent='center'
+          flexDirection='column'
+          gap={4}
+          pointerEvents='all'>
+          <Spinner size='xl' color='#00DD25' />
+          <Text color='white' fontSize='sm' fontWeight='600' textAlign='center' px={6}>
+            Loading table…
+          </Text>
+          <Text color='gray.400' fontSize='xs' textAlign='center' px={8} maxW='320px'>
+            Connecting and fetching this lobby. You&apos;ll confirm join in a
+            moment.
+          </Text>
+        </Box>
+      ) : null}
+      <JoinLobbyConfirmModal
+        open={
+          Boolean(pendingInvite) &&
+          pendingInvite?.kind === 'invite'
+        }
+        onClose={handleInviteModalClose}
+        payload={pendingInvite?.kind === 'invite' ? pendingInvite : null}
+        viewerCurrency={currency ?? ''}
+        viewerStake={mp.state.betAmount ?? 0}
+        roundingDecimals={roundingDecimals}
+        isSubmitting={mp.state.isLoadingStart}
+        onConfirmJoin={handleInviteConfirm}
+        inviteJoinCodeDraft={deepLinkJoinCodeDraft}
+        onInviteJoinCodeDraftChange={setDeepLinkJoinCodeDraft}
+      />
       {children}
     </TictactoeGameContext.Provider>
   );

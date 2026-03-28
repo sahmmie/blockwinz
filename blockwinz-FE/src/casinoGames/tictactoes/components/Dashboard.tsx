@@ -58,6 +58,8 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
     dismissQuickMatchNoMatch,
     refreshPublicLobbies,
     cancelQuickMatchSearch,
+    forfeitMatch,
+    resolveLobbyFromPublicList,
   } = actions;
 
   const closeFindingMatchModalOnly = useCallback(() => {
@@ -177,7 +179,9 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
           onQuickMatch={handleQuickMatch}
           onCreateLobby={(params) => void actions.createLobby(params)}
           onRefreshLobbies={() => void actions.refreshPublicLobbies()}
-          onJoinLobby={(id, code) => void actions.joinLobbyById(id, code)}
+          onJoinLobby={async (id, code) =>
+            (await actions.joinLobbyById(id, code)) === true
+          }
           onLeaveLobby={() => void actions.leavePendingLobby()}
           activeTab={panelTab}
           onActiveTabChange={setPanelTab}
@@ -185,6 +189,8 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
           userId={userId}
           userIs={userIs}
           currentTurn={currentTurn}
+          onForfeitMatch={() => void forfeitMatch()}
+          resolveLobbyFromPublicList={resolveLobbyFromPublicList}
         />
       </Box>
     </>

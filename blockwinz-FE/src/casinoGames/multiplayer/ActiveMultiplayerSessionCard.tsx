@@ -2,6 +2,7 @@ import { Box, HStack, Text, VStack } from '@chakra-ui/react';
 import { FunctionComponent } from 'react';
 import { LobbyVisibility, MultiplayerSessionStatus } from '@blockwinz/shared';
 import { Button } from '@/components/ui/button';
+import useModal from '@/hooks/useModal';
 import type { MultiplayerSessionRow } from './types';
 import { MpPhase, RiskLevel } from '@/casinoGames/tictactoes/types';
 import { parseFloatValue } from '@/shared/utils/common';
@@ -15,7 +16,33 @@ export interface ActiveMultiplayerSessionCardProps {
   currentTurn: string;
   roundingDecimals: number;
   onLeaveLobby: () => void;
+  /** Live match only: opens confirm, then resigns (opponent wins stakes). */
+  onForfeitMatch?: () => void;
 }
+
+const ForfeitConfirmBody: FunctionComponent<{
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ onConfirm, onCancel }) => (
+  <VStack align='stretch' gap={4} py={2}>
+    <Text fontSize='sm' color='gray.200' lineHeight='tall'>
+      You will lose the match and your opponent receives both stakes (after rake,
+      if any).
+    </Text>
+    <HStack gap={3} justify='flex-end'>
+      <Button variant='outline' borderColor='whiteAlpha.400' onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button
+        bg='#C53030'
+        color='white'
+        _hover={{ bg: '#9B2C2C' }}
+        onClick={onConfirm}>
+        Forfeit
+      </Button>
+    </HStack>
+  </VStack>
+);
 
 const ActiveMultiplayerSessionCard: FunctionComponent<
   ActiveMultiplayerSessionCardProps
@@ -27,7 +54,31 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
   currentTurn,
   roundingDecimals,
   onLeaveLobby,
+  onForfeitMatch,
 }) => {
+  const { openModal, closeModal } = useModal();
+
+  const openForfeitConfirm = () => {
+    if (!onForfeitMatch) return;
+    openModal(
+      <ForfeitConfirmBody
+        onCancel={closeModal}
+        onConfirm={() => {
+          closeModal();
+          onForfeitMatch();
+        }}
+      />,
+      'Forfeit match?',
+      {
+        size: 'sm',
+        hideCloseButton: false,
+        width: { base: '92%', md: '400px' },
+        backgroundColor: '#000A27',
+        backdrop: true,
+      },
+    );
+  };
+
   const stake = Number(session.betAmount);
   const profitIfWin = stake * parseFloatValue(RiskLevel.MEDIUM);
   const cur = session.currency.toUpperCase();
@@ -50,7 +101,7 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
     mpPhase === MpPhase.Playing
       ? !currentTurn
         ? 'Preparing the board…'
-        : userId && currentTurn === userId
+        : currentTurn === userMark
           ? 'Your turn — place your mark'
           : "Opponent's turn"
       : null;
@@ -162,6 +213,24 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
           onClick={() => onLeaveLobby()}>
           Leave lobby
         </Button>
+      ) : mpPhase === MpPhase.Playing && onForfeitMatch ? (
+        <VStack align='stretch' gap={2}>
+          <Button
+            w='100%'
+            size='lg'
+            h='48px'
+            variant='outline'
+            borderColor='rgba(197, 48, 48, 0.65)'
+            color='#FC8181'
+            fontWeight='600'
+            _hover={{ bg: 'whiteAlpha.100', borderColor: '#C53030' }}
+            onClick={openForfeitConfirm}>
+            Forfeit match
+          </Button>
+          <Text fontSize='xs' color='gray.500' textAlign='center' lineHeight='short'>
+            Resign and award the pot to your opponent.
+          </Text>
+        </VStack>
       ) : (
         <Text fontSize='xs' color='gray.500' textAlign='center' lineHeight='short'>
           Use the board to play. The match ends when someone wins or it&apos;s a draw.

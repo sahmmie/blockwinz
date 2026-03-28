@@ -6,7 +6,8 @@ import MultiplayerTextField from './MultiplayerTextField';
 interface JoinCodeTabProps {
   disabled: boolean;
   loading: boolean;
-  onJoin: (sessionId: string, joinCode: string) => void;
+  /** Opens confirmation modal; join runs after the user confirms. */
+  onRequestJoin: (sessionId: string, joinCode: string) => void;
 }
 
 /**
@@ -15,7 +16,7 @@ interface JoinCodeTabProps {
 const JoinCodeTab: FunctionComponent<JoinCodeTabProps> = ({
   disabled,
   loading,
-  onJoin,
+  onRequestJoin,
 }) => {
   const [sessionId, setSessionId] = useState('');
   const [code, setCode] = useState('');
@@ -23,7 +24,7 @@ const JoinCodeTab: FunctionComponent<JoinCodeTabProps> = ({
   const handleJoin = () => {
     const sid = sessionId.trim();
     const c = code.trim();
-    if (sid && c) onJoin(sid, c);
+    if (sid && c) onRequestJoin(sid, c);
   };
 
   return (

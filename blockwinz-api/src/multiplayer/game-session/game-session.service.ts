@@ -533,6 +533,8 @@ export class GameSessionService {
   /**
    * Joins a multiplayer lobby by session id. Validates capacity, privacy, invites,
    * currency alignment, lobby stake rules (`bet_amount_must_equal`), and sufficient wallet balance for the session stake.
+   * Users already listed in `players` may re-call this to re-hydrate after refresh even if the match has ended (`completed`),
+   * so the client is not blocked with “not joinable” while `getActiveGame` omits terminal rows.
    */
   async joinGame(
     sessionId: string,
@@ -550,16 +552,16 @@ export class GameSessionService {
       throw new WsExceptionWithCode('Session not found', 404);
     }
 
+    const players = (row.players ?? []).map(String);
+    if (players.includes(userId)) {
+      return this.rowToDocument(row);
+    }
+
     if (
       row.gameStatus !== MultiplayerSessionStatus.PENDING &&
       row.gameStatus !== MultiplayerSessionStatus.IN_PROGRESS
     ) {
       throw new WsExceptionWithCode('Session is not joinable', 400);
-    }
-
-    const players = (row.players ?? []).map(String);
-    if (players.includes(userId)) {
-      return this.rowToDocument(row);
     }
 
     if (players.length >= (row.maxPlayers ?? 2)) {
@@ -749,6 +751,14 @@ export class GameSessionService {
         sessionId,
         move: move ?? body.move,
       });
+    }
+
+    if (action === MultiplayerGamePayloadAction.FORFEIT) {
+      const sessionId = String(body.sessionId ?? '');
+      if (!sessionId) {
+        throw new WsExceptionWithCode('sessionId is required', 400);
+      }
+      return this.orchestrator.submitForfeit(user, { sessionId });
     }
 
     throw new WsExceptionWithCode(`Unknown action: ${action}`, 400);

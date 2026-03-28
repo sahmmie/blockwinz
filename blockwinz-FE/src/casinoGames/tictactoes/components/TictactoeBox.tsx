@@ -8,8 +8,8 @@ import { toaster } from '@/components/ui/toaster';
 interface TictactoeBoxProps {}
 
 const TictactoeBox: FunctionComponent<TictactoeBoxProps> = () => {
-  const animSpeed = 500;
   const { state, actions } = useTictactoeGameContext();
+  const animSpeed = state.animSpeed ?? 500;
   const { cells, hasEnded, isActiveGame, mpPhase } = state;
   const { handleSelectCell } = actions;
 

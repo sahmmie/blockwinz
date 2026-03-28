@@ -80,6 +80,16 @@ export interface MultiplayerGamePlugin<TState = unknown, TMove = unknown> {
     move: TMove,
   ): MultiplayerMoveResult<TState>;
 
+  /**
+   * Voluntary forfeit: forfeiting player loses; opponent wins the match.
+   * @returns null if forfeit is not allowed (e.g. game not in progress).
+   */
+  applyForfeit(
+    ctx: MultiplayerSessionContext,
+    state: TState,
+    forfeitingUserId: string,
+  ): MultiplayerMoveResult<TState> | null;
+
   loadStateBySessionId(
     sessionId: string,
     tx?: DrizzleDb,

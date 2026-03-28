@@ -1,5 +1,5 @@
 import { Box, Text } from '@chakra-ui/react';
-import { FunctionComponent, useEffect, useState } from 'react';
+import { FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { Currency } from '@blockwinz/shared';
 import BetAmount from '@/components/BetAmount/BetAmount';
 import ProfitOnWin from '@/components/ProfitOnWin/ProfitOnWin';
@@ -14,6 +14,9 @@ import LobbyTab from './LobbyTab';
 import CreateTab from './CreateTab';
 import JoinCodeTab from './JoinCodeTab';
 import { MultiplayerTabBar } from './MultiplayerTabBar';
+import JoinLobbyConfirmModal, {
+  type JoinLobbyConfirmPayload,
+} from './JoinLobbyConfirmModal';
 
 const LOBBY_REFRESH_MS = 8000;
 
@@ -34,7 +37,11 @@ export interface MultiplayerPanelProps {
   onQuickMatch: (opts: { betAmountMustEqual: boolean }) => void;
   onCreateLobby: (params: CreateLobbyParams) => void;
   onRefreshLobbies: () => void;
-  onJoinLobby: (sessionId: string, joinCode?: string) => void;
+  /** Return true when the join handshake succeeded (used to close the confirm modal). */
+  onJoinLobby: (
+    sessionId: string,
+    joinCode?: string,
+  ) => boolean | Promise<boolean>;
   onLeaveLobby: () => void;
   activeTab: MultiplayerPanelTab;
   onActiveTabChange: (tab: MultiplayerPanelTab) => void;
@@ -43,6 +50,12 @@ export interface MultiplayerPanelProps {
   userId: string | null | undefined;
   userIs: string;
   currentTurn: string;
+  /** Live tic-tac-toe (etc.): forfeit control in the active session card. */
+  onForfeitMatch?: () => void;
+  /** Resolve session row from public list (join-by-code stake in confirm modal). */
+  resolveLobbyFromPublicList?: (
+    sessionId: string,
+  ) => Promise<MultiplayerSessionRow | null>;
 }
 
 /**
@@ -73,14 +86,77 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   userId,
   userIs,
   currentTurn,
+  onForfeitMatch,
+  resolveLobbyFromPublicList,
 }) => {
   const tab = activeTab;
   const [exactStakeOnly, setExactStakeOnly] = useState(false);
+  const [joinConfirm, setJoinConfirm] = useState<JoinLobbyConfirmPayload | null>(
+    null,
+  );
+  const [privateJoinStake, setPrivateJoinStake] = useState<{
+    amount: number;
+    currency: string;
+  } | null>(null);
+  const [privateJoinStakeLoading, setPrivateJoinStakeLoading] = useState(false);
 
   const showActiveSession =
     Boolean(multiplayerSession) &&
     (mpPhase === MpPhase.Lobby || mpPhase === MpPhase.Playing);
   const showQueuedOnly = mpPhase === MpPhase.Queued;
+
+  const closeJoinModal = useCallback(() => setJoinConfirm(null), []);
+
+  const privateSessionId =
+    joinConfirm?.kind === 'private' ? joinConfirm.sessionId : null;
+
+  useEffect(() => {
+    if (!privateSessionId || !resolveLobbyFromPublicList) {
+      setPrivateJoinStake(null);
+      setPrivateJoinStakeLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPrivateJoinStake(null);
+    setPrivateJoinStakeLoading(true);
+    void (async () => {
+      try {
+        const row = await resolveLobbyFromPublicList(privateSessionId);
+        if (cancelled) return;
+        if (row) {
+          setPrivateJoinStake({
+            amount: Number(row.betAmount),
+            currency: row.currency,
+          });
+        } else {
+          setPrivateJoinStake(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setPrivateJoinStakeLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [privateSessionId, resolveLobbyFromPublicList]);
+
+  const handleConfirmJoin = useCallback(async () => {
+    if (!joinConfirm) return;
+    const sessionId =
+      joinConfirm.kind === 'public'
+        ? joinConfirm.lobby._id
+        : joinConfirm.sessionId;
+    const joinCode =
+      joinConfirm.kind === 'public'
+        ? undefined
+        : joinConfirm.joinCode;
+    const ok = await onJoinLobby(sessionId, joinCode);
+    if (ok) {
+      closeJoinModal();
+    }
+  }, [joinConfirm, onJoinLobby, closeJoinModal]);
 
   useEffect(() => {
     if (tab !== 'lobbies') return;
@@ -103,6 +179,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
           currentTurn={currentTurn}
           roundingDecimals={roundingDecimals}
           onLeaveLobby={onLeaveLobby}
+          onForfeitMatch={onForfeitMatch}
         />
       </Box>
     );
@@ -148,6 +225,18 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
 
   return (
     <Box>
+      <JoinLobbyConfirmModal
+        open={Boolean(joinConfirm)}
+        onClose={closeJoinModal}
+        payload={joinConfirm}
+        viewerCurrency={viewerCurrency}
+        viewerStake={betAmount}
+        roundingDecimals={roundingDecimals}
+        isSubmitting={isLoading}
+        onConfirmJoin={handleConfirmJoin}
+        resolvedPrivateStake={privateJoinStake}
+        privateStakeLoading={privateJoinStakeLoading}
+      />
       <Box mb={4}>
         <BetAmount
           currency={currency as Currency}
@@ -174,7 +263,9 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
             viewerStake={betAmount}
             isLoading={isLoading}
             onRefresh={onRefreshLobbies}
-            onJoin={(id) => onJoinLobby(id)}
+            onJoin={(lobby) =>
+              setJoinConfirm({ kind: 'public', lobby })
+            }
           />
         )}
         {tab === 'create' && (
@@ -196,7 +287,9 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
           <JoinCodeTab
             disabled={betDisabled}
             loading={isLoading}
-            onJoin={(sessionId, code) => onJoinLobby(sessionId, code)}
+            onRequestJoin={(sessionId, code) =>
+              setJoinConfirm({ kind: 'private', sessionId, joinCode: code })
+            }
           />
         )}
       </Box>

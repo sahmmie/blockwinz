@@ -81,10 +81,12 @@ export class TicTacToeMultiplayerPlugin
     'private_invite',
   ];
   readonly turnPolicy: MultiplayerTurnTimeoutPolicy = {
-    turnMs: 60_000,
+    /** Long clock so casual play is not decided by a short think timer; overrun uses auto-move, not forfeit. */
+    turnMs: 600_000,
     lobbyWaitMs: 600_000,
     reconnectGraceMs: 120_000,
-    onTurnTimeout: 'forfeit',
+    /** Never award a win on turn expiry — play the forced move so the match continues until board outcome or both leave. */
+    onTurnTimeout: 'auto_move',
   };
 
   constructor(private readonly ticTacToeService: TicTacToeService) {}
@@ -150,6 +152,50 @@ export class TicTacToeMultiplayerPlugin
       return 'Cell already taken';
     }
     return true;
+  }
+
+  applyForfeit(
+    ctx: MultiplayerSessionContext,
+    state: MultiplayerTicTacToeDto,
+    forfeitingUserId: string,
+  ): MultiplayerMoveResult<MultiplayerTicTacToeDto> | null {
+    if (state.betResultStatus !== TicTacToeStatus.IN_PROGRESS) {
+      return null;
+    }
+    const fid = String(forfeitingUserId);
+    const playerIds = ctx.players.map((p) => String(p));
+    if (!playerIds.includes(fid)) {
+      return null;
+    }
+    const opponentId = playerIds.find((p) => p !== fid);
+    if (!opponentId) {
+      return null;
+    }
+    const winnerPlayer = state.players.find(
+      (p) => String(p.userId) === opponentId,
+    );
+    const winnerSym = (winnerPlayer?.userIs as 'X' | 'O' | null) ?? null;
+    const outcome: MultiplayerGameOutcome = {
+      winnerUserIds: [opponentId],
+      isDraw: false,
+      metadata: { reason: 'forfeit' },
+    };
+    const terminal: MultiplayerTicTacToeDto = {
+      ...state,
+      betResultStatus: TicTacToeStatus.WIN,
+      currentTurn: null,
+      winner: winnerSym,
+      winnerId: opponentId,
+      players: state.players.map((p) => ({
+        ...p,
+        playerIsNext: false,
+      })),
+    };
+    return {
+      newState: terminal,
+      terminal: true,
+      outcome,
+    };
   }
 
   applyMove(
@@ -310,33 +356,8 @@ export class TicTacToeMultiplayerPlugin
       };
     }
 
-    const forfeitingUserId = disc1 ? p1 : p2;
-    const winnerId = ctx.players.find((p) => p !== forfeitingUserId);
-    if (!winnerId) {
-      return null;
-    }
-    const winnerPlayer = state.players.find((p) => p.userId === winnerId);
-    const winnerSym = (winnerPlayer?.userIs as 'X' | 'O') ?? null;
-    const terminal: MultiplayerTicTacToeDto = {
-      ...state,
-      betResultStatus: TicTacToeStatus.WIN,
-      currentTurn: null,
-      winner: winnerSym,
-      winnerId,
-      players: state.players.map((p) => ({
-        ...p,
-        playerIsNext: false,
-      })),
-    };
-    return {
-      newState: terminal,
-      terminal: true,
-      outcome: {
-        winnerUserIds: [winnerId],
-        isDraw: false,
-        metadata: { reason: 'disconnect' },
-      },
-    };
+    /** One socket offline: do not declare a winner — the other player may still be connected. */
+    return null;
   }
 
   async resolveTurnTimeout(

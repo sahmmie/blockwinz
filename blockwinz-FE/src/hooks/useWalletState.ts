@@ -45,6 +45,12 @@ interface WalletStoreI {
     /** Exact USD amount for the next USD-denominated SOL bet (authoritative for API usdAmount) */
     solStakeUsdInput: number | null;
     setSolStakeUsdInput: (usd: number | null) => void;
+    /**
+     * When true, `useWalletQuery` skips interval + focus refetches (multiplayer in-play).
+     * Explicit `getWalletData()` still runs — e.g. after `GAME_FINISHED`.
+     */
+    suppressWalletAutoRefreshDuringMpPlay: boolean;
+    setSuppressWalletAutoRefreshDuringMpPlay: (v: boolean) => void;
 }
 
 const launchCurrencySet = new Set(SUPPORTED_CURRENCIES.map((c) => c.currency));
@@ -93,6 +99,9 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
     },
     solStakeUsdInput: null,
     setSolStakeUsdInput: (usd: number | null) => set({ solStakeUsdInput: usd }),
+    suppressWalletAutoRefreshDuringMpPlay: false,
+    setSuppressWalletAutoRefreshDuringMpPlay: (v: boolean) =>
+        set({ suppressWalletAutoRefreshDuringMpPlay: v }),
     prices: {},
     setBalances: (balances: CurrencyInfo[]) =>
         set({ balances: filterLaunchBalances(mapCurrencyToData(balances)) }),
@@ -159,14 +168,18 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
 
 export const useWalletQuery = () => {
     const getWalletData = useWalletState((state) => state.getWalletData);
+    const suppressMp = useWalletState(
+        (state) => state.suppressWalletAutoRefreshDuringMpPlay,
+    );
     return useQuery(
         ['walletData'],
         () => getWalletData(),
         {
-            refetchInterval: 60000, // Poll every 1 minute
-        }
+            refetchInterval: suppressMp ? false : 60_000,
+            refetchOnWindowFocus: !suppressMp,
+        },
     );
-}
+};
 
 export const useTokenPricesQuery = () => {
     const getTokenPrices = useWalletState((state) => state.getTokenPrices);

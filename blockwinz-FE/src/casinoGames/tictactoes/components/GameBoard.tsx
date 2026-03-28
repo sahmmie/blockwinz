@@ -1,13 +1,14 @@
 import { FunctionComponent } from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import { Box, Text, VStack } from '@chakra-ui/react';
 import { useTictactoeGameContext } from '../context/TictactoeGameContext';
 import TictactoeBox from './TictactoeBox';
+import { MpPhase } from '../types';
 
 interface GameBoardProps {}
 
 const GameBoard: FunctionComponent<GameBoardProps> = () => {
   const {
-    state: { userIs, aiIs },
+    state: { userIs, aiIs, mpPhase, mpTurnLabel },
     opponentLabel,
   } = useTictactoeGameContext();
 
@@ -28,6 +29,8 @@ const GameBoard: FunctionComponent<GameBoardProps> = () => {
     },
   ];
 
+  const showTurnRow = mpPhase === MpPhase.Playing && Boolean(mpTurnLabel);
+
   return (
     <Box
       display={'flex'}
@@ -36,6 +39,19 @@ const GameBoard: FunctionComponent<GameBoardProps> = () => {
       pt={'16px'}
       justifyContent={'center'}
       h={'100%'}>
+      {showTurnRow ? (
+        <VStack gap={2} mb={2} px={4} w='100%' maxW='420px' align='center'>
+          <Text
+            fontSize={{ base: 'lg', md: 'xl' }}
+            fontWeight='700'
+            color='#00DD25'
+            textAlign='center'
+            letterSpacing='0.02em'>
+            {mpTurnLabel}
+          </Text>
+        </VStack>
+      ) : null}
+
       <Box
         h={'100%'}
         display={'flex'}

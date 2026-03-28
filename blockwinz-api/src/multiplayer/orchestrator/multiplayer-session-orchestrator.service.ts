@@ -37,6 +37,9 @@ function asUser(id: string): UserDto {
 export class MultiplayerSessionOrchestrator {
   private readonly logger = new Logger(MultiplayerSessionOrchestrator.name);
 
+  /** Tail of the per-session persist queue so the next move waits for prior DB writes. */
+  private readonly movePersistChains = new Map<string, Promise<void>>();
+
   constructor(
     private readonly registry: MultiplayerGameRegistry,
     @Inject(forwardRef(() => GameSessionService))
@@ -126,7 +129,8 @@ export class MultiplayerSessionOrchestrator {
   }
 
   /**
-   * Applies a player move, persists state, emits realtime events, and settles when terminal.
+   * Applies a player move, emits non-terminal updates immediately, persists in the background,
+   * and runs synchronous persist → settle → emit for terminal outcomes.
    */
   async submitMove(
     user: UserDto,
@@ -134,6 +138,8 @@ export class MultiplayerSessionOrchestrator {
   ): Promise<unknown> {
     const userId = getUserId(user);
     const { sessionId, move } = payload;
+
+    await this.awaitMovePersistChain(sessionId);
 
     const session = await this.gameSessionService.getSessionById(sessionId);
     if (!session) {
@@ -161,25 +167,33 @@ export class MultiplayerSessionOrchestrator {
     }
 
     const result = plugin.applyMove(ctx, state, userId, move);
-    const saved = await plugin.persistState(sessionId, result.newState);
 
     const nextDeadline = result.terminal
       ? null
       : new Date(Date.now() + plugin.turnPolicy.turnMs);
-    await this.gameSessionService.updateSessionFields(this.db, sessionId, {
-      turnDeadlineAt: nextDeadline,
-      reconnectGraceUntil: null,
-    });
 
     if (!result.terminal) {
       this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_MOVE, {
         sessionId,
         playerId: userId,
         move,
-        gameState: plugin.toPublicView(saved, userId),
+        gameState: plugin.toPublicView(result.newState, userId),
       });
-      return { ok: true, state: saved };
+      this.enqueueMovePersist(sessionId, async () => {
+        await plugin.persistState(sessionId, result.newState);
+        await this.gameSessionService.updateSessionFields(this.db, sessionId, {
+          turnDeadlineAt: nextDeadline,
+          reconnectGraceUntil: null,
+        });
+      });
+      return { ok: true, state: result.newState };
     }
+
+    const saved = await plugin.persistState(sessionId, result.newState);
+    await this.gameSessionService.updateSessionFields(this.db, sessionId, {
+      turnDeadlineAt: nextDeadline,
+      reconnectGraceUntil: null,
+    });
 
     if (result.outcome) {
       await this.settlement.settleSession(session, result.outcome, saved);
@@ -191,6 +205,57 @@ export class MultiplayerSessionOrchestrator {
       finalState: saved,
     });
 
+    this.movePersistChains.delete(sessionId);
+    return { ok: true, finished: true, state: saved };
+  }
+
+  /**
+   * Voluntary forfeit: opponent wins; same settle + GAME_FINISHED path as a terminal move.
+   */
+  async submitForfeit(
+    user: UserDto,
+    payload: { sessionId: string },
+  ): Promise<unknown> {
+    const userId = getUserId(user);
+    const { sessionId } = payload;
+
+    await this.awaitMovePersistChain(sessionId);
+
+    const session = await this.gameSessionService.getSessionById(sessionId);
+    if (!session) {
+      throw new WsExceptionWithCode('Session not found', 404);
+    }
+    if (session.gameStatus !== MultiplayerSessionStatus.IN_PROGRESS) {
+      throw new WsExceptionWithCode('Game is not in progress', 400);
+    }
+
+    const plugin = this.registry.get(session.gameType as DbGameSchema);
+    const state = await plugin.loadStateBySessionId(sessionId);
+    if (!state) {
+      throw new WsExceptionWithCode('Game state not found', 404);
+    }
+
+    const ctx = this.toCtx(session);
+    const result = plugin.applyForfeit(ctx, state, userId);
+    if (!result?.terminal || !result.outcome) {
+      throw new WsExceptionWithCode('Cannot forfeit this game', 400);
+    }
+
+    const saved = await plugin.persistState(sessionId, result.newState);
+    await this.gameSessionService.updateSessionFields(this.db, sessionId, {
+      turnDeadlineAt: null,
+      reconnectGraceUntil: null,
+    });
+
+    await this.settlement.settleSession(session, result.outcome, saved);
+
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_FINISHED, {
+      sessionId,
+      winner: result.outcome.winnerUserIds[0] ?? null,
+      finalState: saved,
+    });
+
+    this.movePersistChains.delete(sessionId);
     return { ok: true, finished: true, state: saved };
   }
 
@@ -205,6 +270,8 @@ export class MultiplayerSessionOrchestrator {
     ) {
       return;
     }
+
+    await this.awaitMovePersistChain(sessionId);
 
     const plugin = this.registry.tryGet(session.gameType as DbGameSchema);
     if (!plugin) {
@@ -222,29 +289,37 @@ export class MultiplayerSessionOrchestrator {
       return;
     }
 
-    const saved = await plugin.persistState(sessionId, result.newState);
-
     const nextDeadline = result.terminal
       ? null
       : new Date(Date.now() + plugin.turnPolicy.turnMs);
-    await this.gameSessionService.updateSessionFields(this.db, sessionId, {
-      turnDeadlineAt: nextDeadline,
-      reconnectGraceUntil: null,
-    });
 
     if (!result.terminal) {
-      const lastMove = (
-        saved as { moveHistory?: Array<{ userId: string }> }
-      )?.moveHistory?.at(-1);
+      const ns = result.newState as {
+        moveHistory?: Array<{ userId: string }>;
+      };
+      const lastMove = ns.moveHistory?.at(-1);
       const moverId = lastMove?.userId ?? 'system';
       this.eventEmitter.emit(MultiplayerGameEmitterEvent.GAME_MOVE, {
         sessionId,
         playerId: moverId,
         move: { auto: true },
-        gameState: plugin.toPublicView(saved, moverId),
+        gameState: plugin.toPublicView(result.newState, moverId),
+      });
+      this.enqueueMovePersist(sessionId, async () => {
+        await plugin.persistState(sessionId, result.newState);
+        await this.gameSessionService.updateSessionFields(this.db, sessionId, {
+          turnDeadlineAt: nextDeadline,
+          reconnectGraceUntil: null,
+        });
       });
       return;
     }
+
+    const saved = await plugin.persistState(sessionId, result.newState);
+    await this.gameSessionService.updateSessionFields(this.db, sessionId, {
+      turnDeadlineAt: nextDeadline,
+      reconnectGraceUntil: null,
+    });
 
     if (result.outcome) {
       await this.settlement.settleSession(session, result.outcome, saved);
@@ -255,6 +330,7 @@ export class MultiplayerSessionOrchestrator {
       winner: result.outcome?.winnerUserIds?.[0] ?? null,
       finalState: saved,
     });
+    this.movePersistChains.delete(sessionId);
   }
 
   /**
@@ -273,6 +349,8 @@ export class MultiplayerSessionOrchestrator {
     ) {
       return;
     }
+
+    await this.awaitMovePersistChain(sessionId);
 
     const plugin = this.registry.tryGet(session.gameType as DbGameSchema);
     if (!plugin) {
@@ -326,6 +404,36 @@ export class MultiplayerSessionOrchestrator {
       winner: result.outcome?.winnerUserIds?.[0] ?? null,
       finalState: saved,
     });
+    this.movePersistChains.delete(sessionId);
+  }
+
+  /**
+   * Blocks until prior background persists for this session have completed so `loadStateBySessionId` is current.
+   */
+  private async awaitMovePersistChain(sessionId: string): Promise<void> {
+    const tail = this.movePersistChains.get(sessionId);
+    if (tail) {
+      await tail;
+    }
+  }
+
+  /**
+   * Queues DB persistence after emitting; failures reject the chain and surface on the next move for the session.
+   */
+  private enqueueMovePersist(
+    sessionId: string,
+    persist: () => Promise<void>,
+  ): void {
+    const prev = this.movePersistChains.get(sessionId) ?? Promise.resolve();
+    const next = prev.then(persist).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Background move persist failed for session ${sessionId}: ${msg}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw err;
+    });
+    this.movePersistChains.set(sessionId, next);
   }
 
   private toCtx(session: GameSessionDocument) {

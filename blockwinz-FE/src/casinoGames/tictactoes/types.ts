@@ -134,4 +134,6 @@ export interface TictactoeState {
     quickMatchNoMatchOpen?: boolean
     /** Current lobby / session row when in multiplayer (join, host, or match). */
     multiplayerSession?: MultiplayerSessionRow | null
+    /** Multiplayer: short label for whose turn it is (empty when not in play). */
+    mpTurnLabel?: string
 }
