@@ -87,13 +87,10 @@ async function bootstrap() {
   }
 
   const port = process.env.PORT || 3000;
-  console.warn(`[debug] Initializing server on port: ${port}`);
+  console.debug(`Initializing server on port: ${port}`);
   const redisIoAdapter = new RedisIoAdapter(app);
-  console.warn('[debug] Connecting to Redis for WebSocket support...');
   await redisIoAdapter.connectToRedis();
-  console.warn('[debug] Redis connection established');
   app.useWebSocketAdapter(redisIoAdapter);
-  console.warn('[debug] WebSocket adapter initialized');
 
   await app
     .listen(port)
