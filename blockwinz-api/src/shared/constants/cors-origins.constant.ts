@@ -7,6 +7,7 @@ export const CORS_ORIGIN_WHITELIST: string[] = [
   'https://blockwinz.com',
   'http://localhost:5173',
   'https://bwzfunding.netlify.app',
+  'https://www.blockwinz.com'
 ];
 
 export const SOCKET_IO_CORS = {
