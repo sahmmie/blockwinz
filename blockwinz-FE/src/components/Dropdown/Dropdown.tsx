@@ -27,6 +27,8 @@ interface DropdownProps extends OptionProps {
   selectTriggerProps?: any;
   className?: string;
   readOnly?: boolean;
+  /** When true, the select cannot be opened or changed (e.g. during an active game round). */
+  disabled?: boolean;
 }
 
 interface OptionProps {
@@ -47,6 +49,7 @@ const Dropdown: FunctionComponent<DropdownProps> = ({
   selectTriggerProps,
   className,
   readOnly = false,
+  disabled = false,
 }) => {
   const [dataList, setDataList] = useState<ListCollection>(
     createListCollection({
@@ -97,6 +100,7 @@ const Dropdown: FunctionComponent<DropdownProps> = ({
   return (
     <SelectRoot
       {...(readOnly ? { readOnly: true } : {})}
+      disabled={disabled}
       className={className}
       collection={dataList}
       size='lg'
