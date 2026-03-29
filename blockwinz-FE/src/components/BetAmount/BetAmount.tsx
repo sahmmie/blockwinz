@@ -1,7 +1,7 @@
 import useWalletState from '@/hooks/useWalletState';
 import { getCurrencyMax, parseFloatValue } from '@/shared/utils/common';
 import { Box, Text } from '@chakra-ui/react';
-import { FunctionComponent, useEffect, useState } from 'react';
+import { FunctionComponent, useEffect, useRef, useState } from 'react';
 import CustomInput from '../CustomInput/CustomInput';
 import { Button } from '../ui/button';
 import { Currency, StakeDenomination } from '@blockwinz/shared';
@@ -55,10 +55,15 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
   const [inputValue, setInputValue] = useState<string>(() =>
     value.toFixed(ROUNDING_DECIMALS),
   );
+  /** While true, do not overwrite the text field from `value` — allows empty / partial typing. */
+  const isEditingRef = useRef(false);
 
   // Keep zustand `solStakeUsdInput` in sync with SOL stake × price (fixes persisted USD mode
   // after refresh / prices loading after mount — previously only local input updated).
   useEffect(() => {
+    if (isEditingRef.current) {
+      return;
+    }
     if (isUsdStake && solUsd > 0) {
       const usd = clampToMaxUsd(value * solUsd);
       setInputValue(usd.toFixed(USD_INPUT_DECIMALS));
@@ -80,15 +85,28 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
   const handleOnChange = (raw: string) => {
     if (disabled) return;
     setInputValue(raw);
+    const trimmed = raw.trim();
+    if (trimmed === '' || trimmed === '.') {
+      if (isUsdStake && solUsd > 0) {
+        setSolStakeUsdInput(0);
+        onChange(0);
+      } else {
+        onChange(0);
+      }
+      return;
+    }
+    const parsed = parseFloat(raw.replace(',', '.'));
+    if (Number.isNaN(parsed)) {
+      return;
+    }
     if (isUsdStake && solUsd > 0) {
-      const usd = clampToMaxUsd(parseFloat(raw) || 0);
+      const usd = clampToMaxUsd(parsed);
       setSolStakeUsdInput(usd);
       const sol = clampToMaxSol(usd / solUsd);
       onChange(sol);
       return;
     }
-    const newValue = clampToMaxSol(parseFloat(raw) || 0);
-    onChange(newValue);
+    onChange(clampToMaxSol(parsed));
   };
 
   const handleOnHalf = () => {
@@ -131,6 +149,7 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
 
   const handleOnBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     const raw = event.target.value;
+    isEditingRef.current = false;
     if (isUsdStake && solUsd > 0) {
       const usd = clampToMaxUsd(parseFloatValue(raw, USD_INPUT_DECIMALS));
       setSolStakeUsdInput(usd);
@@ -147,6 +166,7 @@ const BetAmount: FunctionComponent<BetAmountProps> = ({
   };
 
   const handleOnFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    isEditingRef.current = true;
     event.target.select();
   };
 
