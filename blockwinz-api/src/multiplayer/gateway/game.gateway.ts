@@ -110,9 +110,11 @@ export class GameGateway extends BaseGateway {
         sessionId?: string;
         session: unknown;
       }) => {
-        this.server
-          .to(`lobbies:${payload.gameType}`)
-          .emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, payload);
+        const broadcaster = this.server.to(`lobbies:${payload.gameType}`);
+        if (payload.sessionId) {
+          broadcaster.to(`room:${payload.sessionId}`);
+        }
+        broadcaster.emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, payload);
       },
     );
     this.eventEmitter.on(

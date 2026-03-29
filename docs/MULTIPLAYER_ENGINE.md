@@ -107,7 +107,7 @@ flowchart TB
 | `multiplayer/game-session/listeners/match-found.listener.ts` | Creates DB session when `match.found` fires |
 | `multiplayer/settlement/multiplayer-settlement.service.ts` | Idempotent wallet + history when a session ends |
 | `multiplayer/players/player-session-tracker.service.ts` | In-memory + **Redis** (`mp:presence:*`) for cross-instance reconnect hints |
-| `multiplayer/game-session/listeners/lobby-expiry.listener.ts` | Cancels stale **`pending`** lobbies (plugin `lobbyWaitMs` or **`MULTIPLAYER_LOBBY_MAX_WAIT_MS`**) |
+| `multiplayer/game-session/listeners/lobby-expiry.listener.ts` | Cancels **`pending`** rows with **no players** after **`lobbyWaitMs`** / **`MULTIPLAYER_LOBBY_MAX_WAIT_MS`** (vacant since **`updatedAt`**); does **not** time out lobbies where someone is still seated |
 | `multiplayer/players/listeners/afk.listener.ts` | Scheduled DB scans for turn deadlines and reconnect grace |
 | `multiplayer/players/listeners/disconnection.listener.ts` | 15s in-memory timer → `game.cancelled` (metrics-oriented) |
 | `gateways/base.gateway.ts` | Shared JWT auth, Redis connection tracking, rate limits |
@@ -178,7 +178,7 @@ After commit, emits **`game.started`** with `{ sessionId, gameId, state: plugin.
 
 - **`joinGame` / `joinGameWithCode`**: Appends user to `players`, emits `GAME_JOINED`, then **`tryStartGameplay`** again (may start the match when full).
 - **Join validation (before append):** for new joiners (not already in `players`), **`GameSessionService`** calls **`WalletRepository.checkPlayerBalance`** for the lobby’s **`bet_amount`** and **`currency`**. Insufficient funds or unsupported currency fail with **`WsExceptionWithCode`** (HTTP-style errors are mapped so the socket client gets a clear message). This aligns lobby joins with the same stake the orchestrator will **`lockBetFunds`** when the match starts. The column **`bet_amount_must_equal`** is documented for strict table stakes; the join API does not yet accept a separate “incoming stake” field—until it does, all joiners must cover the full **`bet_amount`**.
-- **`leaveGame`**: Only when `pending`; removes player or cancels session if empty.
+- **`leaveGame`**: Only when `pending`; removes player or cancels session if empty / host leaves. When a **non-host** leaves and others remain, emits **`LOBBY_UPDATED`** (`reason: player_left`) with the updated session so the host stays in sync.
 
 ### 8.4 Moves (`submitMove`)
 
@@ -316,7 +316,7 @@ Subscribed in `GameGateway` constructor and emitted to **`room:{sessionId}`** (a
 | `player.afk` | `playerId`, `sessionId` |
 | `player.disconnected` | `playerId`, `sessionId` |
 | `match.ready` | `sessionId`, `gameType` — sent to matched users’ socket ids (quick match) |
-| `lobby.updated` | `gameType`, `reason`, `sessionId`, `session` — to **`lobbies:{gameType}`** |
+| `lobby.updated` | `gameType`, `reason`, `sessionId`, `session` — broadcast to the **union** of **`lobbies:{gameType}`** and **`room:{sessionId}`** (when `sessionId` is set), so each socket receives **one** copy even if it joined both rooms |
 | `lobby.expired` | `sessionId`, `gameType` — to **`lobbies:{gameType}`** |
 
 Errors for failed handlers may also emit **`gameError`** to the client socket.
@@ -330,7 +330,7 @@ Errors for failed handlers may also emit **`gameError`** to the client socket.
   - Uses **`emitAck`** for request/response events.
   - **`joinSessionRoom(sessionId)`** after the user has a session.
   - Listens for **`game.started`**, **`game.move`**, **`game.invalidMove`**, **`game.finished`** on the socket.
-  - Sends moves via **`gameAction`** (stringified JSON **`message`** or structured body). When joining lobbies with **`bet_amount_must_equal`**, send **`betAmount`** and **`currency`** on **`joinGame`**. Listen for **`match.ready`** after quick match; use **`joinLobbyRoom`** + **`lobby.updated`** for lobby lists.
+  - Sends moves via **`gameAction`** (stringified JSON **`message`** or structured body). When joining lobbies with **`bet_amount_must_equal`**, send **`betAmount`** and **`currency`** on **`joinGame`**. Listen for **`match.ready`** after quick match; use **`joinLobbyRoom`** + **`lobby.updated`** for lobby lists. Treat **`lobby.updated`** with **`session: null`** (and **`lobby.expired`**) for the active **`sessionId`** as the table closing and reset local session state.
 
 ---
 
@@ -362,9 +362,9 @@ The stack is **architecturally strong** (plugins, orchestrator, Redis matchmakin
 | **Host / matched session** | **`createSession`** validates host balance when **`betAmount > 0`**. **`createMatchedSession`** validates both players; on **`tryStartGameplay`** failure the inserted row is **deleted**. |
 | **Quick match** | **`tryJoinOrEnqueueQuickMatch`** tries **`findJoinablePublicLobby`** (same game, bet, currency, not full) before Redis queue; response may be **`joined`** with **`session`**. |
 | **Plugins** | **`resolveTurnTimeout`** / **`resolveReconnectGraceTimeout`** on **`MultiplayerGamePlugin`**; orchestrator delegates; Tic Tac Toe holds the concrete rules. **`onTurnTimeout: 'auto_move'`** picks the first empty cell. |
-| **Lobby TTL** | **`LobbyExpiryListener`** cancels stale **`pending`** sessions; emits **`lobby.expired`** / **`lobby.updated`**. |
+| **Lobby TTL** | **`LobbyExpiryListener`** only cancels **`pending`** sessions with **empty `players`** after the wait window (from **`updatedAt`**); seated hosts are not expired from **`createdAt`**. Emits **`lobby.expired`** / **`lobby.updated`**. |
 | **`gameAction`** | Accepts legacy stringified JSON **`message`** or a structured object **`{ action, sessionId, move }`**. |
-| **Realtime UX** | **`match.ready`** emitted to online user sockets after **`createMatchedSession`**; **`lobby.updated`** / **`lobby.expired`** broadcast to **`lobbies:{gameType}`** (clients use **`joinLobbyRoom`**). |
+| **Realtime UX** | **`match.ready`** emitted to online user sockets after **`createMatchedSession`**; **`lobby.updated`** targets the union of **`lobbies:{gameType}`** and **`room:{sessionId}`** (once per socket); **`lobby.expired`** to **`lobbies:{gameType}`**. Clients use **`joinLobbyRoom`** and **`joinSessionRoom`**. |
 | **Settlement** | Optional **rake**: **`MULTIPLAYER_RAKE_BPS`**, **`MULTIPLAYER_RAKE_RECEIVER_USER_ID`**. |
 | **Presence** | **`PlayerSessionTrackerService`** mirrors presence to Redis **`mp:presence:{userId}`** (TTL); **`getPlayerStatus`** falls back to Redis for cross-instance reconnect resolution. |
 | **Spectators** | **`joinSpectatorSession`** joins **`room:{sessionId}`** when **`spectators_allowed`** or user is in **`spectator_user_ids`**. |

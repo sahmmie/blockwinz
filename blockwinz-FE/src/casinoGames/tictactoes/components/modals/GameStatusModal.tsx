@@ -1,6 +1,5 @@
 import { FunctionComponent } from 'react';
-import { Box, Text } from '@chakra-ui/react';
-import TrendIcon from 'assets/icons/trend-icon.svg';
+import { Box, Text, Button } from '@chakra-ui/react';
 import { BET_STATUS, RiskLevel } from '../../types';
 import { CurrencyInfo } from '@/shared/types/core';
 import {
@@ -12,13 +11,18 @@ interface GameStatusModalProps {
   winAmount: number;
   betResultStatus: BET_STATUS;
   currency: CurrencyInfo;
+  stakeAmount?: number;
+  onRematch?: () => void;
+  isRematchLoading?: boolean;
 }
 
 const GameStatusModal: FunctionComponent<GameStatusModalProps> = ({
-  multiplier,
   winAmount,
   betResultStatus,
   currency,
+  stakeAmount = 0,
+  onRematch,
+  isRematchLoading = false,
 }) => {
   const ROUNDING_DECIMALS = currency.decimals || DEFAULT_ROUNDING_DECIMALS;
   const winColor = '#545463';
@@ -42,10 +46,18 @@ const GameStatusModal: FunctionComponent<GameStatusModalProps> = ({
     }
   };
 
+  const handleRematchClick = (e: React.MouseEvent) => {
+    // Stop propagation so we don't accidentally close the modal right away due to closeOnInteractInside
+    e.stopPropagation();
+    if (onRematch) {
+      onRematch();
+    }
+  };
+
   return (
     <>
       <Box
-        h={'136px'}
+        h={onRematch ? '200px' : '150px'}
         borderRadius={'8px'}
         display={'flex'}
         flexDir={'column'}
@@ -56,62 +68,61 @@ const GameStatusModal: FunctionComponent<GameStatusModalProps> = ({
           alignItems={'center'}
           display={'flex'}
           w={'100%'}
+          flexDir={'column'}
           justifyContent={'center'}>
-          <Text fontSize={'20px'} fontWeight={'500'} lineHeight={'30px'}>
+          <Text fontSize={'20px'} fontWeight={'500'} lineHeight={'30px'} mt={'8px'}>
             {getTextTitle()}
           </Text>
         </Box>
-        <Box
-          p={'4px'}
-          display={'flex'}
-          h={'100%'}
-          alignItems={'center'}
-          justifyContent={'space-evenly'}
-          w={'100%'}>
+        <Box w={'100%'} display={'flex'} flexDir={'column'} gap={'4px'} px={'4px'} pb={'4px'}>
           <Box
-            bg={getColor()}
-            w={'100%'}
-            h={'100%'}
-            borderBottomLeftRadius={'8px'}
             display={'flex'}
+            h={'40px'}
             alignItems={'center'}
-            justifyContent={'center'}
-            px={'12px'}>
-            <img
-              src={currency?.icon}
-              alt='Currency Icon'
-              style={{ width: '22px', height: '22px' }}
-            />
-            <Text
-              fontSize={'18px'}
-              fontWeight={'500'}
-              lineHeight={'24px'}
-              ml={'8px'}>
-              {winAmount.toFixed(ROUNDING_DECIMALS)}
-            </Text>
+            justifyContent={'space-between'}
+            w={'100%'}
+            bg={getColor()}
+            px={'12px'}
+            borderRadius={'4px'}>
+            <Text fontSize={'14px'} fontWeight={'600'} color={'#A0A0B0'}>Stake</Text>
+            <Box display={'flex'} alignItems={'center'}>
+              <Text fontSize={'16px'} fontWeight={'500'} mr={'6px'}>
+                {stakeAmount.toFixed(ROUNDING_DECIMALS)}
+              </Text>
+              <img src={currency?.icon} alt='Currency Icon' style={{ width: '18px', height: '18px' }} />
+            </Box>
           </Box>
           <Box
-            bg={getColor()}
-            w={'100%'}
-            h={'100%'}
-            borderBottomRightRadius={'8px'}
             display={'flex'}
+            h={'40px'}
             alignItems={'center'}
-            justifyContent={'flex-start'}
-            px={'12px'}>
-            <img
-              src={TrendIcon}
-              alt='Trend Icon'
-              style={{ width: '22px', height: '20px' }}
-            />
-            <Text
-              fontSize={'18px'}
-              fontWeight={'500'}
-              lineHeight={'24px'}
-              ml={'8px'}>
-              X{multiplier}
-            </Text>
+            justifyContent={'space-between'}
+            w={'100%'}
+            bg={getColor()}
+            px={'12px'}
+            borderRadius={'4px'}>
+            <Text fontSize={'14px'} fontWeight={'600'} color={'#A0A0B0'}>Payout</Text>
+            <Box display={'flex'} alignItems={'center'}>
+              <Text fontSize={'16px'} fontWeight={'500'} mr={'6px'}>
+                {winAmount.toFixed(ROUNDING_DECIMALS)}
+              </Text>
+              <img src={currency?.icon} alt='Currency Icon' style={{ width: '18px', height: '18px' }} />
+            </Box>
           </Box>
+          {onRematch && (
+            <Button
+              mt={'8px'}
+              w={'100%'}
+              h={'40px'}
+              bg={'#00DD25'}
+              color={'black'}
+              _hover={{ bg: '#00B01D' }}
+              onClick={handleRematchClick}
+              loading={isRematchLoading}
+            >
+              Rematch
+            </Button>
+          )}
         </Box>
       </Box>
     </>

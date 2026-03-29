@@ -715,7 +715,17 @@ export class GameSessionService {
       .where(eq(gameSessions.id, sessionId))
       .returning();
 
-    return updated ? this.rowToDocument(updated) : null;
+    if (!updated) {
+      return null;
+    }
+    const doc = this.rowToDocument(updated);
+    this.eventEmitter.emit(MultiplayerGameEmitterEvent.LOBBY_UPDATED, {
+      gameType: doc.gameType as DbGameSchema,
+      reason: 'player_left',
+      sessionId,
+      session: doc,
+    });
+    return doc;
   }
 
   /**

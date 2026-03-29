@@ -172,11 +172,16 @@ export function useMultiplayerTictactoe() {
   const userId = getUserIdFromAccessToken(token);
   const { selectedBalance, balances, getWalletData, setSuppressWalletAutoRefreshDuringMpPlay } =
     useWalletState();
-  const { openModal } = useModal();
+  const { openModal, closeModal } = useModal();
 
   const [phase, setPhase] = useState<MpPhase>(MpPhase.Idle);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionRow, setSessionRow] = useState<MultiplayerSessionRow | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const assignSessionId = useCallback((id: string | null) => {
+    sessionIdRef.current = id;
+    setSessionId(id);
+  }, []);
   const [gameState, setGameState] = useState<GameStatePayload | null>(null);
   const [publicLobbies, setPublicLobbies] = useState<MultiplayerSessionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -283,6 +288,37 @@ export function useMultiplayerTictactoe() {
     );
   }, [navigate, pathname, search]);
 
+  const clearLocalMultiplayerTable = useCallback(
+    (
+      sid: string,
+      toastInfo?: { title: string; description: string },
+    ) => {
+      leaveSessionRoom(sid);
+      assignSessionId(null);
+      setSessionRow(null);
+      setGameState(null);
+      setPhase(MpPhase.Idle);
+      stopPolling();
+      setMatchQueued(false);
+      setHostInvite(null);
+      setHostInviteModalDismissed(false);
+      stripMultiplayerSearchParams();
+      if (toastInfo) {
+        toaster.create({
+          title: toastInfo.title,
+          description: toastInfo.description,
+          type: 'info',
+        });
+      }
+    },
+    [
+      leaveSessionRoom,
+      assignSessionId,
+      stopPolling,
+      stripMultiplayerSearchParams,
+    ],
+  );
+
   const hydrateFromPayload = useCallback(
     (payload: {
       sessionId?: string;
@@ -291,12 +327,12 @@ export function useMultiplayerTictactoe() {
       finalState?: GameStatePayload;
     }) => {
       const sid = payload.sessionId;
-      if (sid) setSessionId(sid);
+      if (sid) assignSessionId(sid);
       const st =
         payload.state ?? payload.gameState ?? payload.finalState ?? null;
       if (st) setGameState(st);
     },
-    [],
+    [assignSessionId],
   );
 
   const applyGameStateToBoard = useCallback((gs: GameStatePayload) => {
@@ -370,13 +406,13 @@ export function useMultiplayerTictactoe() {
         gameState?: GameStatePayload;
       };
       if (!row || !row._id) {
-        setSessionId(null);
+        assignSessionId(null);
         setSessionRow(null);
         setGameState(null);
         setPhase(MpPhase.Idle);
         return null;
       }
-      setSessionId(row._id);
+      assignSessionId(row._id);
       setSessionRow(row);
       if (row.gameState) {
         setGameState(row.gameState);
@@ -395,12 +431,7 @@ export function useMultiplayerTictactoe() {
       /* Socket not ready or transient error — do not clear session client-side */
       return null;
     }
-  }, [emit, joinSessionRoom, applyGameStateToBoard]);
-
-  const sessionIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
+  }, [emit, joinSessionRoom, applyGameStateToBoard, assignSessionId]);
 
   const playersInSessionRef = useRef(0);
   useEffect(() => {
@@ -425,7 +456,7 @@ export function useMultiplayerTictactoe() {
       const before = playersInSessionRef.current;
       const nextCount = row.players?.length ?? 0;
 
-      setSessionId(row._id);
+      assignSessionId(row._id);
       setSessionRow(row);
       if (row.gameState) {
         setGameState(row.gameState);
@@ -458,7 +489,7 @@ export function useMultiplayerTictactoe() {
         });
       }
     },
-    [applyGameStateToBoard, userId],
+    [applyGameStateToBoard, assignSessionId, userId],
   );
 
   useEffect(() => {
@@ -632,7 +663,7 @@ export function useMultiplayerTictactoe() {
             clearQuickMatchWaitTimeout();
             stopPolling();
             setMatchQueued(false);
-            setSessionId(row._id);
+            assignSessionId(row._id);
             setSessionRow(row);
             if (row.gameState) {
               setGameState(row.gameState);
@@ -657,6 +688,7 @@ export function useMultiplayerTictactoe() {
     joinSessionRoom,
     applyGameStateToBoard,
     clearQuickMatchWaitTimeout,
+    assignSessionId,
   ]);
 
   const quickMatch = useCallback(
@@ -819,7 +851,7 @@ export function useMultiplayerTictactoe() {
         const row = res.data as MultiplayerSessionRow & {
           gameState?: GameStatePayload;
         };
-        setSessionId(row._id);
+        assignSessionId(row._id);
         setSessionRow(row);
         if (row.gameState) {
           setGameState(row.gameState);
@@ -848,6 +880,12 @@ export function useMultiplayerTictactoe() {
           setHostInviteModalDismissed(false);
         }
         await joinSessionRoom(row._id);
+        if (
+          row.gameStatus === MultiplayerSessionStatus.PENDING ||
+          row.gameStatus === MultiplayerSessionStatus.IN_PROGRESS
+        ) {
+          await syncActiveSession();
+        }
       } catch (e) {
         toaster.create({
           title: 'Could not create lobby',
@@ -858,7 +896,15 @@ export function useMultiplayerTictactoe() {
         setIsLoading(false);
       }
     },
-    [emit, joinSessionRoom, applyGameStateToBoard, phase, matchQueued],
+    [
+      emit,
+      joinSessionRoom,
+      applyGameStateToBoard,
+      phase,
+      matchQueued,
+      assignSessionId,
+      syncActiveSession,
+    ],
   );
 
   const refreshPublicLobbies = useCallback(async () => {
@@ -913,7 +959,7 @@ export function useMultiplayerTictactoe() {
       gameType?: DbGameSchema | string;
       reason?: string;
       sessionId?: string;
-      session?: MultiplayerSessionRow & { gameState?: GameStatePayload };
+      session?: MultiplayerSessionRow & { gameState?: GameStatePayload } | null;
     }) => {
       void refreshPublicLobbies();
       if (
@@ -923,12 +969,37 @@ export function useMultiplayerTictactoe() {
         return;
       }
       const sid = payload.sessionId;
-      const row = payload.session;
-      if (!sid || !row || sid !== sessionIdRef.current) return;
-      applyRemoteSessionRow(row, { reason: payload.reason });
+      if (!sid || sid !== sessionIdRef.current) return;
+
+      if (payload.session == null) {
+        const r = payload.reason;
+        let description = 'This table is no longer available.';
+        if (r === 'host_left') description = 'The host left the table.';
+        else if (r === 'lobby_closed')
+          description = 'The last player left the table.';
+        else if (r === 'lobby_expired')
+          description = 'This lobby was closed or timed out.';
+        clearLocalMultiplayerTable(sid, {
+          title: 'Lobby closed',
+          description,
+        });
+        return;
+      }
+
+      applyRemoteSessionRow(payload.session, { reason: payload.reason });
     };
-    const onLobbyExpired = () => {
+    const onLobbyExpired = (payload: {
+      sessionId?: string;
+      gameType?: DbGameSchema | string;
+    }) => {
       void refreshPublicLobbies();
+      const sid = payload.sessionId;
+      if (!sid || payload.gameType !== GAME_TYPE) return;
+      if (sid !== sessionIdRef.current) return;
+      clearLocalMultiplayerTable(sid, {
+        title: 'Lobby closed',
+        description: 'This lobby timed out or was closed by the server.',
+      });
     };
 
     on(MultiplayerGameEmitterEvent.LOBBY_UPDATED, onLobbyUpdated);
@@ -947,7 +1018,14 @@ export function useMultiplayerTictactoe() {
         gameType: GAME_TYPE,
       }).catch(() => {});
     };
-  }, [emit, on, off, refreshPublicLobbies, applyRemoteSessionRow]);
+  }, [
+    emit,
+    on,
+    off,
+    refreshPublicLobbies,
+    applyRemoteSessionRow,
+    clearLocalMultiplayerTable,
+  ]);
 
   /** Quick match: server notifies this client when a pairing is ready. */
   useEffect(() => {
@@ -986,7 +1064,7 @@ export function useMultiplayerTictactoe() {
           },
         );
         const row = res.data;
-        setSessionId(row._id);
+        assignSessionId(row._id);
         setSessionRow(row);
         if (row.gameStatus === MultiplayerSessionStatus.PENDING) {
           setPhase(MpPhase.Lobby);
@@ -1042,7 +1120,13 @@ export function useMultiplayerTictactoe() {
         setIsLoading(false);
       }
     },
-    [emit, joinSessionRoom, syncActiveSession, stripMultiplayerSearchParams],
+    [
+      emit,
+      joinSessionRoom,
+      syncActiveSession,
+      stripMultiplayerSearchParams,
+      assignSessionId,
+    ],
   );
 
   const leavePendingLobby = useCallback(async () => {
@@ -1054,7 +1138,7 @@ export function useMultiplayerTictactoe() {
         gameId: sid,
       });
       leaveSessionRoom(sid);
-      setSessionId(null);
+      assignSessionId(null);
       setSessionRow(null);
       setGameState(null);
       setPhase(MpPhase.Idle);
@@ -1077,7 +1161,14 @@ export function useMultiplayerTictactoe() {
     } finally {
       setLeaveLobbyPending(false);
     }
-  }, [emit, sessionId, leaveSessionRoom, stopPolling, stripMultiplayerSearchParams]);
+  }, [
+    emit,
+    sessionId,
+    leaveSessionRoom,
+    assignSessionId,
+    stopPolling,
+    stripMultiplayerSearchParams,
+  ]);
 
   const dismissHostInvite = useCallback(() => {
     setHostInviteModalDismissed(true);
@@ -1169,7 +1260,7 @@ export function useMultiplayerTictactoe() {
   const resetMultiplayer = useCallback(() => {
     if (sessionId) leaveSessionRoom(sessionId);
     stopPolling();
-    setSessionId(null);
+    assignSessionId(null);
     setSessionRow(null);
     setGameState(null);
     setPhase(MpPhase.Idle);
@@ -1177,7 +1268,13 @@ export function useMultiplayerTictactoe() {
     setHostInvite(null);
     setHostInviteModalDismissed(false);
     stripMultiplayerSearchParams();
-  }, [sessionId, leaveSessionRoom, stopPolling, stripMultiplayerSearchParams]);
+  }, [
+    sessionId,
+    leaveSessionRoom,
+    stopPolling,
+    stripMultiplayerSearchParams,
+    assignSessionId,
+  ]);
 
   const { userIs, opponentIs } = userSymbols();
   const cells = cellsFromGameState();
@@ -1230,12 +1327,19 @@ export function useMultiplayerTictactoe() {
     endedModalShownRef.current = true;
     const activeCurrencyInfo =
       balances.find((c) => c.currency === currency) || selectedBalance;
+    const handleRematch = () => {
+      closeModal();
+      void quickMatch(true); // true means betAmountMustEqual
+    };
+
     const props = {
       multiplier: RiskLevel.MEDIUM,
       winAmount:
         status === BET_STATUS.WIN ? betAmount * parseFloatValue(RiskLevel.MEDIUM) : 0,
       betResultStatus: status,
       currency: activeCurrencyInfo,
+      stakeAmount: betAmount,
+      onRematch: handleRematch,
     };
     const modalConfig: ModalProps = {
       size: 'xs',
@@ -1264,7 +1368,7 @@ export function useMultiplayerTictactoe() {
         backgroundColor: '#545463',
       });
     }
-  }, [phase, status, betAmount, currency, balances, selectedBalance, openModal]);
+  }, [phase, status, betAmount, currency, balances, selectedBalance, openModal, closeModal, quickMatch]);
 
   const profitOnWin = localBetAmount * parseFloatValue(RiskLevel.MEDIUM);
 
