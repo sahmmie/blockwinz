@@ -46,6 +46,7 @@ export class SettingsController {
   @ApiBearerAuth('JWT-auth')
   @Get('activeSeed')
   @HttpCode(200)
+  /** Returns the currently active provably-fair seed pair for the authenticated player. */
   userActiveSeed(
     @CurrentUser() user: UserRequestI,
   ): Promise<ActiveSeedPairDto> {
@@ -58,8 +59,9 @@ export class SettingsController {
   })
   @ApiOperation({ summary: 'Rotate player seed' })
   @ApiBearerAuth('JWT-auth')
-  @Get('rotateSeed')
+  @Post('rotateSeed')
   @HttpCode(200)
+  /** Rotates the authenticated player's active seed pair and returns the replacement pair. */
   userRotateSeed(
     @CurrentUser() user: UserRequestI,
   ): Promise<ActiveSeedPairDto> {

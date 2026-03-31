@@ -1,45 +1,51 @@
 // types.ts
 
 export interface ActiveSeedI {
+    id?: string;
     _id: string;
     status: string;
     clientSeed: string;
     serverSeedHash: string;
-    deactivatedAt: string | null;
-    user: string;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
+    deactivatedAt?: string | null;
 }
 
 export interface ProfileI {
+    id?: string;
     _id: string;
+    user?: string;
+    canWithdraw: boolean;
     isHotKeysActive: boolean;
     isMuted: boolean;
+    isBanned?: boolean;
     isTurbo: boolean;
-    canWithdraw: boolean;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
+    referralCode?: string;
+    referredBy?: string;
+    referralCount?: number;
+    referralEarnings?: number;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface UserI {
+    id?: string;
     _id: string;
     username: string;
     email: string;
     emailVerified: boolean;
-    faEnabled: boolean;
-    nonce: number;
-    futureClientSeed: string;
-    activeSeed: ActiveSeedI; // Reference to the ActiveSeed interface
+    faEnabled?: boolean;
+    nonce?: number;
+    lastLogin?: string;
+    lastLogout?: string;
+    futureClientSeed?: string;
+    activeSeed?: ActiveSeedI | string;
     userAccounts: string[];
-    profile: ProfileI; // Reference to the Profile interface
-    createdAt: string;
-    updatedAt: string;
+    profile?: ProfileI | string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface ActiveSeedPairI {
-    _id: string;
+    _id?: string;
     nonce: number;
     clientSeed: string;
     serverSeedHashed: string;

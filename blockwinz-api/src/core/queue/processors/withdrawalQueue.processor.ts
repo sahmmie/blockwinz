@@ -1,6 +1,6 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, InternalServerErrorException, Logger } from '@nestjs/common';
 import { TransactionRepository } from 'src/transaction/repositories/transaction.repository';
 import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
 import { WithdrawalRepository } from 'src/withdrawal/repositories/withdrawal.repository';
@@ -35,7 +35,7 @@ export class WithdrawalQueueProcessor {
           withdrawal.requestId,
         );
       if (!withdrawalFound || !transactionFound) {
-        throw new Error(
+        throw new InternalServerErrorException(
           'Fatal Error: Withdrawal not found or transaction not found',
         );
       }

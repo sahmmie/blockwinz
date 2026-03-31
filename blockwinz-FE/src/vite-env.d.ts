@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_WAITLIST_LAUNCH_DATE?: string;
   readonly VITE_CHATWOOT_BASE_URL?: string;
   readonly VITE_CHATWOOT_WEBSITE_TOKEN?: string;
+  readonly VITE_MONITORING_ENDPOINT?: string;
+  readonly VITE_MONITORING_TOKEN?: string;
   /**
    * Set to `1` or `true` to use dummy lobbies and disable live multiplayer actions.
    * For real BE integration, leave unset or `0`. See `blockwinz-FE/.env.example`.

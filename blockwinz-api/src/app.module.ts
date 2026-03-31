@@ -51,6 +51,7 @@ function requireEnv(name: string): string {
 
 function validateServerEnvironment(): void {
   requireEnv('JWT_SECRET');
+  requireEnv('DATA_ENCRYPTION_KEY');
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const hasDiscreteDbConfig =
     Boolean(process.env.POSTGRES_HOST?.trim()) &&
@@ -61,11 +62,11 @@ function validateServerEnvironment(): void {
       'Database configuration is required via DATABASE_URL or POSTGRES_HOST/POSTGRES_DB/POSTGRES_USER',
     );
   }
+  requireEnv('REDIS_URL');
 }
 
 validateServerEnvironment();
-
-const redisUrl = process.env.REDIS_URL?.trim() || 'redis://localhost:6379';
+const redisUrl = requireEnv('REDIS_URL');
 
 const controllers = [AppController];
 

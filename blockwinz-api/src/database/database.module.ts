@@ -14,14 +14,18 @@ export type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
       provide: DRIZZLE,
       inject: [ConfigService],
       useFactory: (configService: ConfigService): DrizzleDb => {
-        let connectionString = configService.get<string>('DATABASE_URL');
+        let connectionString = configService.get<string>('DATABASE_URL')?.trim();
         if (!connectionString) {
-          const user = configService.get<string>('POSTGRES_USER') ?? 'postgres';
+          const user = configService.get<string>('POSTGRES_USER')?.trim();
           const password = configService.get<string>('POSTGRES_PASSWORD') ?? '';
-          const host =
-            configService.get<string>('POSTGRES_HOST') ?? 'localhost';
-          const port = configService.get<string>('DATABASE_PORT') ?? '5432';
-          const db = configService.get<string>('POSTGRES_DB') ?? 'blockwinz';
+          const host = configService.get<string>('POSTGRES_HOST')?.trim();
+          const port = configService.get<string>('DATABASE_PORT')?.trim() ?? '5432';
+          const db = configService.get<string>('POSTGRES_DB')?.trim();
+          if (!user || !host || !db) {
+            throw new Error(
+              'Database configuration is required via DATABASE_URL or POSTGRES_HOST/POSTGRES_DB/POSTGRES_USER',
+            );
+          }
           connectionString = `postgresql://${user}:${password}@${host}:${port}/${db}`;
         }
         const pool = new Pool({

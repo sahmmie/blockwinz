@@ -21,7 +21,7 @@ export const useSeedPair = create<SeedPairState>((set) => ({
     rotateSeedPair: async (showToast = false) => {
         set({ seedPairLoading: true });
         try {
-            const response = await axiosInstance.get('/settings/rotateSeed');
+            const response = await axiosInstance.post('/settings/rotateSeed');
             set({
                 activeSeedPair: response.data,
                 seedPairLoading: false,

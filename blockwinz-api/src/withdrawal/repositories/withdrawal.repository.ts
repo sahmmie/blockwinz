@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   BadRequestException,
@@ -130,7 +131,9 @@ export class WithdrawalRepository {
           approvalType,
         } as typeof withdrawals.$inferInsert)
         .returning();
-      if (!withdrawalRow) throw new Error('Failed to create withdrawal');
+      if (!withdrawalRow) {
+        throw new InternalServerErrorException('Failed to create withdrawal');
+      }
 
       const transaction = await this.transactionRepository.createTransaction(
         user,
@@ -252,7 +255,7 @@ export class WithdrawalRepository {
       .set(update)
       .where(eq(withdrawals.id, row.id))
       .returning();
-    if (!updated) throw new Error('Update failed');
+    if (!updated) throw new InternalServerErrorException('Update failed');
     return this.rowToDto(updated);
   }
 
@@ -294,7 +297,7 @@ export class WithdrawalRepository {
       .set(update)
       .where(eq(withdrawals.id, row.id))
       .returning();
-    if (!updated) throw new Error('Update failed');
+    if (!updated) throw new InternalServerErrorException('Update failed');
     return this.rowToDto(updated);
   }
 

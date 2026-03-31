@@ -2,6 +2,7 @@ import {
   BadRequestException,
   forwardRef,
   Inject,
+  InternalServerErrorException,
   Injectable,
   Logger,
   NotFoundException,
@@ -98,6 +99,7 @@ export class WalletRepository {
     return this.convertToPublicWallet(balances);
   }
 
+  /** Strips internal-only wallet secrets before returning player-facing wallet data. */
   public convertToPublicWallet(wallet: WalletDto[]): PublicWalletDto[] {
     return wallet.map((w) => ({
       _id: w._id,
@@ -200,7 +202,7 @@ export class WalletRepository {
       this.logger.error(
         `Insufficient withdrawal funds: amount=${amount}, pendingWithdrawal=${wallet.pendingWithdrawal}`,
       );
-      throw new Error('Insufficient funds to withdraw');
+      throw new BadRequestException('Insufficient funds to withdraw');
     }
 
     const signature = await this.withdrawToChain(
@@ -382,7 +384,7 @@ export class WalletRepository {
       .limit(1);
 
     if (!row) {
-      throw new Error('Wallet not found');
+      throw new NotFoundException('Wallet not found');
     }
 
     if (currency === Currency.SOL) {
@@ -391,7 +393,7 @@ export class WalletRepository {
     if (currency === Currency.BWZ) {
       return this.bwzWalletRepository.debitPlayerBwz(row.privateKey, amount);
     }
-    throw new Error('Debit player error: Invalid currency');
+    throw new BadRequestException('Debit player error: Invalid currency');
   }
 
   private async withdrawToChain(
@@ -412,7 +414,7 @@ export class WalletRepository {
         amount,
       );
     }
-    throw new Error('Credit player error: Invalid currency');
+    throw new BadRequestException('Credit player error: Invalid currency');
   }
 
   /**
@@ -425,7 +427,7 @@ export class WalletRepository {
   ): Promise<WalletDto> {
     const db = tx ?? this.db;
     const walletId = getWalletId(wallet);
-    if (!walletId) throw new Error('Wallet id required');
+    if (!walletId) throw new BadRequestException('Wallet id required');
 
     const [updated] = await db
       .update(wallets)
@@ -442,7 +444,7 @@ export class WalletRepository {
       .returning();
 
     if (!updated) {
-      throw new Error('App balance update failed (possibly negative)');
+      throw new BadRequestException('App balance update failed (possibly negative)');
     }
     return this.rowToWalletDto(updated);
   }
@@ -539,7 +541,9 @@ export class WalletRepository {
           totalSent: 0,
         } as CreditFreeBwzInsert)
         .returning();
-      if (!inserted) throw new Error('Failed to create credit history');
+      if (!inserted) {
+        throw new InternalServerErrorException('Failed to create credit history');
+      }
       creditId = inserted.id;
       totalSent = 0;
       sendHistory = [];

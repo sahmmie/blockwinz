@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -54,7 +55,7 @@ export class AuthenticationController {
   @Public()
   @RateLimit({ ttl: 3600, limit: 15 })
   @ApiBody({
-    type: UserProfileResponseDto,
+    type: UserDto,
     examples: {
       default: {
         value: {
@@ -82,7 +83,7 @@ export class AuthenticationController {
   @Public()
   @RateLimit({ ttl: 60, limit: 25 })
   @ApiBody({
-    type: UserProfileResponseDto,
+    type: LoginDto,
     examples: {
       email_login: {
         value: {
@@ -139,7 +140,14 @@ export class AuthenticationController {
   }
 
   @ApiBody({
-    type: UserDto,
+    schema: {
+      type: 'object',
+      properties: {
+        currentPassword: { type: 'string', example: 'CurrentStr0ng!P@ss' },
+        newPassword: { type: 'string', example: 'NewStr0ng!P@ss' },
+      },
+      required: ['currentPassword', 'newPassword'],
+    },
     examples: {
       default: {
         value: {
@@ -186,7 +194,7 @@ export class AuthenticationController {
   }
 
   @ApiResponse({
-    type: UserDto,
+    type: UserProfileResponseDto,
     status: 200,
   })
   @ApiOperation({ summary: 'Get profile' })
@@ -296,7 +304,7 @@ export class AuthenticationController {
     const validOTP = await this.otpRepository.findValidOTP(email, otp);
 
     if (!validOTP) {
-      throw new Error('Invalid or expired OTP');
+      throw new BadRequestException('Invalid or expired OTP');
     }
 
     // Find user by email
