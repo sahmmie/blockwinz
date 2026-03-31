@@ -27,6 +27,7 @@ import {
   MultiplayerGameEmitterEvent,
   QuickMatchResponseStatus,
 } from '@blockwinz/shared';
+import { RematchService } from '../rematch/rematch.service';
 import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsExceptionWithCode } from 'src/shared/filters/ws-exception-with-code';
 import { WsResponse } from 'src/shared/helpers/wsResponse.helper';
@@ -44,6 +45,7 @@ export class GameGateway extends BaseGateway {
 
   constructor(
     private readonly gameSessionService: GameSessionService,
+    private readonly rematchService: RematchService,
     private readonly matchmakingService: MatchmakingService,
     private readonly playerSessionTracker: PlayerSessionTrackerService,
     private readonly disconnectionListener: DisconnectionListener,
@@ -54,11 +56,14 @@ export class GameGateway extends BaseGateway {
   ) {
     super(jwtService, redisService, authenticationRepository, eventEmitter);
     // Listen to internal events and broadcast to rooms
-    this.eventEmitter.on(MultiplayerGameEmitterEvent.GAME_STARTED, (payload) => {
-      this.server
-        .to(`room:${payload.sessionId}`)
-        .emit(MultiplayerGameEmitterEvent.GAME_STARTED, payload);
-    });
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.GAME_STARTED,
+      (payload) => {
+        this.server
+          .to(`room:${payload.sessionId}`)
+          .emit(MultiplayerGameEmitterEvent.GAME_STARTED, payload);
+      },
+    );
     this.eventEmitter.on(MultiplayerGameEmitterEvent.GAME_MOVE, (payload) => {
       this.server
         .to(`room:${payload.sessionId}`)
@@ -72,18 +77,17 @@ export class GameGateway extends BaseGateway {
           .emit(MultiplayerGameEmitterEvent.GAME_INVALID_MOVE, payload);
       },
     );
-    this.eventEmitter.on(MultiplayerGameEmitterEvent.GAME_FINISHED, (payload) => {
-      this.server
-        .to(`room:${payload.sessionId}`)
-        .emit(MultiplayerGameEmitterEvent.GAME_FINISHED, payload);
-    });
+    this.eventEmitter.on(
+      MultiplayerGameEmitterEvent.GAME_FINISHED,
+      (payload) => {
+        this.server
+          .to(`room:${payload.sessionId}`)
+          .emit(MultiplayerGameEmitterEvent.GAME_FINISHED, payload);
+      },
+    );
     this.eventEmitter.on(
       MultiplayerGameEmitterEvent.GAME_JOINED,
-      (payload: {
-        sessionId: string;
-        userId: string;
-        session: unknown;
-      }) => {
+      (payload: { sessionId: string; userId: string; session: unknown }) => {
         this.server
           .to(`room:${payload.sessionId}`)
           .emit(MultiplayerGameEmitterEvent.GAME_JOINED, payload);
@@ -219,7 +223,13 @@ export class GameGateway extends BaseGateway {
   @SubscribeMessage(GameGatewaySocketEvent.GAME_ACTION)
   async gameAction(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { message?: string; action?: string; sessionId?: string; move?: unknown },
+    @MessageBody()
+    data: {
+      message?: string;
+      action?: string;
+      sessionId?: string;
+      move?: unknown;
+    },
     @WsUser() user: UserDto,
   ) {
     try {
@@ -286,6 +296,159 @@ export class GameGateway extends BaseGateway {
       });
       return WsResponse.error(error.message);
     }
+  }
+
+  /**
+   * Registers rematch intent after a completed game; may notify the peer or create a new matched session.
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.REMATCH_REQUEST)
+  async rematchRequest(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { completedSessionId: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      return await this.handleRematchIntent(user, data.completedSessionId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Rematch failed';
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: msg,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Accepts a rematch invite by joining the intent set (same fulfillment path as rematchRequest).
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.REMATCH_ACCEPT)
+  async rematchAccept(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { completedSessionId: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      return await this.handleRematchIntent(user, data.completedSessionId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Rematch failed';
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: msg,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Declines a pending rematch and notifies former requesters.
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.REMATCH_DECLINE)
+  async rematchDecline(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { completedSessionId: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      const { notifyUserIds } = await this.rematchService.declineRematch(
+        user,
+        data.completedSessionId,
+      );
+      const payload = { completedSessionId: data.completedSessionId };
+      for (const uid of notifyUserIds) {
+        const sockets = await this.getUserSocketIds(uid);
+        for (const sid of sockets) {
+          this.emitToSocket(
+            sid,
+            MultiplayerGameEmitterEvent.REMATCH_DECLINED,
+            payload,
+          );
+        }
+      }
+      return WsResponse.success({ ok: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Decline failed';
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: msg,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Withdraws the caller’s rematch intent and notifies the opponent.
+   */
+  @SubscribeMessage(GameGatewaySocketEvent.REMATCH_CANCEL)
+  async rematchCancel(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new WsValidationPipe()) data: { completedSessionId: string },
+    @WsUser() user: UserDto,
+  ) {
+    try {
+      const { notifyPeerUserId } = await this.rematchService.cancelRematch(
+        user,
+        data.completedSessionId,
+      );
+      if (notifyPeerUserId) {
+        const payload = { completedSessionId: data.completedSessionId };
+        const sockets = await this.getUserSocketIds(notifyPeerUserId);
+        for (const sid of sockets) {
+          this.emitToSocket(
+            sid,
+            MultiplayerGameEmitterEvent.REMATCH_WITHDRAWN,
+            payload,
+          );
+        }
+      }
+      return WsResponse.success({ ok: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Cancel failed';
+      this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
+        message: msg,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Shared handler for rematchRequest / rematchAccept (add intent + optional fulfill).
+   */
+  private async handleRematchIntent(user: UserDto, completedSessionId: string) {
+    const result = await this.rematchService.addRematchIntent(
+      user,
+      completedSessionId,
+    );
+    if (result.kind === 'waiting') {
+      const invite = {
+        completedSessionId: result.completedSessionId,
+        fromUserId: getUserId(user),
+      };
+      const sockets = await this.getUserSocketIds(result.peerUserId);
+      for (const sid of sockets) {
+        this.emitToSocket(
+          sid,
+          MultiplayerGameEmitterEvent.REMATCH_INVITED,
+          invite,
+        );
+      }
+      return WsResponse.success({ status: 'waiting' as const });
+    }
+    if (result.kind === 'matched') {
+      await this.emitMatchReadyToPlayers({
+        sessionId: result.session._id,
+        gameType: result.session.gameType,
+        playerIds: result.playerIds,
+      });
+      this.server
+        .to(`room:${result.completedSessionId}`)
+        .emit(MultiplayerGameEmitterEvent.MATCH_READY, {
+          sessionId: result.session._id,
+          gameType: result.session.gameType,
+        });
+      return WsResponse.success({
+        status: 'matched' as const,
+        session: result.session,
+      });
+    }
+    return WsResponse.success({ status: 'noop' as const });
   }
 
   /**
@@ -411,7 +574,8 @@ export class GameGateway extends BaseGateway {
       await this.gameSessionService.clearReconnectGrace(data.sessionId);
       return WsResponse.success({ joined: true, sessionId: data.sessionId });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Join session room failed';
+      const msg =
+        error instanceof Error ? error.message : 'Join session room failed';
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
         message: msg,
       });
@@ -491,14 +655,21 @@ export class GameGateway extends BaseGateway {
         session.spectatorsAllowed ||
         session.spectatorUserIds.map(String).includes(userId);
       if (!allowed) {
-        throw new WsExceptionWithCode('Spectating not allowed for this session', 403);
+        throw new WsExceptionWithCode(
+          'Spectating not allowed for this session',
+          403,
+        );
       }
       if (session.players.map(String).includes(userId)) {
         throw new WsExceptionWithCode('Use joinSessionRoom as a player', 400);
       }
       const room = `room:${data.sessionId}`;
       await client.join(room);
-      return WsResponse.success({ joined: true, sessionId: data.sessionId, spectator: true });
+      return WsResponse.success({
+        joined: true,
+        sessionId: data.sessionId,
+        spectator: true,
+      });
     } catch (error) {
       this.emitToSocket(client.id, GameGatewaySocketEvent.GAME_ERROR, {
         message: (error as Error).message,

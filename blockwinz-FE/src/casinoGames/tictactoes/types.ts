@@ -140,4 +140,8 @@ export interface TictactoeState {
     mpTurnLabel?: string
     /** Leaving a pending lobby (socket round-trip). */
     leaveLobbyPending?: boolean
+    /** Opponent requested rematch (completed session id + requester user id). */
+    rematchInvite?: { completedSessionId: string; fromUserId: string } | null
+    /** Rematch socket action in flight. */
+    rematchBusy?: boolean
 }

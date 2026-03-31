@@ -20,6 +20,14 @@ export enum GameGatewaySocketEvent {
   LEAVE_LOBBY_ROOM = 'leaveLobbyRoom',
   /** Join `room:{sessionId}` as a spectator when allowed by the session row. */
   JOIN_SPECTATOR_SESSION = 'joinSpectatorSession',
+  /** Commit to rematch after a completed session (symmetric with rematchAccept). */
+  REMATCH_REQUEST = 'rematchRequest',
+  /** Accept a peer’s rematch invite (adds self to the rematch intent set). */
+  REMATCH_ACCEPT = 'rematchAccept',
+  /** Decline a pending rematch; clears intent and notifies requesters. */
+  REMATCH_DECLINE = 'rematchDecline',
+  /** Withdraw own rematch intent (Close); notifies the other player. */
+  REMATCH_CANCEL = 'rematchCancel',
 }
 
 export enum GameGatewayError {

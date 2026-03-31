@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocketContext } from '@/context/socketContext';
 import useAuth from '@/hooks/useAuth';
@@ -37,6 +37,12 @@ import { MOCK_MULTIPLAYER_LOBBIES } from '@/casinoGames/multiplayer/multiplayerL
 import { isMultiplayerLobbyMock } from '@/casinoGames/multiplayer/isMultiplayerLobbyMock';
 import { resolveMultiplayerJoinError } from '@/casinoGames/multiplayer/multiplayerJoinErrors';
 import { WsAckError } from '@/casinoGames/multiplayer/wsAckError';
+import { useTictactoeMultiplayerSound } from './useTictactoeMultiplayerSound';
+import {
+  boardFull,
+  lineWinner,
+  userIdForSymbol,
+} from '../utils/boardOutcome';
 
 export type { MultiplayerSessionRow } from '@/casinoGames/multiplayer/types';
 
@@ -46,6 +52,11 @@ type WsAck<T = unknown> = {
   message?: string;
   code?: number;
 };
+
+type RematchIntentAck =
+  | { status: 'waiting' }
+  | { status: 'noop' }
+  | { status: 'matched'; session: MultiplayerSessionRow };
 
 type GameStatePayload = {
   board?: Array<Array<string>>;
@@ -60,6 +71,10 @@ type GameActionAckData = {
   finished?: boolean;
   state?: unknown;
 };
+
+function isServerTerminalBetStatus(s: string | undefined): boolean {
+  return s === BET_STATUS.WIN || s === BET_STATUS.TIE;
+}
 
 /** Map orchestrator `submitMove` state to the shape the board reads. */
 function ackStateToGameStatePayload(raw: unknown): GameStatePayload | null {
@@ -108,6 +123,41 @@ function optimisticLocalMove(
   if (!me || gs.currentTurn !== me.userIs) return null;
   const board = b.map((r) => [...r]);
   board[row][col] = me.userIs;
+  const sym = me.userIs === 'X' || me.userIs === 'O' ? me.userIs : null;
+  const winSym = sym ? lineWinner(board) : null;
+  if (winSym) {
+    const winnerId = userIdForSymbol(
+      gs.players.map((p) => ({
+        userId: String(p.userId),
+        userIs: String(p.userIs),
+      })),
+      winSym,
+    );
+    return {
+      ...gs,
+      board,
+      currentTurn: null,
+      betResultStatus: BET_STATUS.WIN,
+      winnerId: winnerId ?? null,
+      players: gs.players.map((p) => ({
+        ...p,
+        playerIsNext: false,
+      })),
+    };
+  }
+  if (boardFull(board)) {
+    return {
+      ...gs,
+      board,
+      currentTurn: null,
+      betResultStatus: BET_STATUS.TIE,
+      winnerId: null,
+      players: gs.players.map((p) => ({
+        ...p,
+        playerIsNext: false,
+      })),
+    };
+  }
   const nextSym = me.userIs === 'X' ? 'O' : 'X';
   return {
     ...gs,
@@ -170,6 +220,8 @@ export function useMultiplayerTictactoe() {
   const { emit, on, off, getSocketInstance } = useSocketContext();
   const token = useAuth((s) => s.token);
   const userId = getUserIdFromAccessToken(token);
+  const { playOwnMove, playOpponentMove, playWin } =
+    useTictactoeMultiplayerSound();
   const { selectedBalance, balances, getWalletData, setSuppressWalletAutoRefreshDuringMpPlay } =
     useWalletState();
   const { openModal, closeModal } = useModal();
@@ -192,6 +244,11 @@ export function useMultiplayerTictactoe() {
     useState(false);
   const [leaveLobbyPending, setLeaveLobbyPending] = useState(false);
   const [quickMatchNoMatchOpen, setQuickMatchNoMatchOpen] = useState(false);
+  const [rematchInvite, setRematchInvite] = useState<{
+    completedSessionId: string;
+    fromUserId: string;
+  } | null>(null);
+  const [rematchBusy, setRematchBusy] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<IErrorMsg>({
     title: '',
@@ -302,6 +359,7 @@ export function useMultiplayerTictactoe() {
       setMatchQueued(false);
       setHostInvite(null);
       setHostInviteModalDismissed(false);
+      setRematchInvite(null);
       stripMultiplayerSearchParams();
       if (toastInfo) {
         toaster.create({
@@ -382,6 +440,7 @@ export function useMultiplayerTictactoe() {
 
   const [localBetAmount, setLocalBetAmount] = useState(0);
   const endedModalShownRef = useRef(false);
+  const prevShowEndedOutcomeRef = useRef(false);
 
   const handleBetAmountChange = useCallback(
     (value: number) => {
@@ -432,6 +491,148 @@ export function useMultiplayerTictactoe() {
       return null;
     }
   }, [emit, joinSessionRoom, applyGameStateToBoard, assignSessionId]);
+
+  const requestRematch = useCallback(async () => {
+    if (isMultiplayerLobbyMock()) {
+      toaster.create({
+        title: 'Mock mode',
+        description: 'Turn off VITE_MULTIPLAYER_LOBBY_MOCK for real rematch.',
+        type: 'info',
+      });
+      return;
+    }
+    const matchOverUi =
+      phase === MpPhase.Ended ||
+      isServerTerminalBetStatus(gameState?.betResultStatus);
+    if (!sessionRow?._id || !matchOverUi) return;
+    const completedId = sessionRow._id;
+    setRematchBusy(true);
+    try {
+      const res = await emitAck<RematchIntentAck>(
+        emit,
+        GameGatewaySocketEvent.REMATCH_REQUEST,
+        { completedSessionId: completedId },
+      );
+      const d = res.data;
+      if (d.status === 'waiting') {
+        toaster.create({
+          title: 'Rematch requested',
+          description: 'Waiting for your opponent to accept or rematch.',
+          type: 'success',
+        });
+      } else if (d.status === 'matched') {
+        void leaveSessionRoom(completedId);
+        await syncActiveSession();
+        void getWalletData();
+        toaster.create({
+          title: 'Rematch starting',
+          description: 'A new match is loading.',
+          type: 'success',
+        });
+      } else if (d.status === 'noop') {
+        toaster.create({
+          title: 'Rematch',
+          description: 'Request already sent.',
+          type: 'info',
+        });
+      }
+    } catch (e) {
+      toaster.create({
+        title: 'Rematch failed',
+        description: e instanceof Error ? e.message : 'Try again',
+        type: 'error',
+      });
+    } finally {
+      setRematchBusy(false);
+    }
+  }, [
+    emit,
+    sessionRow?._id,
+    phase,
+    gameState?.betResultStatus,
+    leaveSessionRoom,
+    syncActiveSession,
+    getWalletData,
+  ]);
+
+  const acceptRematchInvite = useCallback(async () => {
+    if (isMultiplayerLobbyMock() || !rematchInvite) return;
+    const { completedSessionId } = rematchInvite;
+    setRematchBusy(true);
+    try {
+      const res = await emitAck<RematchIntentAck>(
+        emit,
+        GameGatewaySocketEvent.REMATCH_ACCEPT,
+        { completedSessionId },
+      );
+      const d = res.data;
+      setRematchInvite(null);
+      if (d.status === 'matched') {
+        void leaveSessionRoom(completedSessionId);
+        await syncActiveSession();
+        void getWalletData();
+        toaster.create({
+          title: 'Rematch starting',
+          description: 'A new match is loading.',
+          type: 'success',
+        });
+      } else if (d.status === 'waiting') {
+        toaster.create({
+          title: 'Rematch',
+          description: 'Waiting for the other player.',
+          type: 'info',
+        });
+      } else if (d.status === 'noop') {
+        toaster.create({
+          title: 'Rematch',
+          description: 'Nothing to accept.',
+          type: 'info',
+        });
+      }
+    } catch (e) {
+      toaster.create({
+        title: 'Accept failed',
+        description: e instanceof Error ? e.message : 'Try again',
+        type: 'error',
+      });
+    } finally {
+      setRematchBusy(false);
+    }
+  }, [
+    emit,
+    rematchInvite,
+    leaveSessionRoom,
+    syncActiveSession,
+    getWalletData,
+  ]);
+
+  const declineRematchInvite = useCallback(async () => {
+    if (!rematchInvite) return;
+    const { completedSessionId } = rematchInvite;
+    setRematchInvite(null);
+    if (isMultiplayerLobbyMock()) return;
+    setRematchBusy(true);
+    try {
+      await emitAck(emit, GameGatewaySocketEvent.REMATCH_DECLINE, {
+        completedSessionId,
+      });
+    } catch {
+      /* best-effort */
+    } finally {
+      setRematchBusy(false);
+    }
+  }, [emit, rematchInvite]);
+
+  const cancelRematchIntent = useCallback(async () => {
+    if (!sessionRow?._id || isMultiplayerLobbyMock()) return;
+    try {
+      await emitAck(emit, GameGatewaySocketEvent.REMATCH_CANCEL, {
+        completedSessionId: sessionRow._id,
+      });
+    } catch {
+      /* best-effort */
+    }
+  }, [emit, sessionRow?._id]);
 
   const playersInSessionRef = useRef(0);
   useEffect(() => {
@@ -510,9 +711,18 @@ export function useMultiplayerTictactoe() {
 
     const onMove = (payload: {
       sessionId: string;
+      playerId?: string;
       gameState?: GameStatePayload;
     }) => {
       if (payload.gameState) applyGameStateToBoard(payload.gameState);
+      if (
+        payload.sessionId === sessionIdRef.current &&
+        payload.playerId != null &&
+        userId &&
+        String(payload.playerId) !== String(userId)
+      ) {
+        playOpponentMove();
+      }
     };
 
     const onInvalid = (payload: { reason?: string }) => {
@@ -529,6 +739,14 @@ export function useMultiplayerTictactoe() {
       finalState?: GameStatePayload;
     }) => {
       if (payload.finalState) applyGameStateToBoard(payload.finalState);
+      if (
+        payload.sessionId === sessionIdRef.current &&
+        payload.winner != null &&
+        userId &&
+        String(payload.winner) === String(userId)
+      ) {
+        playWin();
+      }
       setPhase(MpPhase.Ended);
       stripMultiplayerSearchParams();
       void getWalletData();
@@ -576,7 +794,78 @@ export function useMultiplayerTictactoe() {
     syncActiveSession,
     applyRemoteSessionRow,
     stripMultiplayerSearchParams,
+    playOpponentMove,
+    playWin,
+    userId,
   ]);
+
+  useEffect(() => {
+    if (isMultiplayerLobbyMock()) return;
+    const socket = getSocketInstance();
+    if (!socket) return;
+
+    const onInvited = (payload: {
+      completedSessionId?: string;
+      fromUserId?: string;
+    }) => {
+      if (
+        !payload.completedSessionId ||
+        !payload.fromUserId ||
+        !userId ||
+        String(payload.fromUserId) === String(userId)
+      ) {
+        return;
+      }
+      setRematchInvite({
+        completedSessionId: payload.completedSessionId,
+        fromUserId: String(payload.fromUserId),
+      });
+    };
+
+    const onDeclined = (payload: { completedSessionId?: string }) => {
+      if (
+        payload.completedSessionId &&
+        sessionIdRef.current === payload.completedSessionId
+      ) {
+        toaster.create({
+          title: 'Rematch declined',
+          description: 'Your opponent declined a rematch.',
+          type: 'info',
+        });
+      }
+      setRematchInvite(null);
+    };
+
+    const onWithdrawn = (payload: { completedSessionId?: string }) => {
+      if (
+        payload.completedSessionId &&
+        sessionIdRef.current === payload.completedSessionId
+      ) {
+        toaster.create({
+          title: 'Rematch withdrawn',
+          description: 'Your opponent cancelled the rematch request.',
+          type: 'info',
+        });
+      }
+      setRematchInvite(null);
+    };
+
+    on(MultiplayerGameEmitterEvent.REMATCH_INVITED, onInvited);
+    on(MultiplayerGameEmitterEvent.REMATCH_DECLINED, onDeclined);
+    on(MultiplayerGameEmitterEvent.REMATCH_WITHDRAWN, onWithdrawn);
+
+    return () => {
+      off(MultiplayerGameEmitterEvent.REMATCH_INVITED, onInvited);
+      off(MultiplayerGameEmitterEvent.REMATCH_DECLINED, onDeclined);
+      off(MultiplayerGameEmitterEvent.REMATCH_WITHDRAWN, onWithdrawn);
+    };
+  }, [on, off, getSocketInstance, userId]);
+
+  useEffect(() => {
+    if (phase === MpPhase.Playing || phase === MpPhase.Lobby) {
+      setRematchInvite(null);
+    }
+  }, [phase]);
 
   /**
    * Restore pending / in-progress session after refresh. Waits for the game socket
@@ -1194,6 +1483,7 @@ export function useMultiplayerTictactoe() {
         prev && prev.board ? optimisticLocalMove(prev, cellIndex, userId) : null;
       if (optimistic) {
         applyGameStateToBoard(optimistic);
+        playOwnMove();
       }
       try {
         const res = await emitAck<GameActionAckData>(
@@ -1222,7 +1512,7 @@ export function useMultiplayerTictactoe() {
         });
       }
     },
-    [emit, sessionId, userId, applyGameStateToBoard],
+    [emit, sessionId, userId, applyGameStateToBoard, playOwnMove],
   );
 
   const forfeitMatch = useCallback(async () => {
@@ -1267,6 +1557,7 @@ export function useMultiplayerTictactoe() {
     setMatchQueued(false);
     setHostInvite(null);
     setHostInviteModalDismissed(false);
+    setRematchInvite(null);
     stripMultiplayerSearchParams();
   }, [
     sessionId,
@@ -1280,6 +1571,20 @@ export function useMultiplayerTictactoe() {
   const cells = cellsFromGameState();
   const status = betResultStatus();
 
+  const showEndedOutcome = useMemo(
+    () =>
+      phase === MpPhase.Ended ||
+      isServerTerminalBetStatus(gameState?.betResultStatus),
+    [phase, gameState?.betResultStatus],
+  );
+
+  useEffect(() => {
+    if (prevShowEndedOutcomeRef.current && !showEndedOutcome) {
+      closeModal();
+    }
+    prevShowEndedOutcomeRef.current = showEndedOutcome;
+  }, [showEndedOutcome, closeModal]);
+
   const currentTurn =
     phase === MpPhase.Playing && gameState?.currentTurn
       ? String(gameState.currentTurn)
@@ -1292,11 +1597,18 @@ export function useMultiplayerTictactoe() {
       : '';
 
   const isActiveGame = useCallback(
-    () => phase === MpPhase.Playing,
-    [phase],
+    () =>
+      phase === MpPhase.Playing &&
+      !isServerTerminalBetStatus(gameState?.betResultStatus),
+    [phase, gameState?.betResultStatus],
   );
 
-  const hasEnded = useCallback(() => phase === MpPhase.Ended, [phase]);
+  const hasEnded = useCallback(
+    () =>
+      phase === MpPhase.Ended ||
+      isServerTerminalBetStatus(gameState?.betResultStatus),
+    [phase, gameState?.betResultStatus],
+  );
 
   useEffect(() => {
     if (!hasError) return;
@@ -1310,14 +1622,14 @@ export function useMultiplayerTictactoe() {
   }, [hasError, errorMsg]);
 
   useEffect(() => {
-    if (phase !== MpPhase.Ended) {
+    if (!showEndedOutcome) {
       endedModalShownRef.current = false;
     }
-  }, [phase]);
+  }, [showEndedOutcome]);
 
   useEffect(() => {
     if (
-      phase !== MpPhase.Ended ||
+      !showEndedOutcome ||
       endedModalShownRef.current ||
       status === BET_STATUS.IN_PROGRESS ||
       status === BET_STATUS.NOT_STARTED
@@ -1328,8 +1640,13 @@ export function useMultiplayerTictactoe() {
     const activeCurrencyInfo =
       balances.find((c) => c.currency === currency) || selectedBalance;
     const handleRematch = () => {
+      void requestRematch();
+    };
+
+    const handleCloseEnded = () => {
       closeModal();
-      void quickMatch(true); // true means betAmountMustEqual
+      void cancelRematchIntent();
+      resetMultiplayer();
     };
 
     const props = {
@@ -1340,6 +1657,8 @@ export function useMultiplayerTictactoe() {
       currency: activeCurrencyInfo,
       stakeAmount: betAmount,
       onRematch: handleRematch,
+      onClose: handleCloseEnded,
+      isRematchLoading: rematchBusy,
     };
     const modalConfig: ModalProps = {
       size: 'xs',
@@ -1368,7 +1687,20 @@ export function useMultiplayerTictactoe() {
         backgroundColor: '#545463',
       });
     }
-  }, [phase, status, betAmount, currency, balances, selectedBalance, openModal, closeModal, quickMatch]);
+  }, [
+    showEndedOutcome,
+    status,
+    betAmount,
+    currency,
+    balances,
+    selectedBalance,
+    openModal,
+    closeModal,
+    requestRematch,
+    cancelRematchIntent,
+    resetMultiplayer,
+    rematchBusy,
+  ]);
 
   const profitOnWin = localBetAmount * parseFloatValue(RiskLevel.MEDIUM);
 
@@ -1377,7 +1709,7 @@ export function useMultiplayerTictactoe() {
     betAmount: localBetAmount,
     profitOnWin,
     mode: GameMode.Manual,
-    animSpeed: 120,
+    animSpeed: 0,
     activeAutoBet: false,
     isLoading,
     hasError,
@@ -1407,6 +1739,8 @@ export function useMultiplayerTictactoe() {
     multiplayerSession: sessionRow,
     mpTurnLabel,
     leaveLobbyPending,
+    rematchInvite,
+    rematchBusy,
   };
 
   return {
@@ -1433,6 +1767,8 @@ export function useMultiplayerTictactoe() {
       dismissQuickMatchNoMatch: () => setQuickMatchNoMatchOpen(false),
       cancelQuickMatchSearch,
       clearInviteUrlParams: stripMultiplayerSearchParams,
+      acceptRematchInvite,
+      declineRematchInvite,
     },
   };
 }

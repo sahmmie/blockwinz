@@ -13,6 +13,8 @@ interface GameStatusModalProps {
   currency: CurrencyInfo;
   stakeAmount?: number;
   onRematch?: () => void;
+  /** Leave the ended match UI (multiplayer: cancels rematch intent and resets table). */
+  onClose?: () => void;
   isRematchLoading?: boolean;
 }
 
@@ -22,6 +24,7 @@ const GameStatusModal: FunctionComponent<GameStatusModalProps> = ({
   currency,
   stakeAmount = 0,
   onRematch,
+  onClose,
   isRematchLoading = false,
 }) => {
   const ROUNDING_DECIMALS = currency.decimals || DEFAULT_ROUNDING_DECIMALS;
@@ -54,10 +57,20 @@ const GameStatusModal: FunctionComponent<GameStatusModalProps> = ({
     }
   };
 
+  const handleCloseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose?.();
+  };
+
+  const showActions = Boolean(onRematch || onClose);
+  const actionCount = (onRematch ? 1 : 0) + (onClose ? 1 : 0);
+  const boxHeight =
+    actionCount >= 2 ? '260px' : onRematch ? '200px' : '150px';
+
   return (
     <>
       <Box
-        h={onRematch ? '200px' : '150px'}
+        h={boxHeight}
         borderRadius={'8px'}
         display={'flex'}
         flexDir={'column'}
@@ -109,19 +122,35 @@ const GameStatusModal: FunctionComponent<GameStatusModalProps> = ({
               <img src={currency?.icon} alt='Currency Icon' style={{ width: '18px', height: '18px' }} />
             </Box>
           </Box>
-          {onRematch && (
-            <Button
-              mt={'8px'}
-              w={'100%'}
-              h={'40px'}
-              bg={'#00DD25'}
-              color={'black'}
-              _hover={{ bg: '#00B01D' }}
-              onClick={handleRematchClick}
-              loading={isRematchLoading}
-            >
-              Rematch
-            </Button>
+          {showActions && (
+            <Box display='flex' flexDir='column' gap='8px' mt='8px' w='100%'>
+              {onRematch && (
+                <Button
+                  w={'100%'}
+                  h={'40px'}
+                  bg={'#00DD25'}
+                  color={'black'}
+                  _hover={{ bg: '#00B01D' }}
+                  onClick={handleRematchClick}
+                  loading={isRematchLoading}
+                >
+                  Rematch
+                </Button>
+              )}
+              {onClose && (
+                <Button
+                  w={'100%'}
+                  h={'40px'}
+                  variant='outline'
+                  borderColor='#A0A0B0'
+                  color='#E0E0E8'
+                  onClick={handleCloseClick}
+                  disabled={isRematchLoading}
+                >
+                  Close
+                </Button>
+              )}
+            </Box>
           )}
         </Box>
       </Box>

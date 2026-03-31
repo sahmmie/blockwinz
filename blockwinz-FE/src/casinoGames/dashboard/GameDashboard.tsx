@@ -91,7 +91,7 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
           borderRight={{ md: '0.2px solid #FFFFFF', base: 'none' }}>
           {renderConfig}
         </Box>
-        <Box w={'100%'} pl={{ base: '0', md: '16px' }}>
+        <Box w={'100%'} minW={0} pl={{ base: '0', md: '16px' }}>
           {renderGame}
         </Box>
       </Box>

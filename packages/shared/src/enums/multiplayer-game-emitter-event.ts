@@ -19,4 +19,10 @@ export enum MultiplayerGameEmitterEvent {
   MATCH_FOUND = 'match.found',
   /** Matchmaking paired players; emitted to their sockets (not in-room broadcast). */
   MATCH_READY = 'match.ready',
+  /** Opponent requested a rematch on a completed session; payload includes `completedSessionId`, `fromUserId`. */
+  REMATCH_INVITED = 'rematch.invited',
+  /** Rematch was declined or cleared; requesters should dismiss invite UI. */
+  REMATCH_DECLINED = 'rematch.declined',
+  /** Peer withdrew their rematch request (e.g. Close). */
+  REMATCH_WITHDRAWN = 'rematch.withdrawn',
 }

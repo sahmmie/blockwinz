@@ -26,7 +26,13 @@ const Game: React.FC = () => {
             marginBottom={isMobile ? '16px' : '0'}
             minH={isMobile ? '0px' : '795px'}
         >
-            <Box className='renderbox' position='relative' width='100%' h='100%' aspectRatio={4 / 3}>
+            <Box
+                className='renderbox'
+                position='relative'
+                width='100%'
+                minW={0}
+                h='100%'
+                aspectRatio={4 / 3}>
                 <RenderComponent ref={rendererRef} />
                 <PreviousResults />
             </Box>

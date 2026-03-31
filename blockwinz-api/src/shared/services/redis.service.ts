@@ -217,6 +217,24 @@ export class RedisService {
     return await this.redis.expire(key, seconds);
   }
 
+  /**
+   * Runs a Lua script atomically (e.g. rematch intent set add + conditional consume).
+   *
+   * @param script Lua source.
+   * @param numKeys Number of KEYS.
+   * @param keys Redis keys.
+   * @param args String arguments after keys.
+   * @returns Script return value (string, number, or null depending on script).
+   */
+  async evalScript(
+    script: string,
+    numKeys: number,
+    keys: string[],
+    args: string[],
+  ): Promise<unknown> {
+    return await this.redis.eval(script, numKeys, ...keys, ...args);
+  }
+
   /** JSON value with TTL (multiplayer presence, etc.). */
   async setJsonEx(key: string, value: unknown, ttlSec: number): Promise<void> {
     try {

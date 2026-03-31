@@ -15,6 +15,8 @@ import { DEFAULT_ROUNDING_DECIMALS } from '@/shared/constants/app.constant';
 import JoinLobbyConfirmModal, {
   type JoinLobbyConfirmPayload,
 } from '@/casinoGames/multiplayer/JoinLobbyConfirmModal';
+import RematchInviteModal from '@/casinoGames/multiplayer/RematchInviteModal';
+import { isMultiplayerLobbyMock } from '@/casinoGames/multiplayer/isMultiplayerLobbyMock';
 import { useMultiplayerTictactoe } from '../hooks/useMultiplayerTictactoe';
 import { MpPhase } from '../types';
 import { toaster } from '@/components/ui/toaster';
@@ -74,6 +76,8 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
     syncActiveSession,
     resolveLobbyFromPublicList,
     clearInviteUrlParams,
+    acceptRematchInvite,
+    declineRematchInvite,
   } = mp.actions;
   const { getSocketInstance } = useSocketContext();
   const location = useLocation();
@@ -436,6 +440,18 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
         onConfirmJoin={handleInviteConfirm}
         inviteJoinCodeDraft={deepLinkJoinCodeDraft}
         onInviteJoinCodeDraftChange={setDeepLinkJoinCodeDraft}
+      />
+      <RematchInviteModal
+        open={
+          Boolean(mp.state.rematchInvite) && !isMultiplayerLobbyMock()
+        }
+        completedSessionId={
+          mp.state.rematchInvite?.completedSessionId ?? null
+        }
+        fromUserId={mp.state.rematchInvite?.fromUserId ?? null}
+        isSubmitting={mp.state.rematchBusy ?? false}
+        onAccept={() => void acceptRematchInvite()}
+        onDecline={() => void declineRematchInvite()}
       />
       {children}
     </TictactoeGameContext.Provider>

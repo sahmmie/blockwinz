@@ -12,6 +12,8 @@ export class GameRenderer {
     public coinType: number;
     private coinsRenderer: Coins;
     private readonly gameLoopBound: () => void;
+    /** Observes the game container (window resize does not fire when only flex layout changes). */
+    private resizeObserver: ResizeObserver | null = null;
     /** Set as soon as teardown begins so async `setContainer` can bail without racing renders. */
     private destroyed = false;
 
@@ -21,6 +23,58 @@ export class GameRenderer {
         this.coinType = coinType;
         this.coinsRenderer = new Coins(10, coins, min, coinType); // Assuming max coins is 10
         this.gameLoopBound = this.gameLoop.bind(this);
+    }
+
+    /**
+     * Destroys the Pixi `Application` and builds a new one bound to `container`, reusing the same `Coins` scene.
+     * Same net effect as leaving the page and coming back with the current layout (correct canvas + resizeTo).
+     */
+    public async recreatePixiForContainer(container: HTMLDivElement): Promise<void> {
+        if (this.destroyed) return;
+
+        this.detachResizeTracking();
+
+        const coinsRoot = this.coinsRenderer.getContainer();
+        const existing = this.app;
+        if (existing) {
+            try {
+                existing.ticker.stop();
+            } catch {
+                /* noop */
+            }
+            try {
+                existing.ticker.remove(this.gameLoopBound);
+            } catch {
+                /* noop */
+            }
+            try {
+                coinsRoot.parent?.removeChild(coinsRoot);
+            } catch {
+                /* noop */
+            }
+            try {
+                (existing as { resizeTo: Window | HTMLElement | null }).resizeTo = null;
+            } catch {
+                /* noop */
+            }
+            try {
+                existing.cancelResize();
+            } catch {
+                /* noop */
+            }
+            try {
+                existing.destroy(true, {
+                    children: true,
+                    texture: false,
+                    textureSource: false,
+                });
+            } catch {
+                /* noop */
+            }
+            this.app = undefined;
+        }
+
+        await this.setContainer(container);
     }
 
     public async setContainer(container: HTMLDivElement): Promise<void> {
@@ -50,13 +104,25 @@ export class GameRenderer {
         await this.coinsRenderer.ready;
         if (this.destroyed) return;
 
+        this.detachResizeTracking();
         this.resizeCallback = () => {
             setAspectR(container);
             this.updateScale(container);
         };
         this.resizeCallback();
-        window.addEventListener('resize', this.resizeCallback);
+
+        this.resizeObserver = new ResizeObserver(() => {
+            if (this.destroyed) return;
+            this.resizeCallback();
+        });
+        this.resizeObserver.observe(container);
+
         container.appendChild(this.app.canvas);
+    }
+
+    private detachResizeTracking(): void {
+        this.resizeObserver?.disconnect();
+        this.resizeObserver = null;
     }
 
     private updateScale(container: HTMLDivElement) {
@@ -162,9 +228,8 @@ export class GameRenderer {
     public destroy(): void {
         if (this.destroyed) return;
         this.destroyed = true;
-        window.removeEventListener('resize', this.resizeCallback);
+        this.detachResizeTracking();
         this.coinsRenderer.dispose();
         this.tearDownPixiApplication();
     }
 }
-

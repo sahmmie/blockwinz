@@ -14,6 +14,12 @@ const TictactoeBox: FunctionComponent<TictactoeBoxProps> = () => {
   const { handleSelectCell } = actions;
 
   const selectCell = (cell: string, index: number) => {
+    if (hasEnded()) {
+      return toaster.create({
+        title: 'Game has ended',
+        type: 'info',
+      });
+    }
     if (!isActiveGame()) {
       const title =
         mpPhase === MpPhase.Lobby
@@ -24,14 +30,8 @@ const TictactoeBox: FunctionComponent<TictactoeBoxProps> = () => {
         type: 'info',
       });
     }
-    if (hasEnded() && isActiveGame()) {
-      return toaster.create({
-        title: 'Game has ended',
-        type: 'error',
-      });
-    }
 
-    if (!hasEnded() && !cell && isActiveGame()) {
+    if (!cell) {
       handleSelectCell(index);
       return;
     }

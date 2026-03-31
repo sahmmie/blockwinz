@@ -96,6 +96,7 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
           flexDirection='column'
           ref={mainContentRef}
           flex='1'
+          minW={0}
           h='100%'
           overflowY='auto'
           overflowX='hidden'>
@@ -106,9 +107,11 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
             flexDirection='column'
             alignItems='center'
             w='100%'
+            minW={0}
             px={{ base: '16px', md: '16px' }}>
             <Box
               w='full'
+              minW={0}
               maxW={{
                 base: '100%',
                 md: '100%',
