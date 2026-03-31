@@ -4,7 +4,6 @@ export interface ActiveSeedI {
     _id: string;
     status: string;
     clientSeed: string;
-    serverSeed: string;
     serverSeedHash: string;
     deactivatedAt: string | null;
     user: string;
@@ -32,8 +31,6 @@ export interface UserI {
     faEnabled: boolean;
     nonce: number;
     futureClientSeed: string;
-    futureServerSeed: string;
-    futureServerSeedHash: string;
     activeSeed: ActiveSeedI; // Reference to the ActiveSeed interface
     userAccounts: string[];
     profile: ProfileI; // Reference to the Profile interface

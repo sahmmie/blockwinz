@@ -91,3 +91,37 @@ export class WalletDto {
   @IsDate()
   updatedAt?: string;
 }
+
+export class PublicWalletDto {
+  @ApiPropertyOptional({ description: 'Wallet ID' })
+  @IsOptional()
+  _id?: string;
+
+  @ApiProperty({ description: 'Owner of the wallet' })
+  @IsString()
+  user: string | UserDto;
+
+  @ApiProperty({ description: 'Wallet address' })
+  @IsString()
+  address: string;
+
+  @ApiProperty({ description: 'Wallet currency' })
+  @IsEnum(Currency)
+  currency: Currency;
+
+  @ApiProperty({ description: 'Blockchain chain used by wallet' })
+  @IsEnum(CHAIN)
+  chain: CHAIN;
+
+  @ApiProperty({ description: 'Actual balance fetched from the blockchain' })
+  @IsNumber()
+  onChainBalance: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Available balance after removing pending withdrawals and locked bets',
+  })
+  @IsOptional()
+  @IsNumber()
+  availableBalance?: number;
+}

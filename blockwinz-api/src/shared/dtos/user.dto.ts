@@ -98,6 +98,66 @@ export class UserDto {
   emailVerificationResendCount?: number;
 }
 
+/**
+ * Public seed data safe to expose to the client for profile-style responses.
+ * Plain server seeds remain server-side until an explicit fairness reveal flow.
+ */
+export class ActiveSeedPublicDto {
+  @ApiPropertyOptional() @IsString() id?: string;
+  @ApiPropertyOptional() @IsString() _id?: string;
+  @ApiPropertyOptional() @IsString() status?: string;
+  @ApiPropertyOptional() @IsString() clientSeed?: string;
+  @ApiPropertyOptional() @IsString() serverSeedHash?: string;
+  @ApiPropertyOptional() @IsDate() deactivatedAt?: Date;
+}
+
+/**
+ * Sanitized user response for profile/registration style responses.
+ * This excludes password hashes, email tokens, and unrevealed server seeds.
+ */
+export class UserProfileResponseDto {
+  @ApiPropertyOptional() @IsString() id?: string;
+  @ApiPropertyOptional() @IsString() _id?: string;
+  @ApiProperty() @IsEmail() email: string;
+  @ApiProperty({
+    enum: UserAccountEnum,
+    isArray: true,
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsEnum(UserAccountEnum, { each: true })
+  userAccounts: UserAccountEnum[];
+  @ApiPropertyOptional() profile?: string | ProfileDto;
+  @ApiPropertyOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message:
+      'Username can only contain alphanumeric characters and underscores.',
+  })
+  @Length(4, 20, {
+    message: 'Username must be between 4 and 20 characters long.',
+  })
+  username: string;
+  @ApiPropertyOptional() @IsDate() lastLogin?: Date;
+  @ApiPropertyOptional() @IsDate() lastLogout?: Date;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDate()
+  createdAt?: Date;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDate()
+  updatedAt?: Date;
+  @ApiPropertyOptional() @IsBoolean() faEnabled?: boolean;
+  @ApiPropertyOptional() @IsNumber() nonce?: number;
+  @ApiPropertyOptional() @IsString() futureClientSeed?: string;
+  @ApiPropertyOptional() activeSeed?: string | ActiveSeedPublicDto;
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  emailVerified?: boolean;
+}
+
 export class LoginDto {
   @ApiProperty() @IsString() password: string;
   @ApiProperty() @IsString() username: string;

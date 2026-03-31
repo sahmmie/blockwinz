@@ -90,7 +90,9 @@ export class SeedsRepository {
     request: CreateSeedRequestDto,
     tx?: DrizzleDb,
   ): Promise<SeedDto> {
-    this.logger.log(`Creating seed with request: ${JSON.stringify(request)}`);
+    this.logger.log(
+      `Creating seed for user ${typeof request.user === 'string' ? request.user : getUserId(request.user) || 'unknown'}`,
+    );
     const db = tx ?? this.db;
     const userId =
       typeof request.user === 'string' ? request.user : getUserId(request.user);

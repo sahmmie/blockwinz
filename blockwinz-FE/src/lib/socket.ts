@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { SERVER_BASE_URL } from '@/shared/constants/app.constant';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 type SocketError = Error & { message: string };
 
@@ -80,9 +81,11 @@ function setupEventListeners(socket: Socket, namespace: string): void {
 
     socket.on('connect_error', (error: SocketError) => {
         console.error(`❌ Connection error on ${namespace}:`, error.message);
+      reportClientError('socket-connect', error, { namespace });
     });
 
     socket.on('error', (error: SocketError) => {
         console.error(`❌ Socket error on ${namespace}:`, error.message);
+      reportClientError('socket-runtime', error, { namespace });
     });
 }

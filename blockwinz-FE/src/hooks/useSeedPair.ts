@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import axiosInstance from '@/lib/axios';
 import { ActiveSeedPairI } from '@/shared/interfaces/account.interface';
 import { toaster } from '@/components/ui/toaster';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 interface SeedPairState {
     activeSeedPair: ActiveSeedPairI | null;
@@ -34,6 +35,7 @@ export const useSeedPair = create<SeedPairState>((set) => ({
             return true;
         } catch {
             set({ seedPairLoading: false });
+            reportClientError('seed-rotate', 'Failed to rotate seed pair');
             toaster.create({
                 title: 'Failed to rotate seed pair',
                 type: 'error',
@@ -52,6 +54,7 @@ export const useSeedPair = create<SeedPairState>((set) => ({
             });
         } catch {
             set({ seedPairLoading: false });
+            reportClientError('seed-active', 'Failed to get active seed pair');
             if (showToast) {
                 toaster.create({
                     title: 'Failed to get active seed pair',

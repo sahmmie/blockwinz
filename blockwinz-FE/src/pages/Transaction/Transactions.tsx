@@ -3,11 +3,12 @@ import { Box } from '@chakra-ui/react';
 import { Button } from '@/components/ui/button';
 import axiosInstance from '@/lib/axios';
 import { AxiosResponse } from 'axios';
-import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { PaginatedDataI } from '@/shared/interfaces/pagination.interface';
 import { toaster } from '@/components/ui/toaster';
 import TransactionsTable from './components/TransactionsTable';
 import { TransactionHistoryT } from './TransactionHistory.type';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 interface TransactionsProps {}
 
@@ -17,7 +18,6 @@ const Transactions: FunctionComponent<TransactionsProps> = () => {
   const [page, setPage] = useState(1);
   const limit = 10;
   const [totalCount, setTotalCount] = useState(0);
-  const queryClient = useQueryClient()
 
   const getTransactionHistory = async (): Promise<
     AxiosResponse<PaginatedDataI<TransactionHistoryT>>
@@ -49,14 +49,23 @@ const Transactions: FunctionComponent<TransactionsProps> = () => {
     // Reset page to 1 if selected button changes
     if (selectedButton) {
       setPage(1);
-      queryClient.clear()
     }
     refetchTransactionHisytory();
-  }, [page, queryClient, refetchTransactionHisytory, selectedButton]);
+  }, [page, refetchTransactionHisytory, selectedButton]);
+
+  useEffect(() => {
+    if (successLoadingTransactionHistory) {
+      setTotalCount(transactionHistory?.data.total || 0);
+    }
+  }, [successLoadingTransactionHistory, transactionHistory]);
 
   useEffect(() => {
     if (errorLoadingTransactionHistory && !loadingTransactionHistory) {
       setTotalCount(0);
+      reportClientError('transactions-history', 'Failed to load transaction history', {
+        tab: selectedButton,
+        page,
+      });
       toaster.create({
         description: 'Error loading Transaction History',
         type: 'error',
@@ -90,6 +99,11 @@ const Transactions: FunctionComponent<TransactionsProps> = () => {
             </Button>
           ))}
         </Box>
+        {errorLoadingTransactionHistory && !loadingTransactionHistory && (
+          <Box color='red.300' mb={'16px'}>
+            Unable to load transaction history right now.
+          </Box>
+        )}
         <Box>
           <TransactionsTable
             items={transactionHistory?.data.result || []}

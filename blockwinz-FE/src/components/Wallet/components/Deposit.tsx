@@ -17,6 +17,7 @@ import { WalletInfo } from '@/shared/types/core';
 import { Link } from 'react-router-dom';
 import useModal from '@/hooks/useModal';
 import useWalletState from '@/hooks/useWalletState';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 interface DepsoitProps {}
 
@@ -33,15 +34,19 @@ const Deposit: FunctionComponent<DepsoitProps> = () => {
       ?.currency || supportedCurrencies[0].currency,
   );
   const [depositAddress, setDepositAddress] = useState<string>('');
+  const [addressLoadError, setAddressLoadError] = useState<string | null>(null);
   const { getWalletData, isFetchingForceBalances } = useWalletState();
 
   const getWalletAddress = async () => {
     axiosInstance
       .get('/wallet/getAddress')
       .then((response: HttpResponse<WalletInfo[]>) => {
+        setAddressLoadError(null);
         setDepositAddresses(response.data);
       })
       .catch(() => {
+        setAddressLoadError('Unable to load your deposit address right now.');
+        reportClientError('deposit-address', 'Failed to get wallet address');
         toaster.create({
           title: 'Failed to get wallet address',
           type: 'error',
@@ -156,6 +161,16 @@ const Deposit: FunctionComponent<DepsoitProps> = () => {
         </Box>
       </Box>
       <Box pt={'24px'}>
+        {addressLoadError && (
+          <Box mb={'12px'}>
+            <Text color='red.300' fontSize='14px'>
+              {addressLoadError}
+            </Text>
+            <Button mt='8px' variant='outline' onClick={getWalletAddress}>
+              Retry Address Load
+            </Button>
+          </Box>
+        )}
         <CustomInput
           onFocus={selectTargetOnFocus}
           readOnly

@@ -11,6 +11,7 @@ import { toaster } from '@/components/ui/toaster';
 import BetTable from '@/components/BetTable/BetTable';
 import usePageData from '@/hooks/usePageData';
 import { GameCategoryEnum } from '@blockwinz/shared';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 interface BetHistoryProps {}
 
@@ -49,7 +50,7 @@ const BetHistory: FunctionComponent<BetHistoryProps> = () => {
     refetch: refetchBetHisytory,
     isSuccess: successLoadingBetHistory,
   }: UseQueryResult<{ data: PaginatedDataI<BetHistoryT> }, Error> = useQuery(
-    ['activeGame'],
+    ['betHistory', page],
     () => getBetHistory(),
     {
       retry: 3,
@@ -67,6 +68,7 @@ const BetHistory: FunctionComponent<BetHistoryProps> = () => {
     }
     if (errorLoadingBetHistory && !loadingBetHistory) {
       setTotalCount(0);
+      reportClientError('bet-history', 'Failed to load bet history', { page });
       toaster.create({
         description: 'Error loading bet history',
         type: 'error',
@@ -109,6 +111,11 @@ const BetHistory: FunctionComponent<BetHistoryProps> = () => {
             </Button>
           ))}
         </Box>
+        {errorLoadingBetHistory && !loadingBetHistory && (
+          <Box color='red.300' mb={'16px'}>
+            Unable to load bet history right now.
+          </Box>
+        )}
         <Box>
           <BetTable
             items={betHistory?.data.result || []}

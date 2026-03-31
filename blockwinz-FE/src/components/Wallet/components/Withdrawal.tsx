@@ -12,6 +12,7 @@ import { HttpError } from '@/shared/interfaces/http.interface';
 import { AxiosError } from 'axios';
 import { SUPPORTED_CURRENCIES } from '@/shared/constants/app.constant';
 import { parseFloatValue } from '@/shared/utils/common';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 interface WithdrawalProps {}
 
@@ -35,6 +36,7 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
     walletAddress: '',
   });
   const [errors, setErrors] = useState<Partial<WithdrawalFormData>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const generateIdempotentKey = () => {
     const alphabet =
@@ -69,6 +71,7 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
       return;
     }
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await axiosInstance.put(
         '/withdrawals/request',
@@ -97,10 +100,15 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
       await getWalletData();
     } catch (err) {
       const error = err as AxiosError<HttpError>;
+      const message =
+        error?.response?.data?.errorMessage || 'Please try again later';
+      setSubmitError(message);
+      reportClientError('withdrawal-submit', err, {
+        currency: selectedCurrency,
+      });
       toaster.create({
         title: 'Withdrawal Failed',
-        description:
-          error?.response?.data?.errorMessage || 'Please try again later',
+        description: message,
         type: 'error',
       });
     } finally {
@@ -251,6 +259,11 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
           {selectedCurrency.toUpperCase()}
         </Text>
       </Box>
+      {submitError && (
+        <Text mt={'12px'} color='red.300'>
+          {submitError}
+        </Text>
+      )}
       <Box display={'flex'} justifyContent={'center'} mt={'24px'}>
         <Button
           loading={isSubmitting}

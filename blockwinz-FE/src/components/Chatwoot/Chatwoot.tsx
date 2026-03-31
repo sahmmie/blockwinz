@@ -1,17 +1,21 @@
 import { FunctionComponent, useEffect } from 'react';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 interface ChatWootProps {}
 
 const ChatWoot: FunctionComponent<ChatWootProps> = () => {
   useEffect(() => {
+    const BASE_URL = import.meta.env.VITE_CHATWOOT_BASE_URL?.trim();
+    const WEBSITE_TOKEN = import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN?.trim();
+    if (!BASE_URL || !WEBSITE_TOKEN) {
+      return;
+    }
+
     // Set Chatwoot settings before loading the SDK
     window.chatwootSettings = {
       hideMessageBubble: true, // hides the default chat bubble
       position: 'right', // or 'left'
     };
-
-    const BASE_URL = 'https://app.chatwoot.com';
-    const WEBSITE_TOKEN = '52Zu9tYoyhJTHYYFvxyW8Fsy'; // <-- Replace this with your token
 
     const loadChatwoot = () => {
       const script = document.createElement('script');
@@ -26,6 +30,9 @@ const ChatWoot: FunctionComponent<ChatWootProps> = () => {
             baseUrl: BASE_URL,
           });
         }
+      };
+      script.onerror = () => {
+        reportClientError('chatwoot-load', 'Failed to load Chatwoot SDK');
       };
 
       document.body.appendChild(script);

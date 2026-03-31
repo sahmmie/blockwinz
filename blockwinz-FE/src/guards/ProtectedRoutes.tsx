@@ -6,12 +6,15 @@ import { useWalletQuery } from '@/hooks/useWalletState';
 import { showLoginModal } from '@/shared/utils/authModalHandler';
 
 const ProtectedRoutes = () => {
-  const { setToken, token } = useAuth();
+  const { setToken, token, hasBootstrapped, isBootstrapping } = useAuth();
   const { fetchProfileData } = useAccountStore();
   const navigate = useNavigate();
-  useWalletQuery();
+  useWalletQuery(Boolean(token));
 
   useEffect(() => {
+    if (!hasBootstrapped || isBootstrapping) {
+      return;
+    }
     if (!token) {
       showLoginModal();
       return;
@@ -22,7 +25,15 @@ const ProtectedRoutes = () => {
         showLoginModal();
       }
     });
-  }, [token, navigate, setToken, fetchProfileData]);
+  }, [fetchProfileData, hasBootstrapped, isBootstrapping, navigate, setToken, token]);
+
+  if (!hasBootstrapped || isBootstrapping) {
+    return null;
+  }
+
+  if (!token) {
+    return null;
+  }
 
   return <Outlet />;
 };

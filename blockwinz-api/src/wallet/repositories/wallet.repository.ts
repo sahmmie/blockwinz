@@ -11,7 +11,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { UserDto } from 'src/shared/dtos/user.dto';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { getUserId, getWalletId } from 'src/shared/helpers/user.helper';
-import { WalletDto } from '../dtos/wallet.dto';
+import { WalletDto, PublicWalletDto } from '../dtos/wallet.dto';
 import { CHAIN, Currency } from '@blockwinz/shared';
 import { SolWalletRepository } from './solWallet.repository';
 import { BwzWalletRepository } from './bwzWallet.repository';
@@ -76,7 +76,7 @@ export class WalletRepository {
 
   public async getWalletAddresses(
     user: UserDto,
-  ): Promise<Partial<WalletDto>[]> {
+  ): Promise<PublicWalletDto[]> {
     const addresses = await Promise.all([
       this.solWalletRepository.getSolWalletAddress(user),
       this.bwzWalletRepository.getBwzWalletAddress(user),
@@ -87,7 +87,7 @@ export class WalletRepository {
   public async getWalletBalances(
     user: UserRequestI,
     forceRefresh?: boolean,
-  ): Promise<Partial<WalletDto>[]> {
+  ): Promise<PublicWalletDto[]> {
     if (!forceRefresh) {
       await this.walletQueueRepository.queueUpdateWallet(user);
     }
@@ -98,7 +98,7 @@ export class WalletRepository {
     return this.convertToPublicWallet(balances);
   }
 
-  private convertToPublicWallet(wallet: WalletDto[]): Partial<WalletDto>[] {
+  public convertToPublicWallet(wallet: WalletDto[]): PublicWalletDto[] {
     return wallet.map((w) => ({
       _id: w._id,
       user: w.user,
@@ -196,7 +196,7 @@ export class WalletRepository {
       tx,
     );
 
-    if (!balanceIsSufficient(amount, wallet.pendingWithdrawal)) {
+    if ((wallet.pendingWithdrawal ?? 0) < amount) {
       this.logger.error(
         `Insufficient withdrawal funds: amount=${amount}, pendingWithdrawal=${wallet.pendingWithdrawal}`,
       );
@@ -208,8 +208,6 @@ export class WalletRepository {
       destinationAddress,
       amount,
     );
-
-    await this.updateAppBalance(wallet, -amount, tx);
 
     return signature;
   }
@@ -223,24 +221,24 @@ export class WalletRepository {
     currency: Currency,
     tx?: DrizzleDb,
   ): Promise<void> {
-    const wallet = await this.findWalletByUserAndCurrency(
-      getUserId(user),
-      currency,
-      tx,
-    );
-
-    if (!balanceIsSufficient(amount, wallet.availableBalance ?? 0)) {
-      throw new Error('Insufficient funds');
-    }
-
     const db = tx ?? this.db;
-    await db
+    const [updated] = await db
       .update(wallets)
       .set({
         pendingWithdrawal: sql`${wallets.pendingWithdrawal} + ${amount}`,
         updatedAt: new Date(),
       } as Record<string, unknown>)
-      .where(eq(wallets.id, String(wallet._id)));
+      .where(
+        and(
+          eq(wallets.userId, getUserId(user)),
+          eq(wallets.currency, currency),
+          sql`(${wallets.appBalance} - ${wallets.pendingWithdrawal} - ${wallets.lockedInBets}) >= ${amount}`,
+        ),
+      )
+      .returning({ id: wallets.id });
+    if (!updated) {
+      throw new BadRequestException('Insufficient funds');
+    }
   }
 
   /**
@@ -252,20 +250,24 @@ export class WalletRepository {
     currency: Currency,
     tx?: DrizzleDb,
   ): Promise<void> {
-    const wallet = await this.findWalletByUserAndCurrency(
-      getUserId(user),
-      currency,
-      tx,
-    );
-
     const db = tx ?? this.db;
-    await db
+    const [updated] = await db
       .update(wallets)
       .set({
         pendingWithdrawal: sql`${wallets.pendingWithdrawal} - ${amount}`,
         updatedAt: new Date(),
       } as Record<string, unknown>)
-      .where(eq(wallets.id, String(wallet._id)));
+      .where(
+        and(
+          eq(wallets.userId, getUserId(user)),
+          eq(wallets.currency, currency),
+          sql`${wallets.pendingWithdrawal} >= ${amount}`,
+        ),
+      )
+      .returning({ id: wallets.id });
+    if (!updated) {
+      throw new BadRequestException('No reserved withdrawal funds to release');
+    }
   }
 
   /**
@@ -277,24 +279,24 @@ export class WalletRepository {
     currency: Currency,
     tx?: DrizzleDb,
   ): Promise<void> {
-    const wallet = await this.findWalletByUserAndCurrency(
-      getUserId(user),
-      currency,
-      tx,
-    );
-
-    if (!balanceIsSufficient(amount, wallet.availableBalance ?? 0)) {
-      throw new Error('Insufficient funds');
-    }
-
     const db = tx ?? this.db;
-    await db
+    const [updated] = await db
       .update(wallets)
       .set({
         lockedInBets: sql`${wallets.lockedInBets} + ${amount}`,
         updatedAt: new Date(),
       } as Record<string, unknown>)
-      .where(eq(wallets.id, String(wallet._id)));
+      .where(
+        and(
+          eq(wallets.userId, getUserId(user)),
+          eq(wallets.currency, currency),
+          sql`(${wallets.appBalance} - ${wallets.pendingWithdrawal} - ${wallets.lockedInBets}) >= ${amount}`,
+        ),
+      )
+      .returning({ id: wallets.id });
+    if (!updated) {
+      throw new BadRequestException('Insufficient funds');
+    }
   }
 
   /**
@@ -306,20 +308,24 @@ export class WalletRepository {
     currency: Currency,
     tx?: DrizzleDb,
   ): Promise<void> {
-    const wallet = await this.findWalletByUserAndCurrency(
-      getUserId(user),
-      currency,
-      tx,
-    );
-
     const db = tx ?? this.db;
-    await db
+    const [updated] = await db
       .update(wallets)
       .set({
         lockedInBets: sql`${wallets.lockedInBets} - ${amount}`,
         updatedAt: new Date(),
       } as Record<string, unknown>)
-      .where(eq(wallets.id, String(wallet._id)));
+      .where(
+        and(
+          eq(wallets.userId, getUserId(user)),
+          eq(wallets.currency, currency),
+          sql`${wallets.lockedInBets} >= ${amount}`,
+        ),
+      )
+      .returning({ id: wallets.id });
+    if (!updated) {
+      throw new BadRequestException('No reserved bet funds to release');
+    }
   }
 
   /**

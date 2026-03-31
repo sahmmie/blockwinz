@@ -267,8 +267,10 @@ export class WithdrawalRepository {
       processedAt?: Date | null;
       error?: string | null;
     },
+    tx?: DrizzleDb,
   ): Promise<WithdrawalDto> {
-    const [row] = await this.db
+    const db = tx ?? this.db;
+    const [row] = await db
       .select()
       .from(withdrawals)
       .where(eq(withdrawals.requestId, requestId))
@@ -287,7 +289,7 @@ export class WithdrawalRepository {
       }),
       ...(data.error !== undefined && { error: data.error }),
     };
-    const [updated] = await this.db
+    const [updated] = await db
       .update(withdrawals)
       .set(update)
       .where(eq(withdrawals.id, row.id))

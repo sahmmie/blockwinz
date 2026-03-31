@@ -41,6 +41,30 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
 
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+function validateServerEnvironment(): void {
+  requireEnv('JWT_SECRET');
+  const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+  const hasDiscreteDbConfig =
+    Boolean(process.env.POSTGRES_HOST?.trim()) &&
+    Boolean(process.env.POSTGRES_DB?.trim()) &&
+    Boolean(process.env.POSTGRES_USER?.trim());
+  if (!hasDatabaseUrl && !hasDiscreteDbConfig) {
+    throw new Error(
+      'Database configuration is required via DATABASE_URL or POSTGRES_HOST/POSTGRES_DB/POSTGRES_USER',
+    );
+  }
+}
+
+validateServerEnvironment();
+
 const redisUrl = process.env.REDIS_URL?.trim() || 'redis://localhost:6379';
 
 const controllers = [AppController];

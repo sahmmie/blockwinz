@@ -3,6 +3,7 @@ import { getSocket, disconnectSocket } from '@/lib/socket';
 import useAuth from './useAuth';
 import type { Socket } from 'socket.io-client';
 import { toaster } from '@/components/ui/toaster';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 type SocketEventHandler<T = unknown> = (data: T) => void;
 
@@ -50,6 +51,7 @@ export const useSocket = <T = unknown>(namespace?: string) => {
 
     const handleError = (error: Error & { code: string, alert: boolean }) => {
       console.error(`❌ Error on ${namespace}: ${error.message}`);
+      reportClientError('socket-hook', error, { namespace, code: error.code });
       if (error.alert) {
         toaster.create({
           description: error.message,

@@ -10,6 +10,7 @@ import { Provider } from './themes/provider';
 import { system } from './themes/theme.ts';
 import { BrowserRouter } from 'react-router-dom';
 import { SocketProvider } from './context/socketContext';
+import AppErrorBoundary from './components/ErrorBoundary/AppErrorBoundary';
 
 const queryClient = new QueryClient();
 
@@ -17,14 +18,16 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <SocketProvider namespace='chat'>
-        <ChakraProvider value={system}>
-          <Provider>
-            <BrowserRouter>
-              <Toaster />
-              <App />
-            </BrowserRouter>
-          </Provider>
-        </ChakraProvider>
+        <AppErrorBoundary>
+          <ChakraProvider value={system}>
+            <Provider>
+              <BrowserRouter>
+                <Toaster />
+                <App />
+              </BrowserRouter>
+            </Provider>
+          </ChakraProvider>
+        </AppErrorBoundary>
       </SocketProvider>
     </QueryClientProvider>
   </StrictMode>,

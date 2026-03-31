@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { Request, Response } from 'express';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
+import { CORS_ORIGIN_WHITELIST } from 'src/shared/constants/cors-origins.constant';
 
 @Injectable()
 export class RefreshTokenService {
@@ -72,6 +73,26 @@ export class RefreshTokenService {
   }
 
   /**
+   * Enforces that cookie-based session mutation requests originate from a trusted frontend.
+   */
+  validateRequestOrigin(req: Request): void {
+    const origin = req.get('origin')?.trim();
+    const referer = req.get('referer')?.trim();
+    const candidateOrigin = origin ?? this.originFromReferer(referer);
+
+    if (!candidateOrigin) {
+      if (this.config.get('NODE_ENV') === 'production') {
+        throw new ForbiddenException('Origin header is required');
+      }
+      return;
+    }
+
+    if (!CORS_ORIGIN_WHITELIST.includes(candidateOrigin)) {
+      throw new ForbiddenException('Untrusted request origin');
+    }
+  }
+
+  /**
    * Validates current refresh cookie, rotates refresh token in Redis + cookie.
    * @returns userId or null
    */
@@ -96,5 +117,14 @@ export class RefreshTokenService {
     }
     await this.setRefreshToken(userId, res);
     return userId;
+  }
+
+  private originFromReferer(referer?: string): string | null {
+    if (!referer) return null;
+    try {
+      return new URL(referer).origin;
+    } catch {
+      return null;
+    }
   }
 }

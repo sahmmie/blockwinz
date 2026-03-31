@@ -2,6 +2,7 @@ import axios from "axios";
 import { SERVER_BASE_URL } from "../shared/constants/app.constant";
 import useAuth from "../hooks/useAuth";
 import { showLoginModal } from "../shared/utils/authModalHandler";
+import { reportClientError } from "@/shared/utils/monitoring";
 
 const axiosInstance = axios.create({
   baseURL: `${SERVER_BASE_URL}/api`,
@@ -21,6 +22,7 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => {
+    reportClientError('http-request', error);
     return Promise.reject(error);
   }
 );
@@ -41,6 +43,7 @@ async function refreshAccessToken(): Promise<string | null> {
         return t;
       })
       .catch(() => {
+        reportClientError('auth-refresh', 'Access token refresh failed');
         useAuth.getState().setToken(null);
         return null;
       })
@@ -76,6 +79,11 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
       }
     }
+
+    reportClientError('http-response', error, {
+      url,
+      status: error.response?.status,
+    });
 
     if (error.response?.status === 401) {
       useAuth.getState()?.setToken(null);

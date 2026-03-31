@@ -6,6 +6,7 @@ import axiosService from '@/lib/axios';
 import { currencyIconMap } from '@/shared/utils/gameMaps';
 import { DEFAULT_CURRENCY, DEFAULT_ROUNDING_DECIMALS, SUPPORTED_CURRENCIES } from '@/shared/constants/app.constant';
 import { Currency, StakeDenomination } from '@blockwinz/shared';
+import { reportClientError } from '@/shared/utils/monitoring';
 
 const STAKE_DENOM_KEY = 'blockwinz_stakeDenomination';
 
@@ -141,6 +142,7 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
 
             return balancesWithIcons;
         } catch (error: unknown) {
+            reportClientError('wallet-balances', error, { forceRefresh });
             return [];
         }
         finally {
@@ -158,6 +160,7 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
             set({ prices });
             return prices;
         } catch (error) {
+            reportClientError('token-prices', error);
             return {};
         }
     },
@@ -166,7 +169,7 @@ const useWalletState = create<WalletStoreI>((set, get) => ({
     },
 }));
 
-export const useWalletQuery = () => {
+export const useWalletQuery = (enabled: boolean = true) => {
     const getWalletData = useWalletState((state) => state.getWalletData);
     const suppressMp = useWalletState(
         (state) => state.suppressWalletAutoRefreshDuringMpPlay,
@@ -175,6 +178,7 @@ export const useWalletQuery = () => {
         ['walletData'],
         () => getWalletData(),
         {
+            enabled,
             refetchInterval: suppressMp ? false : 60_000,
             refetchOnWindowFocus: !suppressMp,
         },

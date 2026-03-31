@@ -8,7 +8,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { eq, or } from 'drizzle-orm';
 import { sign, type SignOptions } from 'jsonwebtoken';
-import { UserDto } from 'src/shared/dtos/user.dto';
+import {
+  UserDto,
+  UserProfileResponseDto,
+  ActiveSeedPublicDto,
+} from 'src/shared/dtos/user.dto';
 import { ProfileDto } from 'src/shared/dtos/profile.dto';
 import * as bcrypt from 'bcrypt';
 import successMessageHelper from 'src/shared/helpers/success-message.helper';
@@ -109,9 +113,44 @@ export class AuthenticationRepository {
     return user;
   }
 
+  /**
+   * Maps an internal user DTO to a client-safe response shape.
+   */
+  private toUserProfileResponse(user: UserDto): UserProfileResponseDto {
+    const activeSeed =
+      user.activeSeed && typeof user.activeSeed !== 'string'
+        ? ({
+            _id: user.activeSeed._id,
+            id: user.activeSeed.id,
+            status: user.activeSeed.status,
+            clientSeed: user.activeSeed.clientSeed,
+            serverSeedHash: user.activeSeed.serverSeedHash,
+            deactivatedAt: user.activeSeed.deactivatedAt,
+          } satisfies ActiveSeedPublicDto)
+        : user.activeSeed;
+
+    return {
+      _id: user._id,
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      userAccounts: user.userAccounts,
+      lastLogin: user.lastLogin,
+      lastLogout: user.lastLogout,
+      faEnabled: user.faEnabled,
+      nonce: user.nonce,
+      futureClientSeed: user.futureClientSeed,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      profile: user.profile,
+      activeSeed,
+    };
+  }
+
   public async saveUser(
     user: UserDto,
-  ): Promise<{ user: UserDto; token: string }> {
+  ): Promise<{ user: UserProfileResponseDto; token: string }> {
     const [existingByUsername] = await this.db
       .select()
       .from(users)
@@ -271,7 +310,7 @@ export class AuthenticationRepository {
       newSeed as unknown as SeedSelect,
     );
     return {
-      user: savedUser,
+      user: this.toUserProfileResponse(savedUser),
       token: this.generateToken(savedUser),
     };
   }
@@ -412,6 +451,14 @@ export class AuthenticationRepository {
       seedRow = s ?? null;
     }
     return this.toUserDto(userRow, profileRow ?? null, seedRow);
+  }
+
+  /**
+   * Loads a user and returns only the fields safe for player-facing responses.
+   */
+  async findPublicUserWithProfile(id: string): Promise<UserProfileResponseDto> {
+    const user = await this.findUserWithProfile(id);
+    return this.toUserProfileResponse(user);
   }
 
   async updatePassword(email: string, newPassword: string): Promise<void> {

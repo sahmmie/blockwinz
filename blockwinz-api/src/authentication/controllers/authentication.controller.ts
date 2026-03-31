@@ -21,7 +21,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ChangeEmailDto, LoginDto, UserDto } from 'src/shared/dtos/user.dto';
+import {
+  ChangeEmailDto,
+  LoginDto,
+  UserDto,
+  UserProfileResponseDto,
+} from 'src/shared/dtos/user.dto';
 import { UserAccountEnum } from '@blockwinz/shared';
 import { ApiResponseMessageDto } from 'src/shared/dtos/ApiResponseMessage.dto';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
@@ -49,7 +54,7 @@ export class AuthenticationController {
   @Public()
   @RateLimit({ ttl: 3600, limit: 15 })
   @ApiBody({
-    type: UserDto,
+    type: UserProfileResponseDto,
     examples: {
       default: {
         value: {
@@ -68,7 +73,7 @@ export class AuthenticationController {
   async userSignup(
     @Body() user: UserDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ user: UserDto; token: string }> {
+  ): Promise<{ user: UserProfileResponseDto; token: string }> {
     const out = await this.authenticationRepository.saveUser(user);
     await this.refreshTokenService.setRefreshToken(getUserId(out.user), res);
     return out;
@@ -77,7 +82,7 @@ export class AuthenticationController {
   @Public()
   @RateLimit({ ttl: 60, limit: 25 })
   @ApiBody({
-    type: UserDto,
+    type: UserProfileResponseDto,
     examples: {
       email_login: {
         value: {
@@ -117,6 +122,7 @@ export class AuthenticationController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ token: string }> {
+    this.refreshTokenService.validateRequestOrigin(req);
     const userId = await this.refreshTokenService.rotateRefreshSession(
       req,
       res,
@@ -173,6 +179,7 @@ export class AuthenticationController {
     message: string;
     status: string;
   }> {
+    this.refreshTokenService.validateRequestOrigin(req);
     await this.refreshTokenService.revokeFromRequest(req);
     this.refreshTokenService.clearCookie(res);
     return this.authenticationRepository.logoutAccount(user);
@@ -186,8 +193,10 @@ export class AuthenticationController {
   @ApiBearerAuth('JWT-auth')
   @Get('profile')
   @HttpCode(200)
-  userProfile(@CurrentUser() user: UserRequestI): Promise<UserDto> {
-    return this.authenticationRepository.findUserWithProfile(user._id);
+  userProfile(
+    @CurrentUser() user: UserRequestI,
+  ): Promise<UserProfileResponseDto> {
+    return this.authenticationRepository.findPublicUserWithProfile(user._id);
   }
 
   @Public()

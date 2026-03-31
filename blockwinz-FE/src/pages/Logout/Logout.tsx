@@ -2,6 +2,7 @@ import useAuth from '@/hooks/useAuth';
 import axiosInstance from '@/lib/axios';
 import { FunctionComponent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { showLoginModal } from '@/shared/utils/authModalHandler';
 
 interface LogoutProps {}
 
@@ -20,7 +21,8 @@ const Logout: FunctionComponent<LogoutProps> = () => {
         }
       }
       setToken(null);
-      navigate('/login', { replace: true, state: { from: location.pathname } });
+      navigate('/', { replace: true, state: { from: location.pathname } });
+      showLoginModal();
     };
     void run();
   }, [navigate, setToken]);
