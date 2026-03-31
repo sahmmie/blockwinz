@@ -27,14 +27,21 @@ import { WithdrawalDto, WithdrawalDtoRequest } from '../dtos/withdrawal.dto';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
 import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
 import { getUserId } from 'src/shared/helpers/user.helper';
+import { PosthogService } from 'src/posthog/posthog.service';
 
 @ApiTags('Withdrawals')
 @Controller('withdrawals')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(RateLimitGuard)
 export class WithdrawalController {
-  constructor(private readonly withdrawalRepository: WithdrawalRepository) {}
+  constructor(
+    private readonly withdrawalRepository: WithdrawalRepository,
+    private readonly posthogService: PosthogService,
+  ) {}
 
+  /**
+   * Creates a withdrawal request and records the initial analytics milestone.
+   */
   @Put('request')
   @HttpCode(201)
   @RateLimit({ ttl: 60, limit: 2 })
@@ -53,13 +60,23 @@ export class WithdrawalController {
     @Headers(IDEMPOTENCY_KEY) idempotencyKey: string,
     @Body() body: WithdrawalDtoRequest,
   ): Promise<WithdrawalDto> {
-    return this.withdrawalRepository.createWithdrawal(
-      user,
-      body.amount,
-      body.currency,
-      body.destinationAddress,
-      idempotencyKey,
-    );
+    return this.withdrawalRepository
+      .createWithdrawal(
+        user,
+        body.amount,
+        body.currency,
+        body.destinationAddress,
+        idempotencyKey,
+      )
+      .then((withdrawal) => {
+        this.posthogService.capture('withdrawal_submitted', getUserId(user), {
+          amount: withdrawal.amount,
+          currency: withdrawal.currency,
+          requestId: withdrawal.requestId,
+          approvalType: withdrawal.approvalType,
+        });
+        return withdrawal;
+      });
   }
 
   @Get('status/:requestId')

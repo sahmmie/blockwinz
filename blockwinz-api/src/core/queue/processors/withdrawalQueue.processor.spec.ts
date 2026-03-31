@@ -1,7 +1,15 @@
 import { WithdrawalQueueProcessor } from './withdrawalQueue.processor';
-import { TransactionStatus, WithdrawalStatus, Currency } from '@blockwinz/shared';
+import {
+  TransactionStatus,
+  WithdrawalStatus,
+  Currency,
+} from '@blockwinz/shared';
 
 describe('WithdrawalQueueProcessor', () => {
+  const posthogService = {
+    capture: jest.fn(),
+  };
+
   const makeDb = () => ({
     transaction: jest.fn(async (cb: (tx: unknown) => Promise<void>) => cb({})),
   });
@@ -17,9 +25,10 @@ describe('WithdrawalQueueProcessor', () => {
           destinationAddress: 'dest',
         },
       },
-    } as never);
+    }) as never;
 
   it('settles withdrawal bookkeeping after a successful chain send', async () => {
+    posthogService.capture.mockReset();
     const db = makeDb();
     const walletRepository = {
       withdrawFunds: jest.fn().mockResolvedValue('signature-1'),
@@ -54,6 +63,7 @@ describe('WithdrawalQueueProcessor', () => {
       walletRepository as never,
       transactionRepository as never,
       withdrawalRepository as never,
+      posthogService as never,
     );
 
     await processor.processWithdrawal(makeJob());
@@ -70,9 +80,17 @@ describe('WithdrawalQueueProcessor', () => {
       }),
       expect.any(Object),
     );
+    expect(posthogService.capture).toHaveBeenCalledWith(
+      'withdrawal_completed',
+      'user-1',
+      expect.objectContaining({
+        requestId: 'req-1',
+      }),
+    );
   });
 
   it('does not mark failed or release funds after a successful chain payout if local settlement fails', async () => {
+    posthogService.capture.mockReset();
     const db = makeDb();
     const walletRepository = {
       withdrawFunds: jest.fn().mockResolvedValue('signature-1'),
@@ -125,9 +143,12 @@ describe('WithdrawalQueueProcessor', () => {
       walletRepository as never,
       transactionRepository as never,
       withdrawalRepository as never,
+      posthogService as never,
     );
 
-    await expect(processor.processWithdrawal(makeJob())).rejects.toThrow('db failed');
+    await expect(processor.processWithdrawal(makeJob())).rejects.toThrow(
+      'db failed',
+    );
 
     expect(walletRepository.withdrawFunds).toHaveBeenCalledTimes(1);
     expect(transactionRepository.updateTransaction).toHaveBeenCalledTimes(1);

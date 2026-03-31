@@ -9,6 +9,12 @@ interface ImportMetaEnv {
   readonly VITE_CHATWOOT_WEBSITE_TOKEN?: string;
   readonly VITE_MONITORING_ENDPOINT?: string;
   readonly VITE_MONITORING_TOKEN?: string;
+  readonly VITE_POSTHOG_ENABLED?: string;
+  readonly VITE_POSTHOG_KEY?: string;
+  readonly VITE_POSTHOG_HOST?: string;
+  readonly VITE_POSTHOG_ENABLE_SESSION_REPLAY?: string;
+  readonly VITE_POSTHOG_ENABLE_SURVEYS?: string;
+  readonly VITE_POSTHOG_CHATWOOT_FLAG_KEY?: string;
   /**
    * Set to `1` or `true` to use dummy lobbies and disable live multiplayer actions.
    * For real BE integration, leave unset or `0`. See `blockwinz-FE/.env.example`.

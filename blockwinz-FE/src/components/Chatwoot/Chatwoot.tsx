@@ -1,10 +1,21 @@
 import { FunctionComponent, useEffect } from 'react';
 import { reportClientError } from '@/shared/utils/monitoring';
+import { POSTHOG_CHATWOOT_FLAG_KEY } from '@/shared/constants/app.constant';
+import { usePosthogFeatureFlag } from '@/hooks/usePosthogFeatureFlag';
 
 interface ChatWootProps {}
 
 const ChatWoot: FunctionComponent<ChatWootProps> = () => {
+  const chatwootEnabled = usePosthogFeatureFlag(
+    POSTHOG_CHATWOOT_FLAG_KEY,
+    true,
+  );
+
   useEffect(() => {
+    if (POSTHOG_CHATWOOT_FLAG_KEY && !chatwootEnabled) {
+      return;
+    }
+
     const BASE_URL = import.meta.env.VITE_CHATWOOT_BASE_URL?.trim();
     const WEBSITE_TOKEN = import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN?.trim();
     if (!BASE_URL || !WEBSITE_TOKEN) {
@@ -53,7 +64,7 @@ const ChatWoot: FunctionComponent<ChatWootProps> = () => {
     return () => {
       window.removeEventListener('chatwoot:ready', handleReady);
     };
-  }, []);
+  }, [chatwootEnabled]);
 
   return null; // This component doesn't render anything visually
 };

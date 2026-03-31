@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { SERVER_BASE_URL } from '../shared/constants/app.constant';
+import { reloadPosthogFeatureFlags, resetPosthog } from '@/shared/utils/posthog';
 
 /**
  * Access JWT is kept in memory only (not localStorage) to reduce XSS impact.
@@ -23,6 +24,9 @@ const useAuth = create<AuthState>((set, get) => {
     hasBootstrapped: false,
     isBootstrapping: false,
     setToken: (token: string | null) => {
+      if (!token) {
+        resetPosthog();
+      }
       set({ token, isAuthenticated: !!token });
     },
     bootstrapSession: async () => {
@@ -39,6 +43,7 @@ const useAuth = create<AuthState>((set, get) => {
           { withCredentials: true },
         );
         if (data?.token) {
+          reloadPosthogFeatureFlags();
           set({
             token: data.token,
             isAuthenticated: true,

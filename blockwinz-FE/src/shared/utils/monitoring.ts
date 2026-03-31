@@ -1,3 +1,5 @@
+import { capturePosthogError } from '@/shared/utils/posthog';
+
 type MonitoringContext = Record<string, unknown>;
 
 const monitoringEndpoint =
@@ -22,6 +24,10 @@ export function reportClientError(
   };
 
   console.error(`[monitoring:${scope}]`, payload, error);
+  capturePosthogError(error, {
+    scope,
+    ...context,
+  });
 
   if (monitoringEndpoint && typeof window !== 'undefined') {
     const body = JSON.stringify(payload);

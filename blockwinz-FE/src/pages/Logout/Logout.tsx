@@ -3,6 +3,7 @@ import axiosInstance from '@/lib/axios';
 import { FunctionComponent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showLoginModal } from '@/shared/utils/authModalHandler';
+import { capturePosthogEvent, resetPosthog } from '@/shared/utils/posthog';
 
 interface LogoutProps {}
 
@@ -20,6 +21,8 @@ const Logout: FunctionComponent<LogoutProps> = () => {
           /* still clear client state */
         }
       }
+      capturePosthogEvent('auth_logout');
+      resetPosthog();
       setToken(null);
       navigate('/', { replace: true, state: { from: location.pathname } });
       showLoginModal();

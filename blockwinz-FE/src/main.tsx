@@ -11,8 +11,11 @@ import { system } from './themes/theme.ts';
 import { BrowserRouter } from 'react-router-dom';
 import { SocketProvider } from './context/socketContext';
 import AppErrorBoundary from './components/ErrorBoundary/AppErrorBoundary';
+import { initPosthog } from './shared/utils/posthog';
 
 const queryClient = new QueryClient();
+
+initPosthog();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

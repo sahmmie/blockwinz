@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import ProtectedRoutes from '@/guards/ProtectedRoutes';
 import usePageData from '@/hooks/usePageData';
 import './App.css';
@@ -17,6 +17,12 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AboutUs from './pages/AboutUs';
 import useAuth from '@/hooks/useAuth';
+import useAccountStore from '@/hooks/userAccount';
+import {
+  capturePosthogEvent,
+  identifyPosthogUser,
+  reloadPosthogFeatureFlags,
+} from '@/shared/utils/posthog';
 
 // Lazy load pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -66,10 +72,13 @@ function SessionBootstrap({ children }: { children: React.ReactNode }) {
 
 function App() {
   const { title } = usePageData();
+  const location = useLocation();
   const isProd = APP_ENV === 'prod';
   const showProdWaitlist =
     isProd && Boolean(WAITLIST_LAUNCH_DATE?.trim());
   const { openModal } = useModal();
+  const { userData } = useAccountStore();
+  const { token } = useAuth();
 
   useEffect(() => {
     document.title = title;
@@ -78,6 +87,23 @@ function App() {
   useEffect(() => {
     registerLoginModalOpener(openModal);
   }, [openModal]);
+
+  useEffect(() => {
+    capturePosthogEvent('page_viewed', {
+      path: location.pathname,
+      search: location.search,
+      title,
+    });
+  }, [location.pathname, location.search, title]);
+
+  useEffect(() => {
+    if (!token || !userData) {
+      return;
+    }
+
+    identifyPosthogUser(userData);
+    reloadPosthogFeatureFlags();
+  }, [token, userData]);
 
   if (showProdWaitlist) {
     return (

@@ -6,10 +6,11 @@ import { WalletRepository } from 'src/wallet/repositories/wallet.repository';
 import { WithdrawalRepository } from 'src/withdrawal/repositories/withdrawal.repository';
 import { WithdrawalQueueDto } from '../dtos/withdrawalQueue.dto';
 import { TransactionStatus } from '@blockwinz/shared';
-import { getTransactionId } from 'src/shared/helpers/user.helper';
+import { getTransactionId, getUserId } from 'src/shared/helpers/user.helper';
 import { WithdrawalStatus } from '@blockwinz/shared';
 import { DRIZZLE } from 'src/database/constants';
 import type { DrizzleDb } from 'src/database/database.module';
+import { PosthogService } from 'src/posthog/posthog.service';
 
 @Processor('withdrawalQueue')
 export class WithdrawalQueueProcessor {
@@ -20,8 +21,12 @@ export class WithdrawalQueueProcessor {
     private readonly walletRepository: WalletRepository,
     private readonly transactionRepository: TransactionRepository,
     private readonly withdrawalRepository: WithdrawalRepository,
+    private readonly posthogService: PosthogService,
   ) {}
 
+  /**
+   * Processes a queued withdrawal through payout, settlement, and failure recovery.
+   */
   @Process('withdrawal')
   public async processWithdrawal(job: Job<WithdrawalQueueDto>) {
     const { user, transaction, withdrawal } = job.data;
@@ -53,7 +58,8 @@ export class WithdrawalQueueProcessor {
         return;
       }
 
-      payoutSignature = withdrawalFound.transactionHash ?? transactionFound.txid;
+      payoutSignature =
+        withdrawalFound.transactionHash ?? transactionFound.txid;
 
       if (!payoutSignature) {
         payoutSignature = await this.walletRepository.withdrawFunds(
@@ -97,7 +103,10 @@ export class WithdrawalQueueProcessor {
         transactionFound.txid = payoutSignature;
         transactionFound.fulfillmentDate = new Date();
         transactionFound.status = TransactionStatus.SETTLED;
-        await this.transactionRepository.updateTransaction(transactionFound, txDb);
+        await this.transactionRepository.updateTransaction(
+          transactionFound,
+          txDb,
+        );
         await this.withdrawalRepository.updateWithdrawal(
           withdrawal.requestId,
           {
@@ -110,6 +119,11 @@ export class WithdrawalQueueProcessor {
         );
       });
       this.logger.log(`Withdrawal for user ${user.username} completed.`);
+      this.posthogService.capture('withdrawal_completed', getUserId(user), {
+        amount: withdrawalFound.amount,
+        currency: withdrawalFound.currency,
+        requestId: withdrawal.requestId,
+      });
     } catch (error) {
       this.logger.error(
         `Error processing withdrawal for user ${user.username}: ${error}`,
@@ -122,7 +136,11 @@ export class WithdrawalQueueProcessor {
         await this.withdrawalRepository.requireWithdrawalByRequestId(
           withdrawal.requestId,
         );
-      if (payoutSignature || withdrawalFound.transactionHash || transactionFound?.txid) {
+      if (
+        payoutSignature ||
+        withdrawalFound.transactionHash ||
+        transactionFound?.txid
+      ) {
         this.logger.error(
           `Withdrawal ${withdrawal.requestId} requires reconciliation after chain payout.`,
         );
@@ -134,13 +152,20 @@ export class WithdrawalQueueProcessor {
           transactionFound.status = TransactionStatus.FAILED;
           transactionFound.txid = null;
           transactionFound.fulfillmentDate = null;
-          await this.transactionRepository.updateTransaction(transactionFound, txDb);
+          await this.transactionRepository.updateTransaction(
+            transactionFound,
+            txDb,
+          );
         }
-        await this.withdrawalRepository.updateWithdrawal(withdrawal.requestId, {
-          status: WithdrawalStatus.FAILED,
-          error: error instanceof Error ? error.message : String(error),
-          processedAt: new Date(),
-        }, txDb);
+        await this.withdrawalRepository.updateWithdrawal(
+          withdrawal.requestId,
+          {
+            status: WithdrawalStatus.FAILED,
+            error: error instanceof Error ? error.message : String(error),
+            processedAt: new Date(),
+          },
+          txDb,
+        );
         await this.walletRepository.releaseWithdrawalFunds(
           user,
           withdrawalFound.amount,
@@ -149,6 +174,12 @@ export class WithdrawalQueueProcessor {
         );
       });
       this.logger.error(`Withdrawal for user ${user.username} failed.`);
+      this.posthogService.capture('withdrawal_failed', getUserId(user), {
+        amount: withdrawalFound.amount,
+        currency: withdrawalFound.currency,
+        requestId: withdrawal.requestId,
+        message: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }

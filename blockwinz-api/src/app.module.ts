@@ -40,6 +40,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
+import { PosthogModule } from './posthog/posthog.module';
+import { FallbackExceptionFilter } from './shared/filters/fallback.filter';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -63,6 +65,10 @@ function validateServerEnvironment(): void {
     );
   }
   requireEnv('REDIS_URL');
+  if (process.env.POSTHOG_ENABLED?.trim() === 'true') {
+    requireEnv('POSTHOG_API_KEY');
+    requireEnv('POSTHOG_HOST');
+  }
 }
 
 validateServerEnvironment();
@@ -71,6 +77,7 @@ const redisUrl = requireEnv('REDIS_URL');
 const controllers = [AppController];
 
 const customModules = [
+  PosthogModule,
   AuthenticationModule,
   NeoCoreModule,
   TransactionModule,
@@ -90,7 +97,7 @@ const customModules = [
   MultiplayerModule,
 ];
 
-const providers = [AppService, CustomCacheInterceptor];
+const providers = [AppService, CustomCacheInterceptor, FallbackExceptionFilter];
 
 @Module({
   imports: [

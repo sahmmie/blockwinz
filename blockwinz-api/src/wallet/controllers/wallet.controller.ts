@@ -18,19 +18,27 @@ import {
 } from '@nestjs/swagger';
 import { UserRequestI } from 'src/shared/interfaces/userRequest.type';
 import { CurrentUser } from 'src/shared/decorators/currentUser.decorator';
-import { WalletDto, PublicWalletDto } from '../dtos/wallet.dto';
+import { PublicWalletDto } from '../dtos/wallet.dto';
 import { WalletRepository } from '../repositories/wallet.repository';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 import { CreditFreeBwzDtoReq } from '../dtos/send-bwz.dto';
 import { UserAccountEnum } from '@blockwinz/shared';
+import { PosthogService } from 'src/posthog/posthog.service';
+import { getUserId } from 'src/shared/helpers/user.helper';
 
 @ApiTags('Wallet')
 @Controller('wallet')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AuthenticationGuard)
 export class WalletController {
-  constructor(private walletRepository: WalletRepository) {}
+  constructor(
+    private walletRepository: WalletRepository,
+    private readonly posthogService: PosthogService,
+  ) {}
 
+  /**
+   * Returns public deposit addresses for the authenticated user.
+   */
   @ApiOperation({ summary: 'Get Wallet Address' })
   @Get('getAddress')
   @HttpCode(200)
@@ -38,9 +46,18 @@ export class WalletController {
   getWalletAddress(
     @CurrentUser() user: UserRequestI,
   ): Promise<PublicWalletDto[]> {
-    return this.walletRepository.getWalletAddresses(user);
+    return this.walletRepository.getWalletAddresses(user).then((wallets) => {
+      this.posthogService.capture('deposit_address_viewed', getUserId(user), {
+        walletCount: wallets.length,
+        currencies: wallets.map((wallet) => wallet.currency),
+      });
+      return wallets;
+    });
   }
 
+  /**
+   * Refreshes or returns cached wallet balances for the authenticated user.
+   */
   @ApiOperation({ summary: 'Get Wallet Address Balances' })
   @ApiQuery({
     name: 'forceRefresh',
@@ -56,7 +73,15 @@ export class WalletController {
     @Query('forceRefresh') forceRefresh?: string,
   ): Promise<PublicWalletDto[]> {
     const forceRefreshBool = forceRefresh === 'true';
-    return this.walletRepository.getWalletBalances(user, forceRefreshBool);
+    return this.walletRepository
+      .getWalletBalances(user, forceRefreshBool)
+      .then((wallets) => {
+        this.posthogService.capture('wallet_balances_viewed', getUserId(user), {
+          forceRefresh: forceRefreshBool,
+          walletCount: wallets.length,
+        });
+        return wallets;
+      });
   }
 
   @ApiOperation({ summary: 'Create New Wallet Address' })

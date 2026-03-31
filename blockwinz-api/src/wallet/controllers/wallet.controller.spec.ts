@@ -4,6 +4,7 @@ import { WalletRepository } from '../repositories/wallet.repository';
 import { Currency, CHAIN, UserAccountEnum } from '@blockwinz/shared';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 import { ForbiddenException } from '@nestjs/common';
+import { PosthogService } from 'src/posthog/posthog.service';
 
 describe('WalletController', () => {
   let controller: WalletController;
@@ -14,6 +15,9 @@ describe('WalletController', () => {
     convertToPublicWallet: jest.fn(),
     sendBwzToUser: jest.fn(),
   };
+  const posthogService = {
+    capture: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -23,6 +27,10 @@ describe('WalletController', () => {
         {
           provide: WalletRepository,
           useValue: walletRepository,
+        },
+        {
+          provide: PosthogService,
+          useValue: posthogService,
         },
       ],
     })
@@ -75,6 +83,22 @@ describe('WalletController', () => {
     );
     expect(result).toEqual(publicWallets);
     expect(result[0]).not.toHaveProperty('privateKey');
+  });
+
+  it('getWalletAddress captures a PostHog milestone', async () => {
+    walletRepository.getWalletAddresses.mockResolvedValue([
+      { currency: Currency.SOL, address: 'addr-1' },
+    ]);
+
+    await controller.getWalletAddress({ _id: 'user-1', id: 'user-1' } as never);
+
+    expect(posthogService.capture).toHaveBeenCalledWith(
+      'deposit_address_viewed',
+      'user-1',
+      expect.objectContaining({
+        walletCount: 1,
+      }),
+    );
   });
 
   it('sendBwz rejects non-admin users', async () => {

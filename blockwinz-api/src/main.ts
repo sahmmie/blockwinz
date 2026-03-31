@@ -27,10 +27,11 @@ async function bootstrap() {
     },
   });
   const appVersion = packageJson.version;
+  app.enableShutdownHooks();
   app.setGlobalPrefix(`api`);
   app.use(cookieParser());
   app.useGlobalFilters(
-    new FallbackExceptionFilter(),
+    app.get(FallbackExceptionFilter),
     new HttpExceptionFilter(),
     new ValidationFilter(),
     new WsExceptionFilter(),

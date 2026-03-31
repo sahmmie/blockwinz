@@ -13,6 +13,7 @@ import { AxiosError } from 'axios';
 import { SUPPORTED_CURRENCIES } from '@/shared/constants/app.constant';
 import { parseFloatValue } from '@/shared/utils/common';
 import { reportClientError } from '@/shared/utils/monitoring';
+import { capturePosthogEvent } from '@/shared/utils/posthog';
 
 interface WithdrawalProps {}
 
@@ -72,6 +73,9 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
     }
     setIsSubmitting(true);
     setSubmitError(null);
+    capturePosthogEvent('withdrawal_submit_attempted', {
+      currency: selectedCurrency,
+    });
     try {
       await axiosInstance.put(
         '/withdrawals/request',
@@ -92,6 +96,9 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
       toaster.create({
         title: 'Withdrawal Request Submitted',
         type: 'success',
+      });
+      capturePosthogEvent('withdrawal_submitted', {
+        currency: selectedCurrency,
       });
       setFormData({
         amount: '',
@@ -154,6 +161,10 @@ const Withdrawal: FunctionComponent<WithdrawalProps> = () => {
   };
 
   const handleSetPercent = (percent: number) => {
+    capturePosthogEvent('withdrawal_percent_selected', {
+      currency: selectedCurrency,
+      percent,
+    });
     const currentBalance = balances.find(b => b.currency === selectedCurrency);
     const amount = ((currentBalance?.availableBalance || 0) * percent) / 100;
     validateAmount(

@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 import useModal from '@/hooks/useModal';
 import useWalletState from '@/hooks/useWalletState';
 import { reportClientError } from '@/shared/utils/monitoring';
+import { capturePosthogEvent } from '@/shared/utils/posthog';
 
 interface DepsoitProps {}
 
@@ -43,6 +44,9 @@ const Deposit: FunctionComponent<DepsoitProps> = () => {
       .then((response: HttpResponse<WalletInfo[]>) => {
         setAddressLoadError(null);
         setDepositAddresses(response.data);
+        capturePosthogEvent('deposit_address_viewed', {
+          walletCount: response.data.length,
+        });
       })
       .catch(() => {
         setAddressLoadError('Unable to load your deposit address right now.');
@@ -94,6 +98,9 @@ const Deposit: FunctionComponent<DepsoitProps> = () => {
     }
     navigator.clipboard.writeText(depositAddress).then(
       () => {
+        capturePosthogEvent('deposit_address_copied', {
+          currency: selectedCurrency,
+        });
         // Optional: Display success feedback (e.g., toast or UI update)
         toaster.create({
           title: 'Address Copied',
@@ -189,7 +196,12 @@ const Deposit: FunctionComponent<DepsoitProps> = () => {
           </Text>
           <Button
             variant='outline'
-            onClick={() => getWalletData(true)}
+            onClick={() => {
+              capturePosthogEvent('wallet_balance_refresh_requested', {
+                source: 'deposit',
+              });
+              void getWalletData(true);
+            }}
             loading={isFetchingForceBalances}
             disabled={isFetchingForceBalances}>
             Refresh Balance

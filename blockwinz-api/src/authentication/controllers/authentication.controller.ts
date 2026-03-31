@@ -42,6 +42,7 @@ import { RefreshTokenService } from '../services/refresh-token.service';
 import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
 import { RateLimit } from 'src/shared/decorators/rateLimit.decorator';
 import { getUserId } from 'src/shared/helpers/user.helper';
+import { PosthogService } from 'src/posthog/posthog.service';
 
 @ApiTags('Authentication')
 @Controller('authentication')
@@ -52,8 +53,12 @@ export class AuthenticationController {
     private readonly emailService: EmailService,
     private readonly otpRepository: OTPRepository,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly posthogService: PosthogService,
   ) {}
 
+  /**
+   * Creates a new user account and starts an authenticated browser session.
+   */
   @Public()
   @RateLimit({ ttl: 3600, limit: 15 })
   @ApiBody({
@@ -79,9 +84,16 @@ export class AuthenticationController {
   ): Promise<{ user: UserProfileResponseDto; token: string }> {
     const out = await this.authenticationRepository.saveUser(user as UserDto);
     await this.refreshTokenService.setRefreshToken(getUserId(out.user), res);
+    this.posthogService.identifyUser(out.user);
+    this.posthogService.capture('auth_signup_succeeded', getUserId(out.user), {
+      userAccounts: out.user.userAccounts,
+    });
     return out;
   }
 
+  /**
+   * Authenticates a user and issues a fresh access token plus refresh cookie.
+   */
   @Public()
   @RateLimit({ ttl: 60, limit: 25 })
   @ApiBody({
@@ -108,10 +120,14 @@ export class AuthenticationController {
     @Body() user: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ token: string }> {
-    const out = await this.authenticationRepository.findUserAndGenerateToken(user);
+    const out =
+      await this.authenticationRepository.findUserAndGenerateToken(user);
     const payload = decode(out.token) as { _id?: string } | null;
     if (payload?._id) {
       await this.refreshTokenService.setRefreshToken(payload._id, res);
+      this.posthogService.capture('auth_login_succeeded', payload._id, {
+        username: user.username,
+      });
     }
     return out;
   }
@@ -133,9 +149,8 @@ export class AuthenticationController {
     if (!userId) {
       throw new UnauthorizedException('Invalid or expired session');
     }
-    const profile = await this.authenticationRepository.findUserWithProfile(
-      userId,
-    );
+    const profile =
+      await this.authenticationRepository.findUserWithProfile(userId);
     return {
       token: this.authenticationRepository.createAccessToken(profile),
     };
@@ -167,6 +182,9 @@ export class AuthenticationController {
     );
   }
 
+  /**
+   * Revokes the current refresh session and clears the auth cookie.
+   */
   @ApiResponse({
     type: ApiResponseMessageDto,
     status: 200,
@@ -183,6 +201,7 @@ export class AuthenticationController {
     status: string;
   }> {
     this.refreshTokenService.validateRequestOrigin(req);
+    this.posthogService.capture('auth_logout', getUserId(user));
     await this.refreshTokenService.revokeFromRequest(req);
     this.refreshTokenService.clearCookie(res);
     return this.authenticationRepository.logoutAccount(user);
@@ -202,6 +221,9 @@ export class AuthenticationController {
     return this.authenticationRepository.findPublicUserWithProfile(user._id);
   }
 
+  /**
+   * Verifies a pending email token for a user account.
+   */
   @Public()
   @RateLimit({ ttl: 3600, limit: 10 })
   @ApiOperation({ summary: 'Request Password Reset' })
@@ -378,7 +400,17 @@ export class AuthenticationController {
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@Body('token') token: string) {
-    return this.authenticationRepository.verifyEmail(token);
+    const result = await this.authenticationRepository.verifyEmail(token);
+    const verifiedUser =
+      'user' in result && result.user ? (result.user as UserDto) : null;
+    if (verifiedUser) {
+      this.posthogService.identifyUser(verifiedUser);
+      this.posthogService.capture(
+        'auth_email_verified',
+        getUserId(verifiedUser),
+      );
+    }
+    return result;
   }
 
   @Public()

@@ -5,6 +5,7 @@ import { EmailService } from 'src/email/email.service';
 import { OTPRepository } from '../repositories/otp.repository';
 import { RefreshTokenService } from '../services/refresh-token.service';
 import { RateLimitGuard } from 'src/shared/guards/rateLimit.guard';
+import { PosthogService } from 'src/posthog/posthog.service';
 
 describe('AuthenticationController', () => {
   let controller: AuthenticationController;
@@ -20,16 +21,24 @@ describe('AuthenticationController', () => {
     revokeFromRequest: jest.fn().mockResolvedValue(undefined),
     clearCookie: jest.fn(),
   };
+  const posthogService = {
+    capture: jest.fn(),
+    identifyUser: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthenticationController],
       providers: [
-        { provide: AuthenticationRepository, useValue: authenticationRepository },
+        {
+          provide: AuthenticationRepository,
+          useValue: authenticationRepository,
+        },
         { provide: EmailService, useValue: {} },
         { provide: OTPRepository, useValue: {} },
         { provide: RefreshTokenService, useValue: refreshTokenService },
+        { provide: PosthogService, useValue: posthogService },
       ],
     })
       .overrideGuard(RateLimitGuard)
@@ -47,6 +56,10 @@ describe('AuthenticationController', () => {
     const result = await controller.userLogout(user, req, res);
 
     expect(refreshTokenService.validateRequestOrigin).toHaveBeenCalledWith(req);
+    expect(posthogService.capture).toHaveBeenCalledWith(
+      'auth_logout',
+      'user-1',
+    );
     expect(refreshTokenService.revokeFromRequest).toHaveBeenCalledWith(req);
     expect(refreshTokenService.clearCookie).toHaveBeenCalledWith(res);
     expect(authenticationRepository.logoutAccount).toHaveBeenCalledWith(user);

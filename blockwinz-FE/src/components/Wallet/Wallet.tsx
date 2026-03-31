@@ -6,17 +6,18 @@ import Withdrawal from './components/Withdrawal';
 import Deposit from './components/Deposit';
 import BuyCrypto from './components/BuyCrypto';
 import Tip from './components/Tip';
+import { capturePosthogEvent } from '@/shared/utils/posthog';
 
 interface WalletProps {}
 
-const Wallet: FunctionComponent<WalletProps> = () => {
-  const options = [
-    { label: 'Deposit', value: 'deposit' },
-    { label: 'Withdrawal', value: 'withdrawal' },
-    { label: 'Buy crypto', value: 'buycrypto' },
-    { label: 'Tip', value: 'tip' },
-  ];
+const options = [
+  { label: 'Deposit', value: 'deposit' },
+  { label: 'Withdrawal', value: 'withdrawal' },
+  { label: 'Buy crypto', value: 'buycrypto' },
+  { label: 'Tip', value: 'tip' },
+];
 
+const Wallet: FunctionComponent<WalletProps> = () => {
   const [selected, setSelected] = useState(options[0].value);
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,6 +36,9 @@ const Wallet: FunctionComponent<WalletProps> = () => {
     const params = new URLSearchParams(location.search);
     params.set('view', selected);
     navigate({ search: params.toString() }, { replace: true });
+    capturePosthogEvent('wallet_opened', {
+      view: selected,
+    });
 
     return () => {
       const params = new URLSearchParams(location.search);
