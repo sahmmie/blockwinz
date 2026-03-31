@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   forwardRef,
   Inject,
   InternalServerErrorException,
@@ -471,9 +472,14 @@ export class WalletRepository {
     sendBwzDto: CreditFreeBwzDtoReq,
   ): Promise<{ success: boolean; signature: string }> {
     const MAX_BWZ = 10000;
+    const faucetEnabled = this.config.get<string>('ENABLE_TESTNET_BWZ_FAUCET');
+
+    if (faucetEnabled !== 'true') {
+      throw new ForbiddenException('BWZ faucet is disabled');
+    }
 
     if (process.env.NODE_ENV === 'production') {
-      throw new BadRequestException(
+      throw new ForbiddenException(
         'This endpoint is not available in production',
       );
     }

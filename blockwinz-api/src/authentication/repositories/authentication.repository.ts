@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotAcceptableException,
 } from '@nestjs/common';
@@ -379,12 +380,15 @@ export class AuthenticationRepository {
 
   private generateToken(user: UserDto | { _id?: unknown; id?: string }) {
     const id = getUserId(user);
-    const secret = this.config.get('JWT_SECRET');
+    const secret = this.config.get<string>('JWT_SECRET')?.trim();
+    if (!secret) {
+      throw new InternalServerErrorException('JWT secret is not configured');
+    }
     const expiresIn =
       this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '15m';
     return sign(
       { _id: id },
-      secret ?? '',
+      secret,
       { expiresIn } as SignOptions,
     );
   }

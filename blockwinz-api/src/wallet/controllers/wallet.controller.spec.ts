@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WalletController } from './wallet.controller';
 import { WalletRepository } from '../repositories/wallet.repository';
-import { Currency, CHAIN } from '@blockwinz/shared';
+import { Currency, CHAIN, UserAccountEnum } from '@blockwinz/shared';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('WalletController', () => {
   let controller: WalletController;
@@ -74,5 +75,42 @@ describe('WalletController', () => {
     );
     expect(result).toEqual(publicWallets);
     expect(result[0]).not.toHaveProperty('privateKey');
+  });
+
+  it('sendBwz rejects non-admin users', async () => {
+    await expect(
+      controller.sendBwz(
+        { _id: 'user-1', userAccounts: [UserAccountEnum.USER] } as never,
+        {
+          username: 'demo',
+          walletAddress: 'wallet-1',
+          amount: 5,
+        } as never,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(walletRepository.sendBwzToUser).not.toHaveBeenCalled();
+  });
+
+  it('sendBwz allows admin users', async () => {
+    walletRepository.sendBwzToUser.mockResolvedValue({
+      success: true,
+      signature: 'sig-1',
+    });
+
+    const result = await controller.sendBwz(
+      { _id: 'admin-1', userAccounts: [UserAccountEnum.ADMIN] } as never,
+      {
+        username: 'demo',
+        walletAddress: 'wallet-1',
+        amount: 5,
+      } as never,
+    );
+
+    expect(walletRepository.sendBwzToUser).toHaveBeenCalledWith({
+      username: 'demo',
+      walletAddress: 'wallet-1',
+      amount: 5,
+    });
+    expect(result).toEqual({ success: true, signature: 'sig-1' });
   });
 });

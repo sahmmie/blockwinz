@@ -15,7 +15,7 @@ const Logout: FunctionComponent<LogoutProps> = () => {
       const t = useAuth.getState().token;
       if (t) {
         try {
-          await axiosInstance.get('/authentication/logout');
+          await axiosInstance.post('/authentication/logout');
         } catch {
           /* still clear client state */
         }

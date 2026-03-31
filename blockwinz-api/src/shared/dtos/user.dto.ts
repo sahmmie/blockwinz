@@ -163,6 +163,38 @@ export class LoginDto {
   @ApiProperty() @IsString() username: string;
 }
 
+export class RegistrationRequestDto {
+  @ApiProperty() @IsEmail() email: string;
+  @ApiProperty() @IsString() password: string;
+  @ApiProperty({
+    enum: UserAccountEnum,
+    isArray: true,
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsEnum(UserAccountEnum, { each: true })
+  userAccounts: UserAccountEnum[];
+  @ApiPropertyOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message:
+      'Username can only contain alphanumeric characters and underscores.',
+  })
+  @Length(4, 20, {
+    message: 'Username must be between 4 and 20 characters long.',
+  })
+  username: string;
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty() @IsString() currentPassword: string;
+  @ApiProperty() @IsString() newPassword: string;
+}
+
 export class ChangeEmailDto {
   @ApiProperty({
     example: 'user@example.com',

@@ -42,7 +42,7 @@ const Sidebar: FunctionComponent<SidebarProps> = ({
       }
     }
     if (path.clickOnly && path.clickOnly === 'logout') {
-      void axiosInstance.get('/authentication/logout').finally(() => {
+      void axiosInstance.post('/authentication/logout').finally(() => {
         setToken(null);
         setAccountData(null);
       });

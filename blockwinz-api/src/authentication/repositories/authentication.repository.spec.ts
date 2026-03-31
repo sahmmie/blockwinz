@@ -1,4 +1,5 @@
 import { AuthenticationRepository } from './authentication.repository';
+import { InternalServerErrorException } from '@nestjs/common';
 import { SeedStatus, UserAccountEnum } from '@blockwinz/shared';
 import { UserDto } from 'src/shared/dtos/user.dto';
 
@@ -71,5 +72,20 @@ describe('AuthenticationRepository', () => {
       serverSeedHash: 'server-seed-hash',
     });
     expect(result.activeSeed).not.toHaveProperty('serverSeed');
+  });
+
+  it('createAccessToken fails fast when JWT_SECRET is missing', () => {
+    const repository = new AuthenticationRepository(
+      {} as never,
+      { get: jest.fn().mockReturnValue(undefined) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    expect(() =>
+      repository.createAccessToken({ _id: 'user-1', id: 'user-1' }),
+    ).toThrow(InternalServerErrorException);
   });
 });

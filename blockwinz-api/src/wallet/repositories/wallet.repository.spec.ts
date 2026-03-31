@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { WalletRepository } from './wallet.repository';
 import { Currency } from '@blockwinz/shared';
 
@@ -45,5 +45,24 @@ describe('WalletRepository', () => {
         Currency.SOL,
       ),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('sendBwzToUser rejects when the faucet is disabled', async () => {
+    const repository = new WalletRepository(
+      {} as never,
+      { get: jest.fn().mockReturnValue('false') } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      repository.sendBwzToUser({
+        username: 'demo',
+        walletAddress: 'wallet-1',
+        amount: 5,
+      } as never),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

@@ -25,6 +25,7 @@ export class WithdrawalQueueProcessor {
   @Process('withdrawal')
   public async processWithdrawal(job: Job<WithdrawalQueueDto>) {
     const { user, transaction, withdrawal } = job.data;
+    let payoutSignature: string | undefined;
     try {
       const transactionFound =
         await this.transactionRepository.getTransactionById(
@@ -42,12 +43,42 @@ export class WithdrawalQueueProcessor {
       this.logger.log(
         `Processing Withdrawal for user ${user.username} with amount ${withdrawal.amount}`,
       );
-      const signature = await this.walletRepository.withdrawFunds(
-        user,
-        withdrawal.amount,
-        withdrawal.currency,
-        withdrawal.destinationAddress,
-      );
+      if (
+        transactionFound.status === TransactionStatus.SETTLED &&
+        withdrawalFound.status === WithdrawalStatus.COMPLETED
+      ) {
+        this.logger.log(
+          `Withdrawal ${withdrawal.requestId} already settled; skipping duplicate processing.`,
+        );
+        return;
+      }
+
+      payoutSignature = withdrawalFound.transactionHash ?? transactionFound.txid;
+
+      if (!payoutSignature) {
+        payoutSignature = await this.walletRepository.withdrawFunds(
+          user,
+          withdrawal.amount,
+          withdrawal.currency,
+          withdrawal.destinationAddress,
+        );
+
+        transactionFound.onChain = true;
+        transactionFound.txid = payoutSignature;
+        const markerResults = await Promise.allSettled([
+          this.transactionRepository.updateTransaction(transactionFound),
+          this.withdrawalRepository.updateWithdrawal(withdrawal.requestId, {
+            transactionHash: payoutSignature,
+            error: null,
+          }),
+        ]);
+        if (markerResults.every((result) => result.status === 'rejected')) {
+          throw new InternalServerErrorException(
+            'Chain payout sent but reconciliation marker could not be persisted',
+          );
+        }
+      }
+
       await this.db.transaction(async (tx) => {
         const txDb = tx as unknown as DrizzleDb;
         await this.walletRepository.debitPlayer(
@@ -63,15 +94,20 @@ export class WithdrawalQueueProcessor {
           txDb,
         );
         transactionFound.onChain = true;
-        transactionFound.txid = signature;
+        transactionFound.txid = payoutSignature;
         transactionFound.fulfillmentDate = new Date();
         transactionFound.status = TransactionStatus.SETTLED;
         await this.transactionRepository.updateTransaction(transactionFound, txDb);
-        await this.withdrawalRepository.updateWithdrawal(withdrawal.requestId, {
-          status: WithdrawalStatus.COMPLETED,
-          transactionHash: signature,
-          processedAt: new Date(),
-        }, txDb);
+        await this.withdrawalRepository.updateWithdrawal(
+          withdrawal.requestId,
+          {
+            status: WithdrawalStatus.COMPLETED,
+            transactionHash: payoutSignature,
+            processedAt: new Date(),
+            error: null,
+          },
+          txDb,
+        );
       });
       this.logger.log(`Withdrawal for user ${user.username} completed.`);
     } catch (error) {
@@ -86,6 +122,12 @@ export class WithdrawalQueueProcessor {
         await this.withdrawalRepository.requireWithdrawalByRequestId(
           withdrawal.requestId,
         );
+      if (payoutSignature || withdrawalFound.transactionHash || transactionFound?.txid) {
+        this.logger.error(
+          `Withdrawal ${withdrawal.requestId} requires reconciliation after chain payout.`,
+        );
+        throw error;
+      }
       await this.db.transaction(async (tx) => {
         const txDb = tx as unknown as DrizzleDb;
         if (transactionFound) {

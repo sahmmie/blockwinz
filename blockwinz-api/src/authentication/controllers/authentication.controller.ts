@@ -23,8 +23,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  ChangePasswordDto,
   ChangeEmailDto,
   LoginDto,
+  RegistrationRequestDto,
   UserDto,
   UserProfileResponseDto,
 } from 'src/shared/dtos/user.dto';
@@ -55,7 +57,7 @@ export class AuthenticationController {
   @Public()
   @RateLimit({ ttl: 3600, limit: 15 })
   @ApiBody({
-    type: UserDto,
+    type: RegistrationRequestDto,
     examples: {
       default: {
         value: {
@@ -72,10 +74,10 @@ export class AuthenticationController {
   @Post('registration')
   @HttpCode(201)
   async userSignup(
-    @Body() user: UserDto,
+    @Body() user: RegistrationRequestDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ user: UserProfileResponseDto; token: string }> {
-    const out = await this.authenticationRepository.saveUser(user);
+    const out = await this.authenticationRepository.saveUser(user as UserDto);
     await this.refreshTokenService.setRefreshToken(getUserId(out.user), res);
     return out;
   }
@@ -140,14 +142,7 @@ export class AuthenticationController {
   }
 
   @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        currentPassword: { type: 'string', example: 'CurrentStr0ng!P@ss' },
-        newPassword: { type: 'string', example: 'NewStr0ng!P@ss' },
-      },
-      required: ['currentPassword', 'newPassword'],
-    },
+    type: ChangePasswordDto,
     examples: {
       default: {
         value: {
@@ -163,7 +158,7 @@ export class AuthenticationController {
   @HttpCode(202)
   userChangePassword(
     @CurrentUser() user: UserRequestI,
-    @Body() body: { currentPassword; newPassword } & UserDto,
+    @Body() body: ChangePasswordDto,
   ) {
     return this.authenticationRepository.changePassword(
       body?.currentPassword,
@@ -178,7 +173,7 @@ export class AuthenticationController {
   })
   @ApiOperation({ summary: 'Account Logout' })
   @ApiBearerAuth('JWT-auth')
-  @Get('logout')
+  @Post('logout')
   async userLogout(
     @CurrentUser() user: UserRequestI,
     @Req() req: Request,

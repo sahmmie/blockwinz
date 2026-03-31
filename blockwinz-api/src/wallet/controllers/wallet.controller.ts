@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   UseGuards,
@@ -21,7 +22,7 @@ import { WalletDto, PublicWalletDto } from '../dtos/wallet.dto';
 import { WalletRepository } from '../repositories/wallet.repository';
 import { AuthenticationGuard } from 'src/shared/guards/authentication.guard';
 import { CreditFreeBwzDtoReq } from '../dtos/send-bwz.dto';
-import { Public } from 'src/shared/decorators/publicApi.decorator';
+import { UserAccountEnum } from '@blockwinz/shared';
 
 @ApiTags('Wallet')
 @Controller('wallet')
@@ -60,7 +61,7 @@ export class WalletController {
 
   @ApiOperation({ summary: 'Create New Wallet Address' })
   @ApiOkResponse({ type: [PublicWalletDto] })
-  @Get('getNewAddress')
+  @Post('getNewAddress')
   @HttpCode(201)
   async generateWalletAddress(
     @CurrentUser() user: UserRequestI,
@@ -69,7 +70,6 @@ export class WalletController {
     return this.walletRepository.convertToPublicWallet(wallets);
   }
 
-  @Public()
   @Post('send-bwz')
   @ApiOperation({ summary: 'Send BWZ tokens to a user (Testnet only)' })
   @ApiResponse({ status: 200, description: 'BWZ sent successfully' })
@@ -77,7 +77,13 @@ export class WalletController {
     status: 400,
     description: 'Invalid request or validation failed',
   })
-  async sendBwz(@Body() sendBwzDto: CreditFreeBwzDtoReq) {
+  async sendBwz(
+    @CurrentUser() user: UserRequestI,
+    @Body() sendBwzDto: CreditFreeBwzDtoReq,
+  ) {
+    if (!user.userAccounts?.includes(UserAccountEnum.ADMIN)) {
+      throw new ForbiddenException('Admin account required');
+    }
     return this.walletRepository.sendBwzToUser(sendBwzDto);
   }
 }

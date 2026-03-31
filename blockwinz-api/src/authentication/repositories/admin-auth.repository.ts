@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  InternalServerErrorException,
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
@@ -56,9 +57,13 @@ export class AdminAuthRepository {
       email: admin.email,
       isAdmin: true,
     };
+    const secret = this.configService.get<string>('JWT_SECRET')?.trim();
+    if (!secret) {
+      throw new InternalServerErrorException('JWT secret is not configured');
+    }
     const token = jwt.sign(
       payload,
-      this.configService.get('JWT_SECRET') ?? '',
+      secret,
       { expiresIn: '1d' },
     );
     return { access_token: token };
