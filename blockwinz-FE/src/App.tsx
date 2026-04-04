@@ -17,6 +17,7 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AboutUs from './pages/AboutUs';
 import useAuth from '@/hooks/useAuth';
+import { Analytics } from '@vercel/analytics/react';
 
 // Lazy load pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -141,6 +142,7 @@ function App() {
             <Route element={<PageNotFound />} path='*' />
           </Route>
         </Routes>
+        <Analytics />
       </Suspense>
     </SessionBootstrap>
   );
