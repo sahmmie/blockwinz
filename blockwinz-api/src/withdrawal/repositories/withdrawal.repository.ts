@@ -61,6 +61,8 @@ export class WithdrawalRepository {
 
   /**
    * Creates a withdrawal request, transaction record, and locks funds in a single Postgres transaction.
+   *
+   * @throws BadRequestException When the destination is a registered BlockWinz custodial wallet address.
    */
   async createWithdrawal(
     user: UserRequestI,
@@ -104,6 +106,18 @@ export class WithdrawalRepository {
         );
       }
 
+      const dest = destinationAddress.trim();
+      if (
+        await this.walletRepository.isPlayerCustodialWalletAddress(
+          dest,
+          tx as unknown as DrizzleDb,
+        )
+      ) {
+        throw new BadRequestException(
+          'Withdrawals to BlockWinz player wallet addresses are not allowed',
+        );
+      }
+
       const approvalType = (await this.canAutoApproveWithdrawal(
         user,
         amount,
@@ -125,7 +139,7 @@ export class WithdrawalRepository {
           userId,
           amount: String(amount),
           currency,
-          destinationAddress,
+          destinationAddress: dest,
           requestId,
           status: WithdrawalStatus.PENDING,
           approvalType,
@@ -145,7 +159,7 @@ export class WithdrawalRepository {
         null,
         CHAIN.SOLANA,
         currency,
-        { destinationAddress, requestId },
+        { destinationAddress: dest, requestId },
         withdrawalRow.id,
         false,
         tx as unknown as DrizzleDb,

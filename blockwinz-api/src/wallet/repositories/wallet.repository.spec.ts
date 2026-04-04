@@ -47,6 +47,47 @@ describe('WalletRepository', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('isPlayerCustodialWalletAddress returns true when a wallet row exists', async () => {
+    const db = {
+      select: jest.fn(() => ({
+        from: jest.fn(() => ({
+          where: jest.fn(() => ({
+            limit: jest.fn().mockResolvedValue([{ id: 'w1' }]),
+          })),
+        })),
+      })),
+    };
+    const repository = buildRepository(db);
+    await expect(
+      repository.isPlayerCustodialWalletAddress('SomeAddr'),
+    ).resolves.toBe(true);
+  });
+
+  it('isPlayerCustodialWalletAddress returns false when no wallet row exists', async () => {
+    const db = {
+      select: jest.fn(() => ({
+        from: jest.fn(() => ({
+          where: jest.fn(() => ({
+            limit: jest.fn().mockResolvedValue([]),
+          })),
+        })),
+      })),
+    };
+    const repository = buildRepository(db);
+    await expect(
+      repository.isPlayerCustodialWalletAddress('SomeAddr'),
+    ).resolves.toBe(false);
+  });
+
+  it('isPlayerCustodialWalletAddress returns false for blank input without querying', async () => {
+    const db = { select: jest.fn() };
+    const repository = buildRepository(db);
+    await expect(
+      repository.isPlayerCustodialWalletAddress('   '),
+    ).resolves.toBe(false);
+    expect(db.select).not.toHaveBeenCalled();
+  });
+
   it('sendBwzToUser rejects when the faucet is disabled', async () => {
     const repository = new WalletRepository(
       {} as never,

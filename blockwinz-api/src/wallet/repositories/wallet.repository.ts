@@ -148,6 +148,30 @@ export class WalletRepository {
     return wallet;
   }
 
+  /**
+   * Whether the given Solana address matches any custodial player wallet row (BWZ/SOL rows share the same on-chain address per user).
+   *
+   * @param destinationAddress Raw destination from the client (trimmed before lookup).
+   * @param tx Optional Drizzle transaction (e.g. withdrawal creation).
+   * @returns True when the address is a registered BlockWinz custodial deposit address.
+   */
+  public async isPlayerCustodialWalletAddress(
+    destinationAddress: string,
+    tx?: DrizzleDb,
+  ): Promise<boolean> {
+    const normalized = destinationAddress.trim();
+    if (!normalized) {
+      return false;
+    }
+    const db = tx ?? this.db;
+    const [row] = await db
+      .select({ id: wallets.id })
+      .from(wallets)
+      .where(eq(wallets.address, normalized))
+      .limit(1);
+    return row != null;
+  }
+
   public async creditPlayer(
     user: UserRequestI,
     amount: number,
