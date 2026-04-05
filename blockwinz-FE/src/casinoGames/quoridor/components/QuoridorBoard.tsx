@@ -595,7 +595,7 @@ const QuoridorBoard: FunctionComponent = () => {
 
         <SimpleGrid
           position='relative'
-          zIndex={2}
+          zIndex={10}
           columns={size}
           gap={`${gutterPx}px`}
           w={`${gridPx}px`}
