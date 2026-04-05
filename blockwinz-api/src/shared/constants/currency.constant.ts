@@ -31,6 +31,15 @@ export const currencyData: Record<Currency, CurrencyData> = {
     minWithdrawalAmount: 1,
     autoWithdrawalAmount: 10000,
   },
+  [Currency.USDT]: {
+    minAmount: 0.01,
+    maxBet: 10000.0,
+    maxProfit: 100000.0,
+    decimals: 6,
+    currency: Currency.USDT,
+    minWithdrawalAmount: 1,
+    autoWithdrawalAmount: 1000,
+  },
 };
 
 export const defaultCurrencyData: currencyInfoDto = {

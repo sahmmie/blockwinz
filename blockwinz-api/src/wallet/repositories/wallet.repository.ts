@@ -16,7 +16,7 @@ import { getUserId, getWalletId } from 'src/shared/helpers/user.helper';
 import { WalletDto, PublicWalletDto } from '../dtos/wallet.dto';
 import { CHAIN, Currency } from '@blockwinz/shared';
 import { SolWalletRepository } from './solWallet.repository';
-import { BwzWalletRepository } from './bwzWallet.repository';
+import { SplTokenWalletRepository } from './splTokenWallet.repository';
 import { balanceIsSufficient } from 'src/shared/helpers/utils-functions.helper';
 import { SolanaCoreRepository } from 'src/core/solanaCore/repositories/solanaCore.repository';
 import { WalletQueueRepository } from 'src/core/queue/repositories/walletQueue.repository';
@@ -38,7 +38,7 @@ export class WalletRepository {
     @Inject(DRIZZLE) private readonly db: DrizzleDb,
     @Inject(ConfigService) public config: ConfigService,
     private solWalletRepository: SolWalletRepository,
-    private bwzWalletRepository: BwzWalletRepository,
+    private splTokenWalletRepository: SplTokenWalletRepository,
     private solanaCoreRepository: SolanaCoreRepository,
     @Inject(forwardRef(() => WalletQueueRepository))
     private walletQueueRepository: WalletQueueRepository,
@@ -72,8 +72,10 @@ export class WalletRepository {
     const solWallet =
       await this.solWalletRepository.generateSolWalletAddress(user, tx);
     const bwzWallet =
-      await this.bwzWalletRepository.generateBwzWalletAddress(user, tx);
-    return [solWallet, bwzWallet];
+      await this.splTokenWalletRepository.generateSplTokenWalletAddress(user, Currency.BWZ, tx);
+    const usdtWallet =
+      await this.splTokenWalletRepository.generateSplTokenWalletAddress(user, Currency.USDT, tx);
+    return [solWallet, bwzWallet, usdtWallet];
   }
 
   public async getWalletAddresses(
@@ -81,7 +83,8 @@ export class WalletRepository {
   ): Promise<PublicWalletDto[]> {
     const addresses = await Promise.all([
       this.solWalletRepository.getSolWalletAddress(user),
-      this.bwzWalletRepository.getBwzWalletAddress(user),
+      this.splTokenWalletRepository.getSplTokenWalletAddress(user, Currency.BWZ),
+      this.splTokenWalletRepository.getSplTokenWalletAddress(user, Currency.USDT),
     ]);
     return this.convertToPublicWallet(addresses);
   }
@@ -95,7 +98,8 @@ export class WalletRepository {
     }
     const balances = await Promise.all([
       this.solWalletRepository.getSolWalletBalance(user, forceRefresh),
-      this.bwzWalletRepository.getBwzWalletBalance(user, forceRefresh),
+      this.splTokenWalletRepository.getSplTokenWalletBalance(user, Currency.BWZ, forceRefresh),
+      this.splTokenWalletRepository.getSplTokenWalletBalance(user, Currency.USDT, forceRefresh),
     ]);
     return this.convertToPublicWallet(balances);
   }
@@ -127,13 +131,14 @@ export class WalletRepository {
       );
       return this.playerBalanceIsSufficient(betAmount, solBalance);
     }
-    if (currency === Currency.BWZ) {
-      const bwzBalance = await this.bwzWalletRepository.getBwzWalletBalance(
+    if (currency === Currency.BWZ || currency === Currency.USDT) {
+      const balance = await this.splTokenWalletRepository.getSplTokenWalletBalance(
         user,
+        currency,
         false,
         tx,
       );
-      return this.playerBalanceIsSufficient(betAmount, bwzBalance);
+      return this.playerBalanceIsSufficient(betAmount, balance);
     }
     throw new NotFoundException('Currency not found');
   }
@@ -363,7 +368,7 @@ export class WalletRepository {
       .select()
       .from(wallets)
       .where(eq(wallets.currency, currency));
-    const threshold = 0.0001;
+    const threshold = currency === Currency.SOL ? 0.0001 : 0.000001;
 
     for (const row of walletRows) {
       try {
@@ -415,8 +420,8 @@ export class WalletRepository {
     if (currency === Currency.SOL) {
       return this.solWalletRepository.debitPlayerSol(row.privateKey, amount);
     }
-    if (currency === Currency.BWZ) {
-      return this.bwzWalletRepository.debitPlayerBwz(row.privateKey, amount);
+    if (currency === Currency.BWZ || currency === Currency.USDT) {
+      return this.splTokenWalletRepository.debitPlayerSplToken(row.privateKey, amount, currency);
     }
     throw new BadRequestException('Debit player error: Invalid currency');
   }
@@ -433,10 +438,11 @@ export class WalletRepository {
         amount,
       );
     }
-    if (currency === Currency.BWZ) {
-      return await this.bwzWalletRepository.creditPlayerBwz(
+    if (currency === Currency.BWZ || currency === Currency.USDT) {
+      return await this.splTokenWalletRepository.creditPlayerSplToken(
         destinationAddress,
         amount,
+        currency,
       );
     }
     throw new BadRequestException('Credit player error: Invalid currency');
@@ -583,9 +589,10 @@ export class WalletRepository {
       throw new BadRequestException('User has reached maximum BWZ limit');
     }
 
-    const signature = await this.bwzWalletRepository.creditPlayerBwz(
+    const signature = await this.splTokenWalletRepository.creditPlayerSplToken(
       sendBwzDto.walletAddress,
       sendBwzDto.amount,
+      Currency.BWZ,
     );
 
     const newEntry = {

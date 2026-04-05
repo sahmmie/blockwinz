@@ -76,9 +76,9 @@ export const POSTHOG_ENABLE_SURVEYS = posthogConfig.enableSurveys
 export const POSTHOG_CHATWOOT_FLAG_KEY = posthogConfig.chatwootFlagKey
 
 
-/** Wallet / deposit / withdraw options. BWZ omitted until launch. */
 export const SUPPORTED_CURRENCIES: { chain: string, currency: Currency, network: string[], withdrawalFee: number, decimals: number }[] = [
     { chain: 'Solana', currency: Currency.SOL, network: ['sol'], withdrawalFee: 0.0001, decimals: 4 },
+    { chain: 'Solana', currency: Currency.USDT, network: ['sol'], withdrawalFee: 1.0, decimals: 2 },
 ];
 
 export const DEFAULT_CURRENCY = Currency.SOL

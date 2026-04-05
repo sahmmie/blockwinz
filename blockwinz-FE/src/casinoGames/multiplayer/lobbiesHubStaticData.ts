@@ -314,4 +314,17 @@ export const LOBBIES_HUB_STATIC_LOBBIES: MultiplayerSessionRow[] = [
     turnDeadlineAt: null,
     reconnectGraceUntil: null,
   },
+  {
+    _id: 'static-lobby-usdt-1',
+    gameStatus: MultiplayerSessionStatus.PENDING,
+    players: ['77777777-7777-7777-7777-777777777777'],
+    betAmount: 10,
+    currency: Currency.USDT,
+    maxPlayers: 2,
+    hostUserId: '77777777-7777-7777-7777-777777777777',
+    visibility: LobbyVisibility.PUBLIC,
+    betAmountMustEqual: false,
+    turnDeadlineAt: null,
+    reconnectGraceUntil: null,
+  },
 ];

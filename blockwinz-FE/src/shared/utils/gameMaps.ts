@@ -9,5 +9,6 @@ import BwzIcon from 'assets/bw.svg'
 export const currencyIconMap = {
   [Currency.SOL]: SolIcon,
   [Currency.BWZ]: BwzIcon,
+  [Currency.USDT]: DollarIcon,
   usd: DollarIcon,
 } as const satisfies Record<Currency, string> & { usd: string };

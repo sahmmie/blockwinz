@@ -11,7 +11,7 @@ import { UserDto } from 'src/shared/dtos/user.dto';
 import { getUserId } from 'src/shared/helpers/user.helper';
 import { WalletDto } from '../dtos/wallet.dto';
 import { CHAIN, Currency } from '@blockwinz/shared';
-import { SolanaCoreRepository } from 'src/core/solanaCore/repositories/solanaCore.repository';
+import { SolanaCoreRepository, getSplTokenProfile } from 'src/core/solanaCore/repositories/solanaCore.repository';
 import {
   decryptWalletSecret,
   encryptWalletSecret,
@@ -26,7 +26,7 @@ import type { DrizzleDb } from 'src/database/database.module';
 import { wallets, type WalletInsert } from 'src/database/schema/wallets';
 
 @Injectable()
-export class BwzWalletRepository {
+export class SplTokenWalletRepository {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDb,
     @Inject(ConfigService) public config: ConfigService,
@@ -55,8 +55,9 @@ export class BwzWalletRepository {
     };
   }
 
-  public async generateBwzWalletAddress(
+  public async generateSplTokenWalletAddress(
     user: UserDto,
+    currency: Currency,
     tx?: DrizzleDb,
   ): Promise<WalletDto> {
     const db = tx ?? this.db;
@@ -68,7 +69,7 @@ export class BwzWalletRepository {
         and(
           eq(wallets.userId, userId),
           eq(wallets.chain, CHAIN.SOLANA),
-          eq(wallets.currency, Currency.BWZ),
+          eq(wallets.currency, currency),
         ),
       )
       .limit(1);
@@ -104,7 +105,7 @@ export class BwzWalletRepository {
         address,
         privateKey,
         publicKey,
-        currency: Currency.BWZ,
+        currency,
         chain: CHAIN.SOLANA,
         appBalance: '0',
         pendingWithdrawal: '0',
@@ -112,11 +113,11 @@ export class BwzWalletRepository {
         onChainBalance: '0',
       } as WalletInsert)
       .returning();
-    if (!inserted) throw new Error('Failed to create BWZ wallet');
+    if (!inserted) throw new Error('Failed to create SPL token wallet');
     return this.toWalletDto(inserted);
   }
 
-  public async getBwzWalletAddress(user: UserDto): Promise<WalletDto> {
+  public async getSplTokenWalletAddress(user: UserDto, currency: Currency): Promise<WalletDto> {
     const userId = getUserId(user);
     const [row] = await this.db
       .select()
@@ -125,7 +126,7 @@ export class BwzWalletRepository {
         and(
           eq(wallets.userId, userId),
           eq(wallets.chain, CHAIN.SOLANA),
-          eq(wallets.currency, Currency.BWZ),
+          eq(wallets.currency, currency),
         ),
       )
       .limit(1);
@@ -135,8 +136,9 @@ export class BwzWalletRepository {
     return this.toWalletDto(row);
   }
 
-  public async getBwzWalletBalance(
+  public async getSplTokenWalletBalance(
     user: UserDto | { _id?: unknown; id?: string },
+    currency: Currency,
     forceRefresh?: boolean,
     tx?: DrizzleDb,
   ): Promise<WalletDto> {
@@ -149,7 +151,7 @@ export class BwzWalletRepository {
         and(
           eq(wallets.userId, userId),
           eq(wallets.chain, CHAIN.SOLANA),
-          eq(wallets.currency, Currency.BWZ),
+          eq(wallets.currency, currency),
         ),
       )
       .limit(1);
@@ -160,7 +162,8 @@ export class BwzWalletRepository {
 
     if (forceRefresh) {
       const previousOnChainBalance = Number(walletRow.onChainBalance);
-      const onChainBalance = await this.solanaCoreRepository.getBWZBalance(
+      const onChainBalance = await this.solanaCoreRepository.getSplTokenBalance(
+        getSplTokenProfile(currency),
         walletRow.address,
       );
       const delta = onChainBalance - previousOnChainBalance;
@@ -175,7 +178,7 @@ export class BwzWalletRepository {
           TransactionStatus.SETTLED,
           new Date(),
           CHAIN.SOLANA,
-          Currency.BWZ,
+          currency,
           {
             destinationAddress: walletRow.address,
             requestId: null,
@@ -205,19 +208,22 @@ export class BwzWalletRepository {
     return this.toWalletDto(walletRow);
   }
 
-  public async creditPlayerBwz(
+  public async creditPlayerSplToken(
     destinationAddress: string,
     totalWinAmount: number,
+    currency: Currency,
   ): Promise<string> {
-    return await this.solanaCoreRepository.transferBwzToUserWallet(
+    return await this.solanaCoreRepository.transferSplTokenToUserWallet(
+      getSplTokenProfile(currency),
       destinationAddress,
       totalWinAmount,
     );
   }
 
-  public async debitPlayerBwz(
+  public async debitPlayerSplToken(
     userEncryptedPrivateKey: string,
     betAmount: number,
+    currency: Currency,
   ): Promise<string> {
     const toBlockWinzAddress = this.config.get('SOLANA_BLOCKWINZ_ADDRESS');
     const centralFeePayerSecretKey = this.config.get(
@@ -241,7 +247,8 @@ export class BwzWalletRepository {
       amount: betAmount,
     };
 
-    return await this.solanaCoreRepository.transferBWZWithFeePayer(
+    return await this.solanaCoreRepository.transferSplTokenWithFeePayer(
+      getSplTokenProfile(currency),
       transactionObj,
     );
   }

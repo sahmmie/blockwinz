@@ -92,6 +92,7 @@ export const getCommonValidationSchema = () => {
 export const currencyMaxTable: Record<Currency, CurrencyMax> = {
   [Currency.SOL]: { bet: 100.0, profit: 100.0 },
   [Currency.BWZ]: { bet: 1000000.0, profit: 1000000.0 },
+  [Currency.USDT]: { bet: 10000.0, profit: 100000.0 },
 }
 
 export const betAmountValidationSchema = (playerBalance: number | undefined) => {

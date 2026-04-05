@@ -21,9 +21,38 @@ import {
   createTransferInstruction,
   getAssociatedTokenAddress,
   TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { parseSolanaTransactions } from './solanaTransaction';
 import bs58 from 'bs58';
+import { Currency } from '@blockwinz/shared';
+
+export interface SplTokenProfile {
+  currency: Currency;
+  mintAddressEnvKey: string;
+  programId: PublicKey;
+  decimals: number;
+}
+
+export const getSplTokenProfile = (currency: Currency): SplTokenProfile => {
+  if (currency === Currency.BWZ) {
+    return {
+      currency: Currency.BWZ,
+      mintAddressEnvKey: 'SOLANA_BLOCKWINZ_MINT_ADDRESS',
+      programId: TOKEN_2022_PROGRAM_ID,
+      decimals: 6, // BWZ uses 6 decimals based on transferBwzToUserWallet logic
+    };
+  }
+  if (currency === Currency.USDT) {
+    return {
+      currency: Currency.USDT,
+      mintAddressEnvKey: 'SOLANA_USDT_MINT_ADDRESS',
+      programId: TOKEN_PROGRAM_ID,
+      decimals: 6, // standard SPL USDT decimals
+    };
+  }
+  throw new Error(`Unsupported SPL token: ${currency}`);
+};
 
 @Injectable()
 export class SolanaCoreRepository {
@@ -53,15 +82,15 @@ export class SolanaCoreRepository {
   }
 
   /**
-   * Get the balance of a specific token for a given wallet address
+   * Get the balance of a specific SPL token for a given wallet address
    * @param address The wallet address to get the token balance for
+   * @param profile The SPL token profile containing mint and program info
    * @returns The balance of the token for the given wallet address.
-   * programId should be the mint address of the token
    */
-  async getBWZBalance(address: string): Promise<number> {
+  async getSplTokenBalance(profile: SplTokenProfile, address: string): Promise<number> {
     const owner = new PublicKey(address);
     const mint = new PublicKey(
-      this.config.get('SOLANA_BLOCKWINZ_MINT_ADDRESS'),
+      this.config.get(profile.mintAddressEnvKey),
     );
     const accounts = await this.connection.getParsedTokenAccountsByOwner(
       owner,
@@ -215,23 +244,22 @@ export class SolanaCoreRepository {
   }
 
   /**
-   * Transfers BWZ tokens from a custodial user wallet to a recipient address using a central fee payer.
-   * @param senderSecretKey Keypair of custodial user wallet (owns BWZ)
-   * @param recipientAddress PublicKey of recipient
-   * @param centralFeePayerSecretKey Keypair with enough SOL
-   * @param amount BWZ amount (in smallest unit - lamports/decimals)
+   * Transfers SPL tokens from a custodial user wallet to a recipient address using a central fee payer.
    */
-  async transferBWZWithFeePayer({
-    senderSecretKey,
-    recipientAddress,
-    centralFeePayerSecretKey,
-    amount,
-  }: {
-    senderSecretKey: string;
-    recipientAddress: string;
-    centralFeePayerSecretKey: string;
-    amount: number;
-  }) {
+  async transferSplTokenWithFeePayer(
+    profile: SplTokenProfile,
+    {
+      senderSecretKey,
+      recipientAddress,
+      centralFeePayerSecretKey,
+      amount,
+    }: {
+      senderSecretKey: string;
+      recipientAddress: string;
+      centralFeePayerSecretKey: string;
+      amount: number;
+    }
+  ) {
     // Decode secret keys
     const senderKeypair = Keypair.fromSecretKey(bs58.decode(senderSecretKey));
     const feePayerKeypair = Keypair.fromSecretKey(
@@ -239,7 +267,7 @@ export class SolanaCoreRepository {
     );
     const recipientPubkey = new PublicKey(recipientAddress);
     const mintPubkey = new PublicKey(
-      this.config.get('SOLANA_BLOCKWINZ_MINT_ADDRESS'),
+      this.config.get(profile.mintAddressEnvKey),
     );
 
     // Derive associated token accounts
@@ -247,13 +275,13 @@ export class SolanaCoreRepository {
       mintPubkey,
       senderKeypair.publicKey,
       false,
-      TOKEN_2022_PROGRAM_ID,
+      profile.programId,
     );
     const recipientTokenAccount = await getAssociatedTokenAddress(
       mintPubkey,
       recipientPubkey,
       false,
-      TOKEN_2022_PROGRAM_ID,
+      profile.programId,
     );
 
     const transaction = new Transaction();
@@ -269,7 +297,7 @@ export class SolanaCoreRepository {
           recipientTokenAccount,
           recipientPubkey,
           mintPubkey,
-          TOKEN_2022_PROGRAM_ID,
+          profile.programId,
         ),
       );
     }
@@ -282,7 +310,7 @@ export class SolanaCoreRepository {
         senderKeypair.publicKey,
         amount,
         [],
-        TOKEN_2022_PROGRAM_ID,
+        profile.programId,
       ),
     );
 
@@ -303,25 +331,21 @@ export class SolanaCoreRepository {
       [feePayerKeypair, senderKeypair],
     );
 
-    this.logger.log('Transaction successful with signature:', signature);
+    this.logger.log(`SPL Token transfer signature:`, signature);
     return signature;
   }
 
-  async transferBwzToUserWallet(userAddress: string, amount: number) {
-    const blockWinzPrivateKey = this.config.get('SOLANA_BLOCKWINZ_PRIVATE_KEY');
+  async transferSplTokenToUserWallet(profile: SplTokenProfile, userAddress: string, amount: number) {
+    // Treasury for tokens is the central wallet
+    const treasuryPrivateKey = this.config.get('SOLANA_BLOCKWINZ_PRIVATE_KEY');
     const centralFeePayerSecretKey = this.config.get(
       'SOLANA_BLOCKWINZ_PRIVATE_KEY',
     );
 
-    /**
-     * amount * Math.pow(10, decimals)
-     * Make sure amount is in correct units (multiply by decimals if needed)
-     * For example, if BWZ has 6 decimals and you want to send 1 BWZ:
-     */
-    const amountInSmallestUnit = amount * Math.pow(10, 6);
+    const amountInSmallestUnit = Math.round(amount * Math.pow(10, profile.decimals));
 
-    return await this.transferBWZWithFeePayer({
-      senderSecretKey: blockWinzPrivateKey,
+    return await this.transferSplTokenWithFeePayer(profile, {
+      senderSecretKey: treasuryPrivateKey,
       recipientAddress: userAddress,
       amount: amountInSmallestUnit,
       centralFeePayerSecretKey,

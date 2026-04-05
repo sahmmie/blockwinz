@@ -5,7 +5,7 @@ import { SolWalletRepository } from './repositories/solWallet.repository';
 import { WalletRepository } from './repositories/wallet.repository';
 import { SolanaCoreModule } from 'src/core/solanaCore/solanaCore.module';
 import { TransactionModule } from 'src/transaction/transaction.module';
-import { BwzWalletRepository } from './repositories/bwzWallet.repository';
+import { SplTokenWalletRepository } from './repositories/splTokenWallet.repository';
 import { QueueModule } from 'src/core/queue/queue.module';
 
 const controllers = [WalletController];
@@ -15,7 +15,7 @@ const customModules = [SolanaCoreModule, TransactionModule];
 @Module({
   imports: [...customModules, NeoCoreModule, forwardRef(() => QueueModule)],
   controllers: [...controllers],
-  providers: [SolWalletRepository, WalletRepository, BwzWalletRepository],
-  exports: [SolWalletRepository, WalletRepository, BwzWalletRepository],
+  providers: [SolWalletRepository, WalletRepository, SplTokenWalletRepository],
+  exports: [SolWalletRepository, WalletRepository, SplTokenWalletRepository],
 })
 export class WalletModule {}

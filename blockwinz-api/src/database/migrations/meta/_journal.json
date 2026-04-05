@@ -43,6 +43,13 @@
       "when": 1775337097541,
       "tag": "0005_funny_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775351061045,
+      "tag": "0006_goofy_nova",
+      "breakpoints": true
     }
   ]
 }
