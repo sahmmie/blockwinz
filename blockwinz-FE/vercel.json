@@ -12,7 +12,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://blockwinz.com https://staging.blockwinz.com https://*.blockwinz.com https://bwzfunding.netlify.app wss://blockwinz.com wss://staging.blockwinz.com wss://*.blockwinz.com http://localhost:* ws://localhost:*;"
+          "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' data: blob: https://blockwinz.com https://staging.blockwinz.com https://*.blockwinz.com https://bwzfunding.netlify.app wss://blockwinz.com wss://staging.blockwinz.com wss://*.blockwinz.com http://localhost:* ws://localhost:*;"
         }
       ]
     }
