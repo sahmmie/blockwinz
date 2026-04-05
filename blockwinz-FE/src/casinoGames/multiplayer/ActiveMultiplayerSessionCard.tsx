@@ -11,8 +11,10 @@ export interface ActiveMultiplayerSessionCardProps {
   session: MultiplayerSessionRow;
   mpPhase: MpPhase;
   userId: string | null | undefined;
-  /** Board mark for the current user (e.g. X / O). */
+  /** Board mark for the current user (e.g. X / O, or South / North for Quoridor). */
   userMark: string;
+  /** When set, `turnLine` compares `currentTurn` to this user id instead of `userMark`. */
+  turnUserId?: string | null;
   currentTurn: string;
   roundingDecimals: number;
   onLeaveLobby: () => void;
@@ -54,6 +56,7 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
   mpPhase,
   userId,
   userMark,
+  turnUserId,
   currentTurn,
   roundingDecimals,
   onLeaveLobby,
@@ -102,12 +105,19 @@ const ActiveMultiplayerSessionCard: FunctionComponent<
       ? 'Ready — match will start soon'
       : `Waiting for opponent (${players.length}/${maxPlayers})`;
 
+  const isMyTurn =
+    turnUserId != null && turnUserId !== ''
+      ? Boolean(currentTurn && String(currentTurn) === String(turnUserId))
+      : currentTurn === userMark;
+
   const turnLine =
     mpPhase === MpPhase.Playing
       ? !currentTurn
         ? 'Preparing the board…'
-        : currentTurn === userMark
-          ? 'Your turn — place your mark'
+        : isMyTurn
+          ? turnUserId != null && turnUserId !== ''
+            ? 'Your turn — move or place a wall'
+            : 'Your turn — place your mark'
           : "Opponent's turn"
       : null;
 

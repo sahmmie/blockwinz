@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@blockwinz/quoridor-engine": "workspace:*",
     "@blockwinz/shared": "workspace:*",
     "@chakra-ui/react": "^3.2.3",
     "@emotion/react": "^11.14.0",

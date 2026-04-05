@@ -48,4 +48,17 @@ export const MOCK_MULTIPLAYER_LOBBIES: MultiplayerSessionRow[] = [
     turnDeadlineAt: null,
     reconnectGraceUntil: null,
   },
+  {
+    _id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0004',
+    gameStatus: MultiplayerSessionStatus.PENDING,
+    players: ['44444444-4444-4444-4444-444444444444'],
+    betAmount: 25,
+    currency: Currency.USDT,
+    maxPlayers: 2,
+    hostUserId: '44444444-4444-4444-4444-444444444444',
+    visibility: LobbyVisibility.PUBLIC,
+    betAmountMustEqual: false,
+    turnDeadlineAt: null,
+    reconnectGraceUntil: null,
+  },
 ];

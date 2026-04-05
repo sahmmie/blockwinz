@@ -21,6 +21,12 @@ import JoinLobbyConfirmModal, {
 const LOBBY_REFRESH_MS = 8000;
 
 export interface MultiplayerPanelProps {
+  /** Browse list + join confirm (e.g. Quoridor, Tic Tac Toe). */
+  gameTitle: string;
+  /** Empty “open tables” state — rooms / lobby list (not the game icon). */
+  lobbyBrowseIconSrc: string;
+  /** Small badge on each browse row for this title. */
+  gameListIconSrc: string;
   betAmount: number;
   betAmountErrors: { betAmount?: string };
   profitOnWin: number;
@@ -49,6 +55,8 @@ export interface MultiplayerPanelProps {
   multiplayerSession: MultiplayerSessionRow | null;
   userId: string | null | undefined;
   userIs: string;
+  /** When the server sends user ids as `currentTurn` (e.g. Quoridor), pass the viewer id here. */
+  turnUserId?: string | null;
   currentTurn: string;
   /** Live tic-tac-toe (etc.): forfeit control in the active session card. */
   onForfeitMatch?: () => void;
@@ -66,6 +74,9 @@ export interface MultiplayerPanelProps {
  * Game title lives in `GameInfo` below the board, not repeated here.
  */
 const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
+  gameTitle,
+  lobbyBrowseIconSrc,
+  gameListIconSrc,
   betAmount,
   betAmountErrors,
   profitOnWin,
@@ -88,6 +99,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
   multiplayerSession,
   userId,
   userIs,
+  turnUserId,
   currentTurn,
   onForfeitMatch,
   resolveLobbyFromPublicList,
@@ -183,6 +195,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
           mpPhase={mpPhase}
           userId={userId}
           userMark={userIs}
+          turnUserId={turnUserId}
           currentTurn={currentTurn}
           roundingDecimals={roundingDecimals}
           onLeaveLobby={onLeaveLobby}
@@ -238,6 +251,7 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
         open={Boolean(joinConfirm)}
         onClose={closeJoinModal}
         payload={joinConfirm}
+        gameTitle={gameTitle}
         viewerCurrency={viewerCurrency}
         viewerStake={betAmount}
         roundingDecimals={roundingDecimals}
@@ -267,6 +281,9 @@ const MultiplayerPanel: FunctionComponent<MultiplayerPanelProps> = ({
       <Box pt={4} minH='140px'>
         {tab === 'lobbies' && (
           <LobbyTab
+            gameTitle={gameTitle}
+            lobbyBrowseIconSrc={lobbyBrowseIconSrc}
+            gameListIconSrc={gameListIconSrc}
             lobbies={publicLobbies}
             viewerCurrency={viewerCurrency}
             viewerStake={betAmount}

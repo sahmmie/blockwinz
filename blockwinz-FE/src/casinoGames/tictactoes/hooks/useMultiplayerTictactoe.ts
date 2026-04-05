@@ -10,6 +10,7 @@ import {
   LobbyVisibility,
   MultiplayerGameEmitterEvent,
   MultiplayerGamePayloadAction,
+  MultiplayerGameTypeEnum,
   MultiplayerSessionStatus,
   QuickMatchResponseStatus,
 } from '@blockwinz/shared';
@@ -36,6 +37,7 @@ import type {
 import { MOCK_MULTIPLAYER_LOBBIES } from '@/casinoGames/multiplayer/multiplayerLobbyMock';
 import { isMultiplayerLobbyMock } from '@/casinoGames/multiplayer/isMultiplayerLobbyMock';
 import { resolveMultiplayerJoinError } from '@/casinoGames/multiplayer/multiplayerJoinErrors';
+import { isViewerLobbyHost } from '@/casinoGames/multiplayer/isViewerLobbyHost';
 import { WsAckError } from '@/casinoGames/multiplayer/wsAckError';
 import { useTictactoeMultiplayerSound } from './useTictactoeMultiplayerSound';
 import {
@@ -469,6 +471,8 @@ export function useMultiplayerTictactoe() {
         setSessionRow(null);
         setGameState(null);
         setPhase(MpPhase.Idle);
+        setHostInvite(null);
+        setHostInviteModalDismissed(false);
         return null;
       }
       assignSessionId(row._id);
@@ -479,10 +483,31 @@ export function useMultiplayerTictactoe() {
       }
       if (row.gameStatus === MultiplayerSessionStatus.PENDING) {
         setPhase(MpPhase.Lobby);
+        if (isViewerLobbyHost(userId, row)) {
+          setHostInvite((prev) => {
+            if (prev) return prev;
+            const vis = String(row.visibility ?? '').toLowerCase();
+            return {
+              sessionId: row._id,
+              visibility:
+                vis === 'private'
+                  ? LobbyVisibility.PRIVATE
+                  : LobbyVisibility.PUBLIC,
+              plaintextJoinCode: undefined,
+              betAmount: row.betAmount,
+              currency: row.currency,
+              gameType: MultiplayerGameTypeEnum.TicTacToeGame,
+            };
+          });
+        }
       } else if (row.gameStatus === MultiplayerSessionStatus.IN_PROGRESS) {
         setPhase(MpPhase.Playing);
+        setHostInvite(null);
+        setHostInviteModalDismissed(false);
       } else {
         setPhase(MpPhase.Ended);
+        setHostInvite(null);
+        setHostInviteModalDismissed(false);
       }
       await joinSessionRoom(row._id);
       return row;
@@ -490,7 +515,13 @@ export function useMultiplayerTictactoe() {
       /* Socket not ready or transient error — do not clear session client-side */
       return null;
     }
-  }, [emit, joinSessionRoom, applyGameStateToBoard, assignSessionId]);
+  }, [
+    emit,
+    joinSessionRoom,
+    applyGameStateToBoard,
+    assignSessionId,
+    userId,
+  ]);
 
   const requestRematch = useCallback(async () => {
     if (isMultiplayerLobbyMock()) {
@@ -667,11 +698,15 @@ export function useMultiplayerTictactoe() {
         setPhase(MpPhase.Lobby);
       } else if (row.gameStatus === MultiplayerSessionStatus.IN_PROGRESS) {
         setPhase(MpPhase.Playing);
+        setHostInvite(null);
+        setHostInviteModalDismissed(false);
       } else if (
         row.gameStatus === MultiplayerSessionStatus.COMPLETED ||
         row.gameStatus === MultiplayerSessionStatus.CANCELLED
       ) {
         setPhase(MpPhase.Ended);
+        setHostInvite(null);
+        setHostInviteModalDismissed(false);
       }
 
       playersInSessionRef.current = nextCount;
@@ -679,8 +714,7 @@ export function useMultiplayerTictactoe() {
       if (
         meta?.reason === 'player_joined' &&
         userId &&
-        row.hostUserId &&
-        row.hostUserId === userId &&
+        isViewerLobbyHost(userId, row) &&
         nextCount > before
       ) {
         toaster.create({
@@ -705,6 +739,8 @@ export function useMultiplayerTictactoe() {
       setPhase(MpPhase.Playing);
       setMatchQueued(false);
       stopPolling();
+      setHostInvite(null);
+      setHostInviteModalDismissed(false);
       if (payload.state) applyGameStateToBoard(payload.state);
       void syncActiveSession();
     };
@@ -1161,6 +1197,7 @@ export function useMultiplayerTictactoe() {
                 : undefined,
             betAmount: stake,
             currency: cur,
+            gameType: MultiplayerGameTypeEnum.TicTacToeGame,
           });
           setHostInviteModalDismissed(false);
         } else {

@@ -17,8 +17,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { toaster } from '@/components/ui/toaster';
 import { LobbyVisibility } from '@blockwinz/shared';
+import { multiplayerGamesInfo } from '@/shared/constants/multiplayerGamesInfo.constant';
 import type { HostInviteInfo } from './types';
-import { buildTictactoeInviteUrl, formatInvitePlainText } from './inviteLink';
+import {
+  buildMultiplayerInviteUrl,
+  formatInvitePlainText,
+  resolveMultiplayerInvitePath,
+} from './inviteLink';
 
 function copyToClipboard(label: string, text: string) {
   void navigator.clipboard.writeText(text).then(
@@ -46,24 +51,33 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
   onClose,
   invite,
 }) => {
+  const gameMeta = invite
+    ? multiplayerGamesInfo[invite.gameType]
+    : undefined;
+  const gameLabel = gameMeta?.name ?? 'Multiplayer';
+  const invitePath = invite
+    ? resolveMultiplayerInvitePath(invite.gameType)
+    : '/multiplayer/tictactoe';
+
   const inviteUrl = useMemo(() => {
     if (!invite) return '';
-    return buildTictactoeInviteUrl(invite.sessionId, {
+    return buildMultiplayerInviteUrl(invite.sessionId, {
+      path: invitePath,
       joinCode: invite.plaintextJoinCode,
     });
-  }, [invite]);
+  }, [invite, invitePath]);
 
   const fullText = useMemo(() => {
     if (!invite) return '';
     return formatInvitePlainText({
-      gameLabel: 'Tic Tac Toe',
+      gameLabel,
       betAmount: invite.betAmount,
       currency: invite.currency,
       sessionId: invite.sessionId,
       joinCode: invite.plaintextJoinCode,
       inviteUrl,
     });
-  }, [invite, inviteUrl]);
+  }, [invite, inviteUrl, gameLabel]);
 
   if (!invite) return null;
 
@@ -250,7 +264,7 @@ const HostInviteModal: FunctionComponent<HostInviteModalProps> = ({
                       onClick={() => {
                         void navigator
                           .share({
-                            title: 'Join my Tic Tac Toe game',
+                            title: `Join my ${gameLabel} game`,
                             url: inviteUrl,
                           })
                           .catch(() => {

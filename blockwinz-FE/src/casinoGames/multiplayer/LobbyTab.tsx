@@ -1,11 +1,15 @@
 import { Badge, Box, HStack, Text, VStack } from '@chakra-ui/react';
 import { FunctionComponent } from 'react';
 import { Button } from '@/components/ui/button';
-import TicTacToeIcon from '@/assets/icons/tic-tac-toe-icon.svg';
 import type { MultiplayerSessionRow } from './types';
 import { getJoinLobbyBlockReason, shortHostLabel } from './lobbyJoinRules';
 
 interface LobbyTabProps {
+  gameTitle: string;
+  /** Shown in empty state — waiting rooms / open tables (not the game tile). */
+  lobbyBrowseIconSrc: string;
+  /** Per-row badge for which multiplayer title the table is. */
+  gameListIconSrc: string;
   lobbies: MultiplayerSessionRow[];
   viewerCurrency: string;
   viewerStake: number;
@@ -18,6 +22,9 @@ interface LobbyTabProps {
  * Browse public lobbies with Join actions (UI-only join gating).
  */
 const LobbyTab: FunctionComponent<LobbyTabProps> = ({
+  gameTitle,
+  lobbyBrowseIconSrc,
+  gameListIconSrc,
   lobbies,
   viewerCurrency,
   viewerStake,
@@ -38,7 +45,7 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
           color='gray.400'
           textTransform='uppercase'
           letterSpacing='0.08em'>
-          Open tables
+          Open rooms
         </Text>
         <Button
           size='xs'
@@ -89,14 +96,14 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
             display='flex'
             alignItems='center'
             justifyContent='center'>
-            <img src={TicTacToeIcon} alt='' width={28} height={28} aria-hidden />
+            <img src={lobbyBrowseIconSrc} alt='' width={28} height={28} aria-hidden />
           </Box>
           <Text fontSize='sm' fontWeight='600' color='gray.200' mb={1}>
             No public tables open
           </Text>
           <Text fontSize='xs' color='gray.500' lineHeight='tall' maxW='240px' mx='auto'>
-            Host a game from the Host tab or use Find match — new lobbies show up
-            here when players create them.
+            Host a {gameTitle} table from the Host tab or use Find match — new
+            lobbies show up here when players create them.
           </Text>
         </Box>
       ) : (
@@ -161,7 +168,7 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
                         boxShadow: '0 0 0 1px rgba(255,255,255,0.06)',
                       }}>
                       <img
-                        src={TicTacToeIcon}
+                        src={gameListIconSrc}
                         alt=''
                         width={15}
                         height={15}
@@ -175,7 +182,7 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
                           fontWeight='700'
                           color='white'
                           letterSpacing='-0.02em'>
-                          Tic Tac Toe
+                          {gameTitle}
                         </Text>
                         <Badge
                           bg={
@@ -293,7 +300,7 @@ const LobbyTab: FunctionComponent<LobbyTabProps> = ({
                         : { filter: 'brightness(1.06)' }
                     }
                     title={block ?? 'Review table details before joining'}
-                    aria-label={`Join Tic Tac Toe table, ${lobby.betAmount} ${cur}`}
+                    aria-label={`Join ${gameTitle} table, ${lobby.betAmount} ${cur}`}
                     onClick={() => onJoin(lobby)}>
                     Join
                   </Button>

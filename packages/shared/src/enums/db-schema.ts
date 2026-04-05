@@ -10,4 +10,5 @@ export enum DbGameSchema {
   MinesGame = 'MinesGame',
   WheelGame = 'WheelGame',
   TicTacToeGame = 'TicTacToeGame',
+  QuoridorGame = 'QuoridorGame',
 }

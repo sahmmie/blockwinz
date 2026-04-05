@@ -31,3 +31,4 @@ export * from './keno-games';
 export * from './wheel-games';
 export * from './tictactoe-games';
 export * from './multiplayer-tictactoe-games';
+export * from './multiplayer-quoridor-games';

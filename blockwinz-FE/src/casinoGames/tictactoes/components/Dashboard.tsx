@@ -15,7 +15,14 @@ import HostInviteModal from '@/casinoGames/multiplayer/HostInviteModal';
 import FindingMatchModal from '@/casinoGames/multiplayer/FindingMatchModal';
 import NoMatchFoundModal from '@/casinoGames/multiplayer/NoMatchFoundModal';
 import type { MultiplayerPanelTab } from '@/casinoGames/multiplayer/types';
+import { isViewerLobbyHost } from '@/casinoGames/multiplayer/isViewerLobbyHost';
+import { multiplayerGamesInfo } from '@/shared/constants/multiplayerGamesInfo.constant';
+import { MultiplayerGameTypeEnum } from '@blockwinz/shared';
 import { toaster } from '@/components/ui/toaster';
+import LobbyBrowseIcon from '@/assets/icons/waiting-room-icon.svg';
+
+const tttPanelMeta =
+  multiplayerGamesInfo[MultiplayerGameTypeEnum.TicTacToeGame]!;
 
 interface DashboardProps {}
 
@@ -138,11 +145,7 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
   const canShareRoomDetails =
     mpPhase === MpPhase.Lobby &&
     Boolean(hostInvite) &&
-    Boolean(
-      userId &&
-        multiplayerSession?.hostUserId &&
-        String(userId) === String(multiplayerSession.hostUserId),
-    );
+    isViewerLobbyHost(userId, multiplayerSession);
 
   return (
     <>
@@ -176,6 +179,9 @@ const Dashboard: FunctionComponent<DashboardProps> = () => {
         pr={'20px'}
         pb={{ base: '38px', md: '32px' }}>
         <MultiplayerPanel
+          gameTitle={tttPanelMeta.name}
+          lobbyBrowseIconSrc={LobbyBrowseIcon}
+          gameListIconSrc={tttPanelMeta.icon}
           betAmount={betAmount}
           betAmountErrors={betAmountErrors}
           profitOnWin={profitOnWin}

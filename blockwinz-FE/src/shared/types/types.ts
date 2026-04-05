@@ -43,6 +43,8 @@ export type GameInfo = {
     link: string
     image: string
     description: string
+    /** When set, GameInfo shows a “How to play” control that opens this text. */
+    howToPlay?: string
     comingSoon?: boolean
     releasedAt?: Date
 }

@@ -105,7 +105,7 @@ export const mainSidebarLinks: SideBarLink[] = [
     link: '/new-releases',
   },
   {
-    icon: WaitingRoomIcon,
+    icon: multiplayerGamesInfo.QuoridorGame!.icon,
     label: 'Lobbies',
     link: '/lobbies',
     multiplayerOnly: true,
@@ -156,6 +156,11 @@ export const multiplayerGamesSidebarLinks: SideBarLink[] = [
     icon: multiplayerGamesInfo.TicTacToeGame!.icon,
     label: multiplayerGamesInfo.TicTacToeGame!.name,
     link: multiplayerGamesInfo.TicTacToeGame!.link,
+  },
+  {
+    icon: WaitingRoomIcon,
+    label: multiplayerGamesInfo.QuoridorGame!.name,
+    link: multiplayerGamesInfo.QuoridorGame!.link,
     showDivider: true,
   },
 ];

@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  Box,
+  HStack,
   Toaster as ChakraToaster,
   Portal,
   Spinner,
@@ -26,8 +28,26 @@ export const Toaster = () => {
             ) : (
               <Toast.Indicator />
             )}
-            <Stack gap='1' flex='1' maxWidth='100%'>
-              {toast.title && <Toast.Title>{toast.title}</Toast.Title>}
+            <Stack gap='1' flex='1' minW={0} maxW='100%'>
+              <HStack
+                align='center'
+                justify='space-between'
+                gap='2'
+                w='100%'>
+                {toast.title ? (
+                  <Toast.Title flex='1' minW={0}>
+                    {toast.title}
+                  </Toast.Title>
+                ) : (
+                  <Box flex='1' minW={0} />
+                )}
+                {toast.meta?.closable !== false ? (
+                  <Toast.CloseTrigger
+                    aria-label='Dismiss notification'
+                    flexShrink={0}
+                  />
+                ) : null}
+              </HStack>
               {toast.description && (
                 <Toast.Description>{toast.description}</Toast.Description>
               )}
@@ -35,7 +55,6 @@ export const Toaster = () => {
             {toast.action && (
               <Toast.ActionTrigger>{toast.action.label}</Toast.ActionTrigger>
             )}
-            {toast.meta?.closable && <Toast.CloseTrigger />}
           </Toast.Root>
         )}
       </ChakraToaster>

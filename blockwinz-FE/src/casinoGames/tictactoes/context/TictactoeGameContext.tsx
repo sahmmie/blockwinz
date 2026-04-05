@@ -20,9 +20,14 @@ import { isMultiplayerLobbyMock } from '@/casinoGames/multiplayer/isMultiplayerL
 import { useMultiplayerTictactoe } from '../hooks/useMultiplayerTictactoe';
 import { MpPhase } from '../types';
 import { toaster } from '@/components/ui/toaster';
-import { LobbyVisibility } from '@blockwinz/shared';
+import { LobbyVisibility, MultiplayerGameTypeEnum } from '@blockwinz/shared';
+import { multiplayerGamesInfo } from '@/shared/constants/multiplayerGamesInfo.constant';
 
 const SOCKET_WAIT_MS = 15_000;
+
+const TTT_JOIN_MODAL_TITLE =
+  multiplayerGamesInfo[MultiplayerGameTypeEnum.TicTacToeGame]?.name ??
+  'Tic Tac Toe';
 
 function waitForSocketConnected(
   getSocketInstance: () => ReturnType<
@@ -433,6 +438,7 @@ export const TictactoeGameProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         onClose={handleInviteModalClose}
         payload={pendingInvite?.kind === 'invite' ? pendingInvite : null}
+        gameTitle={TTT_JOIN_MODAL_TITLE}
         viewerCurrency={currency ?? ''}
         viewerStake={mp.state.betAmount ?? 0}
         roundingDecimals={roundingDecimals}

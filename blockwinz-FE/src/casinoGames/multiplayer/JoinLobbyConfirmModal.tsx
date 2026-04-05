@@ -41,6 +41,8 @@ export interface JoinLobbyConfirmModalProps {
   open: boolean;
   onClose: () => void;
   payload: JoinLobbyConfirmPayload | null;
+  /** Shown in the summary row (e.g. Quoridor vs Tic Tac Toe). */
+  gameTitle: string;
   viewerCurrency: string;
   viewerStake: number;
   roundingDecimals: number;
@@ -58,6 +60,7 @@ const JoinLobbyConfirmModal: FunctionComponent<JoinLobbyConfirmModalProps> = ({
   open,
   onClose,
   payload,
+  gameTitle,
   viewerCurrency,
   viewerStake,
   roundingDecimals,
@@ -179,7 +182,7 @@ const JoinLobbyConfirmModal: FunctionComponent<JoinLobbyConfirmModalProps> = ({
                 Game
               </Text>
               <Text fontSize='sm' fontWeight='600' color='white' textAlign='right'>
-                Tic Tac Toe
+                {gameTitle}
               </Text>
             </HStack>
 

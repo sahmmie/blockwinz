@@ -19,6 +19,8 @@ import RPSIcon from '@/assets/icons/sport-icon.svg';
 import DiceIcon from '@/assets/icons/dice-icon.svg';
 import GoldCoinIcon from '@/assets/icons/gold-coin-icon.svg';
 import GridIcon from '@/assets/icons/list-icon.svg';
+import QuoridorIcon from '@/assets/icons/quoridor-icon.svg';
+import { QUORIDOR_HOW_TO_PLAY } from '@/shared/constants/multiplayerGamesInfo.constant';
 import JackpotIcon from '@/assets/icons/promotion-icon.svg';
 import MinesIcon from '@/assets/icons/mines-icon.svg';
 import NumbersIcon from '@/assets/icons/keno-icon.svg';
@@ -60,6 +62,20 @@ export const LOBBIES_HUB_STATIC_TABS: LobbyHubTab[] = [
       image: TicTacToeImage,
       link: '/multiplayer/tictactoe',
       releasedAt: new Date('2025-02-01'),
+    }),
+  },
+  {
+    key: 'quoridor',
+    gameType: MultiplayerGameTypeEnum.QuoridorGame,
+    game: createGame({
+      id: MultiplayerGameTypeEnum.QuoridorGame,
+      name: 'Quoridor',
+      description: 'Wall-building race to the opposite row.',
+      howToPlay: QUORIDOR_HOW_TO_PLAY,
+      icon: QuoridorIcon,
+      image: placeholderImage,
+      link: '/multiplayer/quoridor',
+      releasedAt: new Date('2026-04-01'),
     }),
   },
   {

@@ -52,6 +52,8 @@ function dbGameSchemaForLobbyList(
       return DbGameSchema.CrashGame;
     case MultiplayerGameTypeEnum.DiceDuelGame:
       return DbGameSchema.DiceGame;
+    case MultiplayerGameTypeEnum.QuoridorGame:
+      return DbGameSchema.QuoridorGame;
     default:
       return null;
   }

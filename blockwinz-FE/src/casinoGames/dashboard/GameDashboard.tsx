@@ -19,6 +19,11 @@ interface GameDashboardProps {
   game: GameInfo;
   /** Solo / on-chain provably-fair games; hide for multiplayer where verification differs. */
   showProvablyFair?: boolean;
+  /**
+   * When true, the play column fills the row height and centers `renderGame`
+   * vertically and horizontally (e.g. Quoridor board).
+   */
+  centerPlayArea?: boolean;
 }
 
 const GameDashboard: FunctionComponent<GameDashboardProps> = ({
@@ -26,6 +31,7 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
   renderConfig,
   renderGame,
   showProvablyFair = true,
+  centerPlayArea = false,
 }) => {
   const { setCurrentGame } = usePageData();
   const { openModal } = useModal();
@@ -84,14 +90,30 @@ const GameDashboard: FunctionComponent<GameDashboardProps> = ({
         bg={'#151832'}
         borderTopRadius={{ base: '8px', md: '8px' }}
         display={'flex'}
-        flexDirection={{ base: 'column-reverse', md: 'row' }}>
+        flexDirection={{ base: 'column-reverse', md: 'row' }}
+        alignItems={{ base: 'stretch', md: 'stretch' }}>
         <Box
           mb={{ base: '26px', md: '0px' }}
           w={{ base: '100%', md: '4/12' }}
+          flexShrink={0}
           borderRight={{ md: '0.2px solid #FFFFFF', base: 'none' }}>
           {renderConfig}
         </Box>
-        <Box w={'100%'} minW={0} pl={{ base: '0', md: '16px' }}>
+        <Box
+          w={'100%'}
+          minW={0}
+          maxW='100%'
+          pl={{
+            base: centerPlayArea ? '12px' : '0',
+            md: '16px',
+          }}
+          pr={{ base: centerPlayArea ? '12px' : '0', md: '0' }}
+          display={centerPlayArea ? 'flex' : undefined}
+          flexDirection={centerPlayArea ? 'column' : undefined}
+          justifyContent={centerPlayArea ? 'center' : undefined}
+          alignItems={centerPlayArea ? 'center' : undefined}
+          flex={centerPlayArea ? { base: undefined, md: 1 } : undefined}
+          py={centerPlayArea ? { base: 3, md: 4 } : undefined}>
           {renderGame}
         </Box>
       </Box>

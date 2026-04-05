@@ -6,7 +6,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "prebuild": "pnpm --filter @blockwinz/shared build",
+    "prebuild": "pnpm --filter @blockwinz/shared build && pnpm --filter @blockwinz/quoridor-engine build",
     "build": "nest build",
     "build:generated": "tsc -p tsconfig.contracts.json && pnpm run generated:barrel",
     "generated:barrel": "pnpm --filter @blockwinz/shared generated:barrel",
@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@2toad/profanity": "^3.1.1",
+    "@blockwinz/quoridor-engine": "workspace:*",
     "@blockwinz/shared": "workspace:*",
     "@bull-board/api": "^6.5.3",
     "@bull-board/express": "^6.5.3",

@@ -1,4 +1,8 @@
-import type { LobbyVisibility, MultiplayerSessionStatus } from '@blockwinz/shared';
+import type {
+  LobbyVisibility,
+  MultiplayerGameTypeEnum,
+  MultiplayerSessionStatus,
+} from '@blockwinz/shared';
 
 /**
  * Session row from `listPublicLobbies`, `newGame`, `joinGame`, etc.
@@ -40,4 +44,6 @@ export type HostInviteInfo = {
   plaintextJoinCode?: string;
   betAmount: number;
   currency: string;
+  /** Drives invite URL and copy text (`multiplayerGamesInfo` must define this id). */
+  gameType: MultiplayerGameTypeEnum;
 };

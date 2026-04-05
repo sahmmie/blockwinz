@@ -50,6 +50,7 @@ const CasinoGame = lazy(() => import('./casinoGames/CasinoGame'));
 const Limbo = lazy(() => import('@/casinoGames/limbo/Limbo'));
 const Dice = lazy(() => import('@/casinoGames/dice/Dice'));
 const Tictactoe = lazy(() => import('@/casinoGames/tictactoes/Tictactoe'));
+const Quoridor = lazy(() => import('@/casinoGames/quoridor/Quoridor'));
 const Mines = lazy(() => import('@/casinoGames/mines/Mine'));
 const Keno = lazy(() => import('@/casinoGames/keno/Keno'));
 const Wheel = lazy(() => import('@/casinoGames/wheel/WheelGame'));
@@ -159,6 +160,7 @@ function App() {
 
               <Route path='multiplayer' element={<CasinoGame />}>
                 <Route path='tictactoe' element={<Tictactoe />} />
+                <Route path='quoridor' element={<Quoridor />} />
               </Route>
 
               <Route path='logout' element={<Logout />} />

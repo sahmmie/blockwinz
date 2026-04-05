@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { DbGameSchema } from '@blockwinz/shared';
 import type { MultiplayerGamePlugin } from './multiplayer-game-plugin.interface';
 import { TicTacToeMultiplayerPlugin } from './tictactoe-multiplayer.plugin';
+import { QuoridorMultiplayerPlugin } from './quoridor-multiplayer.plugin';
 
 /**
  * Resolves the rule/persistence plugin for a `DbGameSchema` multiplayer title.
@@ -16,6 +17,7 @@ export class MultiplayerGameRegistry implements OnModuleInit {
 
   constructor(
     private readonly ticTacToeMultiplayerPlugin: TicTacToeMultiplayerPlugin,
+    private readonly quoridorMultiplayerPlugin: QuoridorMultiplayerPlugin,
   ) {}
 
   /**
@@ -23,6 +25,7 @@ export class MultiplayerGameRegistry implements OnModuleInit {
    */
   onModuleInit(): void {
     this.register(this.ticTacToeMultiplayerPlugin);
+    this.register(this.quoridorMultiplayerPlugin);
   }
 
   /**

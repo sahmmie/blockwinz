@@ -18,7 +18,8 @@ function formatRedisUrlForLog(url: string): string {
 }
 
 export class RedisIoAdapter extends IoAdapter {
-  private adapterConstructor: ReturnType<typeof createAdapter>;
+  /** Set only after a successful Redis connect; otherwise Socket.IO keeps the default in-memory adapter. */
+  private adapterConstructor?: ReturnType<typeof createAdapter>;
   private readonly logger = new Logger(RedisIoAdapter.name);
 
   async connectToRedis(): Promise<void> {
@@ -50,7 +51,13 @@ export class RedisIoAdapter extends IoAdapter {
       cors: SOCKET_IO_CORS,
       allowEIO3: true,
     });
-    server.adapter(this.adapterConstructor);
+    if (this.adapterConstructor) {
+      server.adapter(this.adapterConstructor);
+    } else {
+      this.logger.warn(
+        'Socket.IO is using the default in-memory adapter (Redis unavailable). Multi-instance / scaled WebSocket rooms will not sync.',
+      );
+    }
     return server;
   }
 }

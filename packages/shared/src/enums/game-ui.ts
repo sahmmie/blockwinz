@@ -27,6 +27,7 @@ export enum GameCategoryEnum {
 /** Multiplayer catalogue (UI + routes). Backend may only implement a subset; see `DbGameSchema` for persisted IDs. */
 export enum MultiplayerGameTypeEnum {
   TicTacToeGame = 'TicTacToeGame',
+  QuoridorGame = 'QuoridorGame',
   CoinFlipGame = 'CoinFlipGame',
   RPSGame = 'RPSGame',
   DiceDuelGame = 'DiceDuelGame',
