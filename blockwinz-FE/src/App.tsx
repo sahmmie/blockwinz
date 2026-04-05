@@ -23,6 +23,7 @@ import {
   identifyPosthogUser,
   reloadPosthogFeatureFlags,
 } from '@/shared/utils/posthog';
+import { Analytics } from '@vercel/analytics/react';
 
 // Lazy load pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -169,6 +170,7 @@ function App() {
             <Route element={<PageNotFound />} path='*' />
           </Route>
         </Routes>
+        <Analytics />
       </Suspense>
     </SessionBootstrap>
   );
