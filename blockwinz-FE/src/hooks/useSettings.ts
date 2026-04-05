@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 // TODO: Uncomment when hotkeys are ready
 // import { useHotkeysHandler } from '../Settings'
 import useAccount from './userAccount'
-import { ProfileI, UserI } from '@/shared/interfaces/account.interface'
+import { ProfileI } from '@/shared/interfaces/account.interface'
 import axiosInstance from '@/lib/axios'
 import { toaster } from '@/components/ui/toaster'
 import { HotkeyConfigs } from '@/shared/types/core'
@@ -14,7 +14,7 @@ const defaultSettings: Partial<ProfileI> = {
     isHotKeysActive: false,
 }
 
-const getSettingsFromPlayer = (profile: Partial<ProfileI>): Partial<ProfileI> => {
+const getSettingsFromPlayer = (profile: Partial<ProfileI> | undefined): Partial<ProfileI> => {
     if (!profile) return defaultSettings
 
     return {
@@ -33,7 +33,7 @@ interface SettingsState {
     setHotKeysConfig: (config: HotkeyConfigs) => void
     setIsHotKeysEnabled: (isEnabled: boolean) => void
     updatePlayerSettings: (newSettings: Partial<ProfileI>) => void
-    initializeSettings: (player: Partial<UserI>) => void
+    initializeSettings: (player: Partial<ProfileI> | undefined) => void
     isLoading: boolean
 }
 
@@ -45,7 +45,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     gameContainerRef: { current: null } as React.RefObject<HTMLDivElement>,
     setHotKeysConfig: (config: HotkeyConfigs) => set({ hotKeysConfig: config }),
     setIsHotKeysEnabled: (isEnabled: boolean) => set({ isHotKeysEnabled: isEnabled }),
-    updatePlayerSettings: (newSettings: Partial<UserI>) => {
+    updatePlayerSettings: (newSettings: Partial<ProfileI>) => {
         const settings = get().settings
 
         const updatedSettings = {
@@ -70,7 +70,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
             set({ isLoading: false })
         })
     },
-    initializeSettings: (player: Partial<UserI>) => {
+    initializeSettings: (player: Partial<ProfileI> | undefined) => {
         set({ settings: getSettingsFromPlayer(player), isLoading: false })
     },
 }))
@@ -94,7 +94,7 @@ export const useSettingsInitializer = () => {
 
     useEffect(() => {
         if (userData) {
-            initializeSettings(userData.profile);
+            initializeSettings(typeof userData.profile !== 'string' ? userData.profile : undefined);
         }
     }, [userData, initializeSettings])
 }

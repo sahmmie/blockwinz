@@ -20,7 +20,7 @@ const ProfileCard: FunctionComponent<ProfileCardProps> = () => {
   const { openModal } = useModal();
 
   const joinedAt =
-    userData?.createdAt ?? userData?.profile?.createdAt ?? undefined;
+    userData?.createdAt ?? (typeof userData?.profile !== 'string' ? userData?.profile?.createdAt : undefined) ?? undefined;
 
   return (
     <Box>
